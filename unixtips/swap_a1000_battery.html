@@ -1,0 +1,36 @@
+<html>
+<head>
+<title>
+Can you swap the A1000's cache battery without powering down the array?
+</title>
+</head>
+
+<body>
+<b>Q</b>. Can you swap the A1000's cache battery without powering down the array?
+<br>
+<b>A</b>. Sort of.
+<br>
+<br>
+
+Officially, no.  You must power down the array before changing the battery per the manual.
+<br>
+Unofficially, it can be done.  The ways that are least likely (there are no guarantees in life) to cause data loss are:
+
+<ol>
+<li>Wait until the battery expires and the array has disabled write caching.  Since the battery isn't being used, no caching is taking place.
+
+<li>Disable write caching, change the battery, wait for the new battery to charge, enable write caching, and reset the battery age like so:<br>
+raidutil -c &lt;insert_the_appropriate_controller_here&gt; -R
+
+</ol>
+
+Has this been done?  Yes. <br> 
+Do I recommend you do it?  No. <br>  
+Have I done it?  Yes, both ways.  <br>
+<p>
+Can you hold me responsible for ANY data loss you encounter because you tried to do it without powering the array down?  Nope, as you have been warned this is NOT the approved way to do it.  :-) <br>
+<p>
+<p>
+This information was derived from talking to several different folks that have done it one way or the other, checking what others had to say in the newsgroups, and talking to some folks that had worked for Sun in some previous life.
+</body>
+</html>

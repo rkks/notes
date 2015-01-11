@@ -1,0 +1,5 @@
+To list the available memory resources on an HP system:
+
+	swapinfo
+
+will list the memory used and available on that particular system.

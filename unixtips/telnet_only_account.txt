@@ -1,0 +1,22 @@
+Q. How can I create an account that doesn't allow FTP access, but will allow telnet access?
+
+A. Add an entry for that person's username into the file:
+	/etc/ftpusers
+   This person will not be able to connect to the box using FTP.
+
+
+
+The default entries in this file are usually:
+     root
+     daemon
+     bin
+     sys
+     adm
+     lp
+     uccp
+     nuucp
+     smmsp
+     listen
+     nobody
+     noaccess
+     nobody4

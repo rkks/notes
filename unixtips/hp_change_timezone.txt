@@ -1,0 +1,9 @@
+How to change the time zone on a HP-UX machine?
+
+Answer: 
+Edit the following files: 
+
+	/etc/src.sh
+	/etc/src.csh
+
+and then reboot.

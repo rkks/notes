@@ -1,0 +1,35 @@
+ Q:  Why only 1 card in Ultra 2?
+ A:  CPU limitation.  Can't get 500Mhz per card for more than one card.
+ 
+ Q:  Did you say 500 Mhz per card?
+ A:  Yes.  This can be in any configuration.  You can have two 250 MHz CPU's,
+     three 167's, five 110's, etc.  How you get 500 Mhz is up to you and your
+     customer.
+     
+ Q:  What do you mean "at least a 167 Mhz CPU for trunking"?
+ A:  For trunking, all the interrupts that occur are managed by one CPU.  With
+     such a heavy load on one CPU, you need to have at least a 167 CPU to handle
+     this.  You cannot choose 110 CPU's or 75 CPU's.
+
+
+ System Type       No. of QFE's supported
+ Ultra 2            1
+ Ultra 30           1
+ Ultra 450          2
+ E3000              2
+ E4000/5000         2
+ E6000              2
+ E10000           (4 per domain)
+
+
+ Sun Trunking v1.x has two policies.
+ -----------------------------------
+ Round-Robin - typically used only for back-to-back Sun server connections.
+ MAC-Hashing - typically used only for Trunking-Capable switch connections.
+
+The most efficient algorithm to use is MAC-Hashing, as it maintains
+the temporal ordering of packets within a single stream.  It is best
+suited to AGGREGATE multiple clients over a Trunked network fabric
+as it hashes (binary XOR last 2 bits) client MAC addresses to determine
+which port to use.  With a 4-port trunk, 25% of client traffic would
+hash (00,01,10,11) to use each of the four 100BaseT QFE ports.

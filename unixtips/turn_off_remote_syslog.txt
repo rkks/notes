@@ -1,0 +1,10 @@
+Q. How can I keep syslog from accepting messages from remote servers?  How do
+I turn of port 514 when doing netstat -an?
+
+A. You need to run syslog with the '-t' option.
+
+Edit /etc/init.d/syslog
+and change the line that reads:
+	/usr/sbin/syslogd >/dev/msglog 2>&1 &
+to
+	/usr/sbin/syslogd -t >/dev/msglog 2>&1 &

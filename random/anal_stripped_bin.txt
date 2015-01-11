@@ -1,0 +1,557 @@
+Practical Analysis of Stripped Binary Code
+------------------------------------------
+By:	Harris, Miller	(2005)
+
+-------------------------------
+Applications of binary analysis
+-------------------------------
+(1) binary modification
+(2) binary translation
+(3) binary matching
+(4) performance profiling
+
+---------------------------------------
+What info does binary analysis provide?
+---------------------------------------
+(1) the content of a program's code
+
+ - instructions, basic blocks, functions, modules
+
+(2) a program's structure
+
+ - control flow, data flow
+
+(3) a program's data structures
+
+ - global variables, stack variables
+
+--------------------
+Stripped binary code
+--------------------
+Executables that lack info a/b the locations, sizes, and 
+layout of functions and objects
+
+ - don't include the compiler-generated symbol tables
+   which provide info a/b a variable's type... a/b a
+   function's parameters and return type... a/b a type's
+   definition (e.g. typedef int* blah ... blah is an int*)
+
+Why stripped?
+-------------
+ - Commercial software: to prevent reverse engineering and
+                        to deter unlicensed use
+
+ - malware: to resist analysis
+
+ - system libraries and system utilities: to reduce disk
+   space consumed by the library/utility
+
+==========
+This work:
+==========
+ - extract structural info from stripped binaries
+
+ - provide coverage for non-conventional functions -- e.g.
+   those with multiple entry points and/or those which are
+   laid out non-contiguously
+
+---------------
+Structural info
+---------------
+ - fxns: entry points, exit points, start addresses, 
+	 ranges, basic blocks
+
+ - inter-procedural control flow
+
+ - intra-procedural control flow
+
+Background:	"static call graph"
+-----------------------------------
+ -- can only identify "static calls" -- which means direct
+    calls ... e.g. "jmp targ_addr" ... "call LoadLibrary" ...
+
+ -- cannot identify functions that are only reached via
+    indirect control-flow transfers
+
+    -- e.g. "call mem_loc" where mem_loc contains the target
+       address, to which control should be transferred
+
+ -- calls made through C++ virtual function tables would
+    be examples of indirect control-flow transfers
+
+---------------------
+How obtain this info?
+---------------------
+(1) breadth-first static call graph traversal
+
+(2) breadth-first control flow graph traversal
+
+Use above two techniques to "discover" code
+
+Two tools (RAD, LEEL) begin at a program's entry
+point and traverse the static call graph to find
+function entry points
+
+RAD: in order to discover functions which are NOT
+referenced statically, performs pattern matching
+against standard function preambles
+
+ - seems this is only performed against code that
+   is otherwise not referred to in the static CG
+
+In order to identify functions in a binary, have to
+have a definition or model what a function is;
+conventional view:
+
+ - must have a single entry point
+
+ - must have contiguous code range
+
+They implemented all of this in Dyninst. Evaluation is
+provided:
+
+ (1) compare their output on stripped binaries with
+     info provided by the compiler's symbol tables
+     (for those same binaries were they not stripped)
+
+  - symbol tables: 
+
+    -- provide approximate account of the # of functions 
+       in a binary and their locations
+
+  - Dyninst recovers: >95% of functions in stripped executables
+
+ (2) compare their output with other tools' output on
+     those (stripped) binaries
+
+  - compare Dyninst to IDAPro
+
+ (3) how well can they instrument a stripped binary?
+
+  - they perform analysis on the stripped binaries (as above)
+    to identify functions...
+
+  - ...then they instrument function entry and exit locations
+
+  + if any function in the instrumented program terminates
+    abnormally, they conclude that their instrumentation
+    failed in that instance (or the analysis was wrong...)
+
+    otherwise, the instrumentation was successful
+
+  - could instrument >87% of stripped binaries and 99% of
+    unstripped
+
+    -- some complications in problem of instrumenting
+       generally ... so not all failures accounted for by
+       limitations in binary analysis
+
+============
+Related Work
+============
+----------------------
+Dynamic code analysis:
+----------------------
+ - structural info determined at run time
+
+ - e.g. Dynamo, DynamoRio, DIOTA, PIN, ...
+
+ - some tools use both static and dynamic code analysis (IDTrace)
+
+Categories of tools that perform static binary analysis:
+--------------------------------------------------------
+ - disassemblers
+ - binary rewriters
+ - decompilers
+ - binary translators
+
+---------------------------------------------------------------
+(1) Disassemblers: convert binary code to symbolic assembly
+		   language representation
+---------------------------------------------------------------
+ - some present control-flow info and/or try to partition the
+   program into functins
+
+ - IDAPro: 
+
+   -- uses depth-first call-graph traversal to determine function 
+      start addresses
+
+   -- uses intra-procedural control flow analysis to determine
+      function ranges (answers the question: from start address X, 
+      how much of the following code is part of that same function?)
+
+   -- can't handle: non-contiguous functions
+
+   -- can't identify functions that are *only reached* via
+      indirect calls
+
+ - another approach to finding functions: look for standard
+   function prologues
+
+ + general challenges:
+
+   -- variable length instructions
+
+   -- data mixed with code (means that for certain "gaps in the 
+      code", can't be sure whether that gap is data or is a 
+      function that is only referenced indirectly)
+
+   -- indirect control flow
+
+   -- deliberate code obfuscation
+
+ - hybrid disassembly: use output of two different disassembly algos
+
+   - linear sweep and recursive travel; if these agree then
+     disass likely to be OK
+
+ - Orso: disassembly method for obfuscated code
+
+   - uses CFG checks to verify disassembly correctness
+
+   - e.g. if a branch targets the middle of an instruction,
+     the disass of this branch instruction is wrong
+
+---------------------------------------------------------------
+(2) Binary modification: rewrite code statically or at run time
+---------------------------------------------------------------
+Used in post-compilation optimization, instrumentation, profiling
+
+Most rely on presence of symbol table and debugging info
+
+EEL can operate on stripped binaries for SPARC
+
+ - doesn't work for variable-length instruction set archs though
+
+ - can't identify fxns reachable only via an indirect control xfer
+
+LEEL:	works on ia32 (variable-length instruction set arch)
+
+ - works on stripped binaries
+
+ - starts at prog's entry point; walks the static call flow graph
+   to build the set of function starting points
+
+   -- recursively disassemble starting at each of these 
+      fxn starting points
+
+ - how to handle gaps in the code space
+
+   "gaps in the code space" : 
+
+    -- portions of the binary which appear (after construction of 
+       static CFGs) to never be referred to
+
+    -- in actuality these contain: (a) data bytes or (b) functions
+       that are only reachable through indirect control transfers
+
+   option 1:	don't analyze those portions of the code space
+
+   option 2:	assume the first byte of a gap (in the code space)
+                is the starting address of a function
+
+ For many binaries:
+ ------------------
+ -- indirect calls provide bridges to large sections of the code 
+    graph ... and so if you can't resolve indirect calls (or 
+    apply heuristics), you're missing a big part of the story
+
+RAD: binary editor, defends against stack-based buffer overflows
+
+ - works on stripped binaries
+
+ - instruments function entry and exit points
+
+ - matches byte sequences in gaps to known function prologues
+
+ - can't handle functions which both: (a) have no static
+   references AND (b) no recognizable function prologue
+
+ - use conventional model of a function (as above); so can't
+   work for "non-conventional function structures":
+
+   (1) fxns that have multiple entry points
+
+   (2) fxns that are spread across non-contiguous areas of the
+       executable 
+
+----------------------------------------------------------
+Their work: extends LEEL and RAD to improve code coverage, 
+            including of non-conventional fxn structures
+----------------------------------------------------------
+
+======
+DESIGN
+======
+------------------
+A. Function models
+------------------
+ - they use multiple-entry control flow graph model
+
+ - CFG models treat fxns as sets of basic blocks
+
+ - can handle functions consisting of non-contig code
+
+ - three possible models:
+
+   (1) single entry:	each fxn has a single entry block
+
+   (2) shared code:	certain basic blocks can belong
+			to more than one function
+
+   (3) multiple entry:	all code that is connected by
+                        intra-procedural control flow is
+                        considered part of the same function
+
+    -- so presumably all code connected by control-transfer
+       operations *other than* "call" ops
+
+ - could also define functions by content
+
+   -- e.g. functions are regions between known prologues
+      and known exits (Prologue/Prologue and Prologue/Exit)
+
+   -- e.g. symbol-table model: a function is a named start
+      address and a size
+
+   + but these can't handle non-contig functions and functions
+     with multiple entry points or shared code blocks... 
+     or binaries that don't contain symbol table info...
+     or functions that don't use known prologues...
+
+-----------------
+B. Implementation
+-----------------
+Three components:
+ 
+ ===============================================================
+ (1) file format reader: handle ELF, COFF, XCOFF, and PE headers
+ ===============================================================
+  - extracts info from file headers that describes layout of 
+    executable, locations of text and data sections, the
+    location of the symbol table (if present), also identifies
+    program's entry point
+
+  - uses heuristics to figure out address of "main" function,
+    which is - surprisingly - difficult to discover using 
+    static control flow analysis!!
+
+ =======================
+ (2) instruction decoder
+ =======================
+   (a) interprets byte streams as machine instructions
+
+    - disassembles
+
+   (b) extract semantic info from those instructions and 
+       implements the architecture-dependent routines
+       exported by the Generic Assembly Language interface
+
+       -- so for each hardware arch, have to support a
+          variety of operations. the decoder actually
+          implements these operations for each of the 
+          different architectures.
+
+   Generic Assembly Language interface
+   -----------------------------------
+   - takes binary (built for whatever hw arch) and 
+     normalizes it to some standard form... so parser
+     doesn't have to have hw-specific knowledge as it's
+     operating on some uniform representation
+
+ ===============
+ (3) code parser
+ ===============
+  - discovers control flow and identifies functions
+
+  - accesses program's instruction stream through
+    Generic Assembly Language interface
+
+    -- regardless of underlying architecture, export a
+       uniform assembly language view
+
+    -- each instruction is an object that supports the
+       following operations:
+
+       - isCondBranch, isUncondBranch, isIndirBranch, 
+         isCall, isReturn, getBranchTarget, ...
+
+    -- so this is sort of the bridge that abstracts away
+       differences in ISAs
+
+  - have single parsing algo for multiple platforms
+
+  - at worst have only the program's entry point as the 
+    starting point for analysis (better case is when
+    have symbol table and/or debugging info as well)
+
+    -- initial set of starting addrs is input to the parser
+
+    -- perform "recursive disassembly" to find code 
+       reachable from any particular starting address
+
+    -- use breadth-first call graph traversal to find
+       all code *statically* reachable from the initial
+       set of starting addresses
+
+   - any valid call target is considered a function
+
+     -- then disassemble that function to build CFGss
+
+  - as above, at end of analysis, there may be gaps in the
+    code space that haven't been analyzed
+
+    -- those gaps may contain data, alignment padding, or
+       fxns referenced only indirectly (in the previously
+       explored code)
+
+  - use two phases to analyze these gaps
+
+  - phase 1:	search each gap for known function prologues
+
+    e.g.	push ebp
+		move esp, ebp
+
+  - phase 2:	for any still-remaining gaps, use Orso's
+                speculative completion algo
+
+    -- build a CFG starting at *each potential code address* 
+       in a gap ... gives set of CFGs
+
+    -- prune set of CFGs if CFG contains bogus instr(s)
+
+       - e.g. if have a branch in a CFG that targets the
+         middle of an instr, then that CFG is rejected
+
+    -- reject a CFG if it doesn't contain any control transfer
+       instructions besides "ret"
+
+       - goal: weed out false positives ... consider fxns that
+               don't contain any control xfer instrs to be 
+               unlikely to actually be functions
+
+------------
+Other issues
+------------
+(1) Indirect branches:	branch target determined at run time
+
+ - used to implement switch statements
+
+ - indirect branches that use jump tables:
+
+   -- may be able to use program slicing and expression
+      substitution to statically recover the targets
+
+ - their approach: backtrack from indirect branch to find
+   code that sets up the jump table access
+   
+   -- this set-up code gives the base location and the #
+      of entries in the jump table
+
+   -- presumably then they assume that the indirect branch
+      target can be any location within that function besides
+      the space occupied by the jump table
+
+(2) Identifying exit points:	
+
+ - if a function's exit point is *mis-identified* as an intra-
+   procedural transfer, we'll have bad info a/b fxns' sizes
+
+   -- recall from above that their "multiple-entry model"
+      considers all code "connected by intra-procedural
+      control flow" to be part of the same function
+
+ - how identify these exit points?
+
+   a) detect "return" instructions
+
+   b) detect tail calls (platform-specific)
+
+   c) detect known non-returning call instructions, e.g. calls
+      to exit(...) or abort(...)
+
+==========
+EVALUATION
+==========
+Used automated comparisons against compiler-generated symbol tables
+
+ - ran objdump on each of the binaries .. filtered output to get
+   just the unique function addresses for each of 519 progs
+
+ - compared # of fxns recovered by objdump to # recovered by Dyninst
+            ^^^^^^^^^                         ^^^^^^^^^^^
+   -- just compared the # detected? didn't ensure that the Dyninst
+      correctly identified the *same* functions (addresses)?
+
+ - Dyninst recovered on average 95.6% as many functions as objdump did
+
+ - unclear whether the binaries had symbol table info stripped
+   or not (in the objdump case and in the Dyninst case)
+
+   -- presumably the binaries were NOT stripped of symbol table info
+
+      --> just Dyninst doesn't *use* this info and objdump does?
+
+Compare function-recovery rate to IDAPro's
+
+ - their stripped code analysis identified more fxns than IDAPro
+
+ - also IDAPro incorrectly identifying certain instruction seqs
+   as functions (for firefox)
+
+Used automated instrumentation tests
+
+ - inserted function entry and exit point instrumentation into the
+   519 test binaries
+
+===========
+EXPERIENCES
+===========
+(1) pseudo-call instructions
+
+ - some calls target the instruction immediately following the
+   call ... in order to obtain the PC (used by position-indep code)
+
+ - not valid inter-procedural transfers
+
+ - shouldn't treat these call targets as functions
+
+ - targets for some call instructions not filled in til run time
+
+   -- in some cases the target value obtained via static analysis
+      is obviously wrong (a placeholder) -- target addr 0, e.g.
+
+   -- in other cases, the target addr is a junk value
+
+      ==> Use CFG and disassembly checks to detect this
+
+(2) Exception handling code: unreachable blocks
+
+ - C++ exceptions create code blocks that appear to be unreachable
+
+ - soln: extract exception info from compiler-generated exception tables
+
+(3) Missing "main"
+
+ - "kwrite" binary contained no main function ... main was located
+    in a DLL and accessed through the procedure linkage table
+
+   --> so from kwrite's program entry point, none of the functions
+       in its stripped binary were reachable!
+
+   --> Must use "speculative function discovery" to counteract
+
+(4) False positives
+
+ - speculative code discovery analyzes data bytes ... could be
+   that certain data bytes look like something they're not, eg:
+
+   mov reg, mem
+   mov reg, mem
+   ret
+
+ - in order to counteract this, require that functions discovered
+   during speculative discovery have 2 or more control flow instrs
+
+   -- a tradeoff: improves reliability but reduces coverage

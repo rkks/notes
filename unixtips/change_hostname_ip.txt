@@ -1,0 +1,15 @@
+Files to edit/change hostname manually
+--------------------------------------
+/etc/hosts
+/etc/nodename
+/etc/hostname.xxn (xxn = network interface, such as hme0)
+/etc/net/ticlts/hosts
+/etc/net/ticots/hosts
+/etc/net/ticotsord/hosts
+/etc/inet/ipnodes (if file exists and if hostname entry exists)
+
+Files to edit/change the IP manually
+------------------------------------
+/etc/hosts 
+/etc/defaultrouter 
+/etc/netmasks 

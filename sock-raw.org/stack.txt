@@ -1,0 +1,246 @@
+************************* Stack Explained *********************************
+**		  	    						 **
+**			   by ithilgore				 	 **
+**			   						 **
+**			    March 2008					 **
+**									 **
+***************************************************************************
+
+
+The following is a small tutorial on how the stack works using an example of
+calling a simple function from a C program.
+Compile using:  gcc func.c -S
+
+-------------C code-------------------
+
+int func(int a, int b)
+{
+	int temp;
+	float asdf;
+	temp = a + 1;
+	temp = temp + b;
+	asdf = 3;
+}
+
+
+int main(void) {
+
+	func(5, 7);
+
+	return 0;
+}
+
+
+-------asm code of main()------------
+
+main:
+	leal	4(%esp), %ecx
+	andl	$-16, %esp
+	pushl	-4(%ecx)
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%ecx
+	subl	$8, %esp
+	movl	$7, 4(%esp)
+	movl	$5, (%esp)
+	call	func
+	movl	$0, %eax
+	addl	$8, %esp
+	popl	%ecx
+	popl	%ebp
+	leal	-4(%ecx), %esp
+	ret
+
+Gcc uses a different than usual way to pass things onto the stack. Let's see this example:
+The function *func* takes 2 arguments (2 ints), so we are going 
+to need a total of 4 + 4 = 8 bytes. What the following does is subtract 8 from 
+where %esp currently shows and then by using the C calling convention (push 
+last argument first and so on) moves the value of $7 into the top of the stack 
+and decimal $5 just below it.
+
+	subl	$8, %esp
+	movl	$7, 4(%esp)
+	movl	$5, (%esp)
+	call	func
+
+
+ After the 3 first commands the stack will be like this:
+
++++++++++++++++++
+|		|  higher addresses (top of stack)
+|		|
+|		|  saved values from main initialization
+|   saved ebp	|
+|   saved ecx	|
+|     $7	|   arg b
+|     $5	|   arg a   &lt;-- esp shows here
+-----------------
+|		|
+|		|
++++++++++++++++++  lower addresses (bottom of stack)
+
+
+The next asm command is used to call our function
+This does 2 things behind the scene:
+
+1. 
+Save the address of the command following the call into the stack.
+The next command in this example is: movl $0, %eax. Thus its address
+is pushed onto the stack. This is known as *return address* or *saved eip*.
+When the func finishes its execution it has to know where it will return
+It will use this address using the ret command as we are going to see later on.
+
+2. 
+Save into eip the address of the function that is being called.
+
+
+Now let's move on to see what the function does in its own code:
+
+func:
+	pushl	%ebp		// enter 1/2
+	movl	%esp, %ebp	// enter 2/2
+	subl	$16, %esp	// make space for local vars (16 bytes)
+	movl	8(%ebp), %eax	// eax = arg a
+	addl	$1, %eax	// eax++
+	movl	%eax, -8(%ebp)	// temp = eax
+	movl	12(%ebp), %eax	// eax = arg b 
+	addl	%eax, -8(%ebp)	// temp = temp + eax
+	movl	$0x40400000, %eax	// eax = 3 (float)
+	movl	%eax, -4(%ebp)		// asdf = 3
+	leave
+	ret
+
+First things first:
+
+	pushl	%ebp
+	movl	%esp, %ebp
+
+The above two lines of code is also known as "enter" and can be
+used with a shortcut opcode with the same name. 
+The function needs to save ebp in the stack. Why is that? It needs to use
+ebp to save the current esp value into it. The esp value at that time
+is pointing at the pushed ebp and is known as base stack address.
+The stack will now be like this:
+	
++++++++++++++++++
+|		|  higher addresses (top of stack)
+|		|
+|		|  saved values from main initialization
+|   saved ebp  	|
+|   saved ecx	|
+|     $7	|  arg b
+|     $5	|  arg a
+|   ret addr    |
+|   saved ebp	|  &lt;-- esp shows here
+-----------------
+|		|
+|		|
++++++++++++++++++  lower addresses (bottom of stack)
+
+
+The obvious question here is why do all these things? Is there any
+particular purpose in saving the base stack address?
+The answer goes as follows: 
+
+The function needs to have a way to reference:
+a. its arguments 
+b. its local variables
+
+ESP will continuously move as more data is pushed onto the stack
+inside the function. Thus if one argument could once be referenced
+as ESP + 8 (like for the argument $5 when esp shows to saved ebp)
+after ESP moves to show the new pushed object (e.g an int), the same argument
+would now be referenced as ESP + 12. Therefore the function needs to have
+a stable way to reference them. This is solved using the stack base saved
+in ebp which doesn't (and mustn't) change during the whole function execution.
+The same goes for its local variables.
+
+It's time to examine the main func() code:
+
+	subl	$16, %esp	// make space for local vars (16 bytes)
+	movl	8(%ebp), %eax	// eax = arg a
+	addl	$1, %eax	// eax++
+	movl	%eax, -8(%ebp)	// temp = eax
+	movl	12(%ebp), %eax	// eax = arg b 
+	addl	%eax, -8(%ebp)	// temp = temp + eax
+	movl	$0x40400000, %eax	// eax = 3 (float)
+	movl	%eax, -4(%ebp)		// asdf = 3
+
+
+What will one observative reader notice here is that the compiler
+decides to subtract 16 from the esp for its local variables. Since our 
+local vars are only 4 (int) + 4 (float) = 8 bytes in total, why does
+this happen ?
+The answer is stack alignment. The compiler by default keeps
+the stack boundary aligned to 16 bytes. We can see this from
+the gcc man page :
+
+-mpreferred-stack-boundary=num
+           Attempt to keep the stack boundary aligned to a 2 raised to num byte boundary. If
+           -mpreferred-stack-boundary is not specified, the default is 4 (16 bytes or 128
+           bits).
+
+
+The rest of the code does the calculations. However there is another thing that
+we have to comment on. Newer versions of gcc may allocate the local variables of 
+the functions in the reverse order of addresses. This means that the variable 
+"asdf" (second variable in our example), is allocated above (higher address) 
+the first variable "temp".
+
++++++++++++++++++
+|		|  higher addresses (top of stack)
+|		|
+|		|  saved values from main initialization
+|   saved ebp  	|
+|   saved ecx	|
+|     $7	|  arg b
+|     $5	|  arg a
+|   ret addr    |
+|   saved ebp	|  &lt;-- old esp showed here
+|    asdf	|  2nd local var
+|    temp	|  1st local var
+|               |  &lt;-- esp shows here (previous esp - 16)
+-----------------
+|		|
+|		|
++++++++++++++++++  lower addresses (bottom of stack)
+
+In older versions, the order of the local variables would always be the exact
+opposite.
+
+The function finishes with these two lines (aka epilogue):
+
+	leave
+	ret
+
+The leave opcode can be decoded in the following:
+
+	movl %ebp, %esp
+	popl %ebp
+
+What it does here is restore esp so that it points where it pointed after the 
+CALL command, that is at the stack base address (saved ebp). Then it pops the
+saved ebp and stores it into ebp itself - so that the old value of ebp (the 
+one it had before the function was called) is restored.
+
+Finally the ret opcode pops the saved return address from the stack and
+saves it into eip. The eip now points to the command after the call func
+opcode in main() :
+
+	call 	func
+	movl	$0, %eax	&lt;--- eip now points here
+	addl	$8, %esp
+
+What is left is some stack cleanup that is done by the caller.
+It adds 8 to %esp, so that it now points to where it pointed before the function
+was called and its arguments were passed into the stack.
+
+One more notice: one observes that before cleaning the stack another
+command (which is irrelevant to the function calling) takes place - gcc
+doesn't do all operations in a strict sequential order but takes into account 
+different parameters for optimization that may change the order of execution 
+(without of course affecting the actual final result)
+
+This finishes a simple function calling.
+
+

@@ -1,0 +1,3 @@
+To reverse the order of the lines in a file with vi, do the following:
+
+	<esc>:g/^/m0

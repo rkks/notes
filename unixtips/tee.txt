@@ -1,0 +1,19 @@
+If you are trying to help someone remotely with a Unix problem and like to
+see what that person is actually typing instead of having conversation like
+the following:
+
+"Enter ls at the prompt and hit enter"
+"Now how does your screen look like?"
+"Do you see a the 'x' file in that listing"
+...
+
+Try this
+
+- have the person on the other end do 
+	telnet localhost | tee -a /tmp/<filename>
+- now telnet to the machine yourself and do a 
+	tail -f <filename>
+
+Now you can see all the screen dumps including the keystrokes. Off course
+this won't work if you can't log on to that machine. But, it still could be
+handy.

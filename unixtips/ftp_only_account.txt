@@ -1,0 +1,30 @@
+Q. How can I create an account that only allows FTP access and not telnet?
+
+A. Create the account as you normally would in /etc/passwd and /etc/shadow.
+   Then, for the shell, type something like:
+	/bin/ftponly
+
+   Now, create the file ftponly:
+	echo 'echo "This account only allows FTP access."' > /bin/ftponly
+   and allow it to be executable:
+	chmod a+x /bin/ftponly
+
+   To make this "shell" a valid one according to FTP, append the following line in /etc/shells:
+	/bin/ftponly
+
+
+NOTE:  If this is the only line in the file, you should go ahead and add the other valid shells
+       for FTP so everyone can still get in as you will be overriding the default list.
+
+
+From the shells man page:
+     The shells file contains a list of the shells on the system.
+     Applications use this file to determine whether a shell is valid. 
+     See getusershell(3C). For each shell a single line should be
+     present, consisting of the shell's path, relative to root.
+
+
+   Now when users try to login with telnet, they will see the following message:
+	This account only allows FTP access.
+
+	

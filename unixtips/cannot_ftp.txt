@@ -1,0 +1,18 @@
+Why can't I ftp to a server if I can telnet to it?
+--------------------------------------------------
+
+
+Probably one of two files you need to check.
+
+1) /etc/ftpusers
+     From the ftpusers manpage:
+     The /etc/ftpusers is an ASCII file that lists users for
+     whom ftp login privileges are disallowed.
+
+2) /etc/shells
+     From the shells manpage:
+     The shells file contains a list of the shells on the system.
+     Applications use this file to determine whether a shell is
+     valid.  See getusershell(3C).  For each shell a single line
+     should be present, consisting of the shell's path, relative
+     to root.

@@ -1,0 +1,287 @@
+When drawing data structures (including binding environments and
+closures), it is important to obey certain reasonable graphical
+conventions so that other people can understand your pictures.
+
+Some of these rules are very general, and applicable to drawing
+data structures in general.  Others are conventions used especially
+for data structures in Lisp and Lisp-like languages.
+
+
+SHARED STRUCTURE SHOULD BE OBVIOUS
+
+By default, if two values are pointers to the same object, you should
+draw pointers to the same object.  People are often too hesitant to
+draw a big long arc that goes across a big chunk of a picture.  Most
+of the time, you should go ahead and draw it.  (Of course, you can
+lay things out to minimize the clutter, and route such long-distance
+pointers around big data structures.)  Remember, the point of drawing
+a picture is to make the STRUCTURE of the data obvious, and that's
+the most important goal, not pure prettiness.
+
+
+VALUE CELLS are drawn as BOXES.
+
+The second important rule is that any chunk of storage that can hold
+a value should be drawn as BOX.
+
+I often see students draw pictures where a variable binding isa
+represented as a name, with an arrow coming out of it pointing to
+something, like so:
+
+     foo---->thing
+
+This is wrong.  You should make it clear that FOO is the name of a
+PIECE OF STORAGE, i.e., a "box" that can contain a value:
+
+       +-------+
+   foo |   +---+-->thing
+       +-------+
+
+Here it's clear that foo is the name of a piece of storage, and
+it holds a value that's a pointer to thing.
+
+I often draw all boxes the same size, if they're Scheme value cells,
+which can hold any kind of value.  That reinforces the similarity
+of value cells.  Sometimes you want to save space, though, so you
+might draw boxes that contain pointers as little boxes just big
+enough to get across the idea that they're boxes, and draw the
+pointer coming out of there:
+
+       +---+
+   foo | +-+--->thing
+       +---+
+
+When drawing records or arrays, you usually want to draw them as 
+vertical collections of boxes, with the name of the type just above
+the top.  So if the binding of foo holds a pointer to a Scheme vector
+with three elements, for example, you probably should draw it like
+this:
+
+    
+       +-------+       vector
+   foo |   +---+---->+--------+
+       +-------+     |        |
+                     +--------+
+                     |        |
+                     +--------+
+                     |        |
+                     +--------+
+
+
+When drawing a structure with named fields, it's often good to label
+the fields.  So if the binding of the variable my-point holds a
+pointer to a point record, and a point record has two fields x and y,
+you should probably draw it like this:
+    
+       +-------+        point
+   foo |   +---+---->+--------+
+       +-------+   x |        |
+                     +--------+
+                   y |        |
+                     +--------+
+
+Notice the similarity between the label that's the name of a binding
+and the label that's the name of a fields.  This is no accident---there
+is a deep and important similarity.  (In fact, there are a few langauges
+(notably Self and Rascal) where the two concepts are combined into a
+more general notion, and there is literally no difference at all.
+
+
+VARYING THE LEVEL OF DETAIL
+
+Notice that the above pictures stress the language-level features
+of the data structures.  The name of the binding is not in a box,
+because the name is not a first-class object in the language.  
+Similarly, the type name above the point object is not in a box,
+because it's not a language-level object.  At the language level,
+the type of a Scheme object is just a magical property.  Sometimes
+you want to explicitly represent the fact that the type of an
+object is implemented by having a header on the object that encodes
+its type.  (This would be wrong in most statically-typed language
+implementations, and even in some implementations of Lisp or Scheme
+or Smalltalk, but I often do this for concreteness in showing how
+Scheme can be implemented.)
+
+                     +--------+        
+       +-------+     |  point |
+   foo |   +---+---->+========+
+       +-------+   x |        |
+                     +--------+
+                   y |        |
+                     +--------+
+
+Notice that the pointer still points to the first "normal" field
+of the object, skipping the header, and I use a different kind of
+line to separate the header from the normal fields.  This is a good
+way of doing things for several reasons.  One good reason is that
+it stresses the difference between the language-visible parts of
+the object and the implementation-specific detail.  Another good
+reason is that it is very similar to the simpler representation,
+where we just put the label on top of the record.  (Actually, this
+is partly backwards---one good reason to put the label on top in
+the simpler picture is that that's where an actual implementation
+is likely to put the type information.)  Yet another reason is that
+this is likely to be how a real implementation is likely to represent
+pointers---the header may be at a negative offset from the address
+used as a pointer.
+
+Similarly, if I want to stress a particular implementation of
+bindings, where the names are actually stored as well as the values,
+I might draw things this way:
+
+                       +--------+        
+ +-------+-------+     |  point |
+ |   foo |   +---+---->+========+
+ +-------+-------+   x |        |
+                       +--------+
+                     y |        |
+                       +--------+
+
+I might do this for bindings used with an interpreter, to stress that
+the names are stored with the values so that they can be searched at
+run time.  I wouldn't use it for local bindings with a compiler, because
+the names are NOT stored there.  A label next to the binding box is the
+right thing in that case, because it conveys that the box has a name,
+without suggesting that the name is stored there.
+
+
+Sometimes, to avoid cluttering up our pictures, we reduce the level of
+detail for the less important parts.  So, for example, if the toplevel
+binding of + holds a pointer to the usual + procedure, I'm likely to
+draw it this way:
+
+       +-------+ 
+     + |   +---+----><closure for +>
+       +-------+  
+
+Notice that the string <closure for +> is taking the place of a more
+detailed picture of a closure, but most of the other rules still apply.
+If there's another reference to the very same closure, that pointer
+should be drawn pointing to the same place, not to another copy of
+the string elsewhere in the picture.  (There are a few data types
+where there's a convention that different copies of the string really
+mean the very same object---namely symbols and numbers---but by and
+large, shared structure should still be obvious.)
+
+Another common way of reducing detail is to draw part of a data
+structure and then show that part has been left out by putting in
+ellipses (sequences of dots, like "...").  You'll notice I do that
+in my pictures.  Sometimes I have dots in the middle of a picture
+of a structure, to suggest that that it might be bigger than shown
+(this is common in drawing arrays that might be large, or might
+be different sizes.)  Sometimes I have a pointer to dots, to suggest
+that the drawn data structure continues indefinitely or uninterestingly.
+
+It's  probably obvious by now that we also control level of detail by
+avoiding drawing the values in fields we're not interested in.  (Notice
+that an empty box means we don't care about a value, NOT that the value
+is null or zero or something.  If you want a null pointer, signify it
+explicitly (more on that later).
+
+
+SPECIAL RULES FOR SPECIAL DATA TYPES
+
+In some cases, we use special representations to represent particular
+kinds of objects.
+
+Symbols
+
+References to symbols are usually represented as
+pointers to a string, and we don't bother to make all references to
+the same symbol point to the same copy of the string.  DO NOT FEEL
+FREE to adopt your own conventions like this!  That's the equivalent
+of making up new words for things, and people won't understand you.
+
+Integers
+
+Similarly, it is common to represent integers as immediate values inside
+the boxes that represent value cells, e.g., if the binding of foo holds
+the value 25:
+
+       +-------+  
+   foo |    25 | 
+       +-------+
+
+This may have two advantages.  One is that it reduces clutter, because
+we don't have to draw pointers all over the place to indicate that
+several value cells hold references to the same number.  (Again, do
+not feel free to adopt this convention for other data types---it's
+generally understood for integers, but not for other stuff.)  Another
+reason, in some contexts, is that it may reflect the lower-level 
+representation of immediate integers.  (In languages where integer
+values are just copies, not (conceptually) pointers to unique objects,
+it of course would be wrong to draw arrows to integers.  In that case,
+the number-in-a-box convention is definitely the way to go.
+
+Lists
+
+Pairs have a special visual representation which is universally
+recognized by Lisp and Scheme programmers: a small pair of boxes
+laid out horizontally.   This has the advantage that it saves space,
+and the horizontal layout helps when drawing typical Scheme or Lisp
+lists, which are sequnces laid out left to right;  here's a picture
+of a binding of foo holding a list of the symbols bar, baz and quux.
+
+       +-------+     +---+---+     +---+---+     +---+---+
+   foo |   +---+---->| + | +-+---->| + | +-+---->| + + * |
+       +-------+     +-|-+---+     +-|-+---+     +-|-+---+
+                       |             |             |
+                       |             |             |
+                      bar           baz           quux
+
+Sometimes when drawing a list, you want to stress the structure
+of the objects.  If you're interested in showing low-level detail,
+you may want to draw pairs much like I drew points, above, with
+a vertical collection of boxes, and labeled fields, e.g.,
+
+                        +--------+        
+ +-------+-------+      |  point |
+ |   foo |   +---+----->+========+
+ +-------+-------+  car |        |
+                        +--------+
+                    cdr |        |
+                        +--------+
+
+
+Null pointers
+
+Null pointers (e.g., Scheme's empty list object, '()) have a special
+representation.  Note that the last cdr field in the list drawing
+above only holds a dot.  (Well, in this ascii art, it's an asterisk,
+but that's supposed to be a dot.)  That's a very common convention
+for null pointers.  Another common convention (which I seldom use) is
+to have a slash through the box holding the null pointer.  I prefer
+dots when you're drawing data structures for me, partly because I think
+it's the most common convention, but most people can recognize the
+slash convention as well.
+
+
+GENERAL LAYOUT RULES
+
+There are some simple rules that are usually good to follow when
+laying out data structures.  None of them are hard-and-fast rules, and
+sometimes they conflict.
+
+Lay out sequences horizontally, left-to-right
+
+As with the list picture above, it's generally good to show sequential
+lists going from left to right;  if that's too awkward, top to bottom
+will do. 
+
+It's often desirable to use a left-to-right or top-to-bottom layout to
+show the order in which objects were created.  For example, when I
+draw the binding environments created by successive iterations of a
+loop, I often draw them left-to-right.  This helps you animate the
+construction of the data structure in your mind.
+
+When drawing activation stacks or binding environments, it's good
+to use a vertical ordering.  I usually draw the frames of a binding
+environment with the outer frames at the top, going down with each
+successive narrower scope.  This usually works better than going bottom
+to top, because the vertical ordering of frames usually matches the
+vertical ordering of binding contours' variable definitions in the
+source program.
+
+
+
+

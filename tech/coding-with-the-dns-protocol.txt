@@ -1,0 +1,959 @@
+********************************
+Coding with the DNS protocol v2
+--------------------------------
+A tutorial by JimJones [Updated!]
+http://zsh.interniq.org [2000]
+********************************
+
+What's in a name? (I'm sorry for starting this passage off on such 
+a trite tone, but it was inevitable) For many, its either a numerical
+IP or a hostname. A simple gethostbyaddr() or gethostbyname() can be 
+used on the socket API layer to extract a hostent structure. We can 
+then read the respective hostname or IP address from there. Simple? 
+Yes. Sufficient? For almost all cases. But there is often that need 
+to make a further step, whether out of sheer curiosity or because our 
+application demands it. This tutorial will show you that extra step 
+into the gray area - of DNS on the UDP and TCP packet level.
+
+
+
+
+
+Back to Square One
+------------------
+A lot of you may know this, so there's nothing stopping you from 
+skipping to the next section. But just a quick recap for the others:
+We all know that an IP (v4) address is a 4 byte structure (32 bits),
+which can be classified under 1 of 5 types - Class A, B, C, D, and E.
+To avoid confusion between operation systems which handle data 
+differently, a common network order is used. This network order is 
+in the Big Endian style, which sends the most significant byte first.
+
+A domain name server typically runs on port 53 of UDP and TCP.
+My /etc/services file contains the following, for example:
+domain          53/tcp          nameserver      # name-domain server
+domain          53/udp          nameserver
+
+The large majority of name server requests will be handled on the UDP
+port. The UDP name service is used to make simple queries and 
+resolutions. The TCP name service will be used when grabbing or 
+transferring zones, which are typically very large in size. The 
+reason for the predominant quantity of DNS traffic being UDP-based 
+is really quite simple. The user datagram protocol is lightweight and
+requires little overhead. If a client simply needs to convert a 
+hostname to an IP, only a small string of characters is being sent to
+the name server, and a few meaningful bytes returned. This really
+does not require the complexity of a virtual connection as provided
+by TCP. DNS traffic also accounts for a very large percentage of
+Internet traffic, since end user applications usually take host input
+over IPs, as they are more memorable. Using TCP would be an overkill
+in most cases.
+
+If the DNS data can be packaged in 512 bytes or less, then the 
+request can definitely be packaged in a UDP datagram. If the size
+exceeds this length, then the message can still be sent via UDP along
+with the truncate data (TC) bit set, but for very large transfers,
+TCP is preferred. This goes for zone transfers, as many can be up to
+megabytes in length, and the integrity of the data is essential for
+secondary nameservers that are backing up the zone data.
+
+If your application makes use of UDP transfers, there are some guide-
+lines that are wise to follow in the design of your program. That is,
+two rules for retransmissions: (1) always attempt to resend a failed
+packet to a secondary or alternate NS first before retransmitting to
+the same server again, and (2) enact reasonable timeouts that don't
+cause the network to become flooded or congested. A well written
+implementation will probably introduce a policy of exponential
+backoff for retransmission, which is similar to that found in many
+link level devices. Handling NS data via TCP is essentially the same,
+except that each packet is prepended by a 2 byte integer containing
+the length of the data to follow. When writing a client or server in
+TCP mode, it is important to remember that the client is responsible
+for terminating the connection in this negotiation, and not the
+server.
+
+You will almost always want to run your name server/make requests 
+to port 53 except in the rarest conditions. Unlike FTP servers, 
+for example, that sometimes run on high ports, NS's are almost 
+always on port 53. Many DNS servers will reject packets not 
+originating from source port 53, or they will be filtered out by 
+firewalls or similar software. This port is very important to 
+preserve!
+
+
+
+
+
+Some Other Stuff You Should Know
+--------------------------------
+DNS operations are done in a case-insensitive manner, so it won't
+make a difference if you try to resolve www.yahoo.com or 
+WWW.YAHOO.COM or wWw.YaHoO.cOm. However, when writing a server, you
+should try to preserve the case whenever possible. This is not so 
+important in the management of user requests, but you can see why it
+would be vital in reverse resolution.
+Another common question often heard is "Exactly what is the maximum
+length of a domain name? The answer is 255 bytes. But none of the
+respective labels (or the segments of the domain name, typically 
+represented as the text between the dots [.]) can exceed 63 bytes in
+length.
+
+
+
+
+
+Dissecting a DNS Packet: A Practical Laboratory
+-----------------------------------------------
+We will now discuss constructor methods for DNS packets. The source
+to use for creating our reading your own DNS packet is to use the
+HEADER type, which is defined in /usr/include/arpa/nameser.h (simply
+reference with #include <arpa/nameser.h>). To fetch a DNS packet, we
+may create a socket descriptor with socket(AF_INET, SOCK_DGRAM, 
+IPPROTO_UDP|TCP) and recv into a buf. Once the buffer has been filled
+with incoming data, or we have created our own buffer to send, we can
+typecast it to a (HEADER *).
+
+A DNS packet could be defined as char dnspacket[PACKETSZ], where 
+PACKETSZ is defined to be 512. We create a HEADER *myhead and 
+initialize it with myhead = (HEADER *) dnspacket. The next steps are
+really quite simple. Type HEADER is simply a packed bitfield.
+The DNS header consists of 12 bytes. The first two are the ID, or 
+identification sequence. This helps give each packet a unique 
+identifier when a large volume of name service traffic is being sent.
+This can be likened to a xid field which is seen in several other 
+network-based protocols.
+
+*NOTE: Be +VERY+ cautious when choosing IDs in applications which 
+require real responses or relegate trust to an external server. Using
+a method of choosing IDs such as getpid() manipulation, or simple
+random functions are obviously insecure and can be predicted. This
+will result in the possibility of DNS cache poisoning or corruption,
+since a malicious host can inject false DNS replies into the stream.
+For secure applications, a method that has a large degree of entropy,
+or randomness, should be chosen. There are many such ways of reading
+"more random" bits such as keyboard latency and certain system 
+environmental factors. This, however, is beyond the scope of this 
+article.
+
+The next flag is operation field, which specifies a QUERY as 0 and a
+RESPONSE as 1. Obviously, when sending back a reply, set this field
+to 1, or 0 when making a request.
+The next field consisting of one nibble specifies an OPCODE. This can
+be 0 for a standard query (QUERY), 1 for an inverse query (IQUERY).
+Values 2 and 3, which have become deprecated, were used to query NS
+statuses and reversed, respectively, and the 4th option 
+(NS_NOTIFY_OP) is beyond the scope of this article. The next fields
+are a slew of miscellaneous flags. AA, the authoritative answer bit, 
+is set with a QR return of 1, when a name server has answered a 
+request for which it has authority. 
+Following this is the TC (truncation) bit, which notifies the app if
+a packet has been truncated due to size restrictions imposed on the
+transport layer. After this is the recursion desired (RD) bit, which
+tells the name server to pursue the operation even if it can not 
+immediately return a reply. This is like telling the name server to
+fetch the answer from another name server if it does not yet have the
+answer. The RD bit is followed appropriately by the RA bit, set by
+the server only, to tell whether the desired recursion was available
+or not.
+The next 3 bytes are have no purpose and are all zeroed out. In the
+diagram below, however, they are labeled according to their old
+definitions. Finally, the last nibble of this word consists of the
+RCODE, or response code. Obviously, this is set by the server in
+responses. 0 signifies no error, 1 is a format error caused by a flaw
+in parsing the query, 2 denotes a server failure which bears no
+correlation to the client directly, 3 is a name error returned when
+the referenced domain name does not exist, 4 is sent as a response to
+a query type that is not yet supported (such as an unknown resource
+record), and finally, 5 is sent when an operation is refused by the
+name server (often for security reasons). 
+The next 4 fields are 2 bytes each, in appropriate network order,
+and specify the number of items contained in the QUESTION, ANSWER,
+NAME SERVER, and ADDITIONAL records sections.
+
+
+A typical DNS packet will look like this:
+Byte
+|---------------|---------------|---------------|---------------|
+1		2		3		4
+ID		(Cont)		QR,OP,AA,TC,RD	RA,0,AD,CD,CODE
+|---------------|---------------|---------------|---------------|
+4		5		6		7	
+# Questions	(Cont)		# Answers	(Cont)
+|---------------|---------------|---------------|---------------|
+8		9		10		11
+# Authority	(Cont)		# Additional	(Cont)
+|---------------|---------------|---------------|---------------|
+			Question Section
+|---------------|---------------|---------------|---------------|
+			Answer Section
+|---------------|---------------|---------------|---------------|
+			Authority Section
+|---------------|---------------|---------------|---------------|
+			Additional Section
+|---------------|---------------|---------------|---------------|
+
+Where the last 4 sections take on variable length.
+
+ID - 16 bits, QR - 1 bit, Opcode - 4 bits, AA - 1 bit, TC - 1 bit,
+RD - 1 bit, RA - 1 bit, 3 zero bits, RCODE - 4 bits
+QDCOUNT, ANCOUNT, NSCOUNT, and ARCOUNT - 16 bits each
+
+The question section contains questions that are sent by a client to
+a name server (or a NS to another NS), the answer section contains
+answers to the questions sent back from the name server, the
+authority section contains name servers which are authoritative to
+the relevant data, and finally, the additional section is compromised
+of various records that are returned as supplementary data alongside
+the answer section.
+
+
+Here's a REALLY SIMPLE snippet of code that simply shows the parsing
+of a DNS header. You should be able to understand this.
+
+----------------------------------------
+#include <arpa/nameser.h>
+...
+int main () {
+  struct sockaddr_in s_in;
+  HEADER *dnsheader;
+  char buf[PACKETSZ];
+  int fd;
+...
+/* Insert your code here, socket(), etc */
+
+  recv (fd, &buf, sizeof (buf), 0); 
+  dnsheader = (HEADER *) &buf;
+  printf ("Dumping DNS packet header:\n");
+  printf ("ID = %x, response = %s, opcode = ", ntohs (dnsheader->id), (dnsheader->qr ? "yes" : "no"));
+
+  switch (dnsheader->opcode)
+    {
+      case 0:
+      	printf ("standard query\n");
+      	break;
+      case 1:
+      	printf ("inverse query\n");
+	break;
+      default:
+      	printf ("undefined\n");
+	break;
+    }
+
+  printf ("Flags: %s %s %s %s\n", ((dnsheader->aa) ? "authoritative answer,\t" : ""),
+  	  ((dnsheader->tc) ? "truncated message,\t" : ""), ((dnsheader->rd) ? "recursion desired," : ""),
+	  ((dnsheader->ra) ? "recursion available\t" : ""));
+
+  if (dnsheader->qr)
+    {
+      printf("Response code - ");
+
+      switch (dnsheader->rcode)
+	{
+	  case 0:
+	    printf ("no error\n");
+	    break;
+	  case 1:
+	    printf ("format error\n");
+	    break;
+	  case 2:
+	    printf ("server failure\n");
+	    break;
+	  case 3:
+	    printf ("non existent domain\n");
+	    break;
+	  case 4:
+	    printf ("not implemented\n");
+	    break;
+	  case 5:
+	    printf ("query refused\n");
+	    break;
+	  default:
+	    printf ("undefined\n");
+	    break;
+        }
+	      
+    }
+    
+  printf ("Question # - %d, Answer # - %d, NS # - %d, Additional # - %d\n",
+	  ntohs (dnsheader->qdcount), ntohs (dnsheader->ancount), ntohs (dnsheader->nscount), ntohs (dnsheader->arcount));
+}
+----------------------------------------
+
+
+I guess one of the best ways to show DNS at work is to take a real 
+life example. For this, we will be using a hex data dump for named 
+requests. You can really do this anyway you want. Im going to use 
+netcat for this example. (Yeah I know, netcat isn't exactly the most 
+intensive tool for dumping data, but its lightweight and serves the 
+purposes we want perfectly.
+We will parse a simple address request so we run it all in UDP mode 
+and kill named first!
+
+JonesTown:/# killall named
+JonesTown:/# netcat -l -p 53 -u -o dump &; \
+host -t A test.domain.com
+localhost;
+------ Some output ------
+
+JonesTown:/# cat dump
+< 00000000 45 1b 01 00 00 01 00 00 00 00 00 00 04 74 65 73 # E............tes
+< 00000010 74 06 64 6f 6d 61 69 6e 03 63 6f 6d 00 00 01 00 # t.domain.com....
+< 00000020 01 
+JonesTown:/#
+
+45 1b 01 00 00 01 00 00 00 00 00 00 04 74 65 73 74 06 64 6f 6d 61 69 6e 03 63 6f 6d 00  00 01 00 01
+|_________________________________| |________________________________________________|  |_________|
+ The DNS packet header (12 bytes)                 Actual DNS request			   Suffix
+
+Now let's get down and dirty and dissect this. As seen, the first 12
+bytes are the packet header, the first two of which are the DNS ID. 
+This will be different each time. The value of these 2 bytes is 
+really irrelevant. The next byte is set to 1. We see that the 
+respective field for this value of "1" is set by  the rd flag. 
+(Remember, we are dealing with a byte here, not a bit, so don't get
+confused by thinking this is the QR field and asking why it's 1). Of
+course when querying a nameserver for an address, we wish to request
+recursion in case more nameservers must be first contacted. The rest
+of the fields are nulled (opcode also = 0 since this is a query).
+We reach the 6th byte, which is not 0. The value of this, too, is 1.
+Why? We are in the number of questions section. We are only asking 
+one question: "What is the address of test.domain.com ?" Thus this 
+number is one. There are no answers or authority/resource records so
+the rest of the DNS header is set to 0. Now we reach the formatted
+domain name. A hostname is simply a series of letters and numbers and
+hyphens that is delimited (separated) by periods. For example, our 
+query is for test.domain.com. Now, "test.domain.com" consists of 3
+words - "test", "domain", and "com" separated by periods. The
+respective lengths of these words is 4 (for "test"), 6 (for "domain"),
+and 3 (for "com"). The formatted string becomes the length of each
+word followed by the word, and terminated by a null (0). Now you 
+understand the concept of a label. "test" is a label, "domain" is
+a label, and "com" is a label. These labels are merged together to
+form names. The maximum possible length of any given label is 63 
+bytes.Let's examine the DNS request chunk again.
+
+04 74 65 73 74     06 64 6f 6d 61 69 6e     03 63 6f 6d       00
+|  t  e  s  t      |  d  o  m  a  i  n      |  c  o  m        |-> terminated by a null 
+|-> "test" len     |-> "domain" len         |-> "com" len
+
+The second-to-last 01 is the value of the resource query type (QTYPE).
+Since we see this line :
+#define T_A             1               /* host address */
+This is where the last value of 01 comes from.
+The final 01 is the class type (QCLASS), or Internet in this case.
+#define C_IN            1               /* the arpa internet */
+Internet records are all that are really relevant, as CHAOS and
+Hesiod aren't used any more. Thus we always want class C_IN records.
+It's as simple as that.
+
+It would be best to give the second part of this diagram a proper
+name. Following the 12 byte header in this packet, is what is 
+formally called a "question." Any question consists of 3 parts, a
+QNAME, a QTYPE, and a QCLASS. A QNAME is a sequence of labels 
+(test.domain.com) of variable lengths, a QTYPE is a 2 byte number 
+which specifies the type ofthe query (T_A), and QCLASS is the class
+of the query (C_IN). Every question has these 3 elements. 
+As I said, you will almost always reference the IN, or Internet 
+class, but an equally viable method is to pass 255 (as a QTYPE only),
+which functions as an equivalent to a wildcard class (C_ANY).
+
+Let's do one final example. This is the hex dump of an HINFO query 
+for "my.host.org" (HINFO, being a hardware information request).
+
+< 00000000 09 52 01 00 00 01 00 00 00 00 00 00 02 6d 79 04 # .R...........my.
+< 00000010 68 6f 73 74 03 6f 72 67 00 00 0d 00 01          # host.org.....
+
+We can bypass the 12 byte DNS header, since we know what that does. 
+Then comes the query data.
+
+02 6d 79         04 68 6f 73 74      03 6f 72 67       00
+|  m  y          |  h  o  s  t       |  o  r  g        |-> null terminator
+|-> "my" len     |-> "host" len      |-> "org" len
+
+Here we see 0d in place of 01. T_A is 1, but HINFO is declared as 
+#define T_HINFO         13              /* host information */
+Thus the hexadecimal representation of "13" is 0d. The final 01 is
+an Internet class.
+QNAME = "my.host.org", QTYPE = T_HINFO, QCLASS = C_IN
+
+
+The following function is one I wrote for use in DNS-based
+applications. It will parse a DNS label, such as the one seen above,
+into elements delimited by a specific character. You might think that
+this delimiter would always be a dot ('.') but for HINFO records and
+some others, it's a space. Remember to reference this to the
+beginning of the data (pointer).
+
+----------------------------------------
+void
+printaddress (char *pointer, char delim)
+{
+  int i, z;
+
+  while (*pointer != 0)
+    {
+      z = *pointer;
+
+      for (i = 0; (i < z); i++)
+        {
+          pointer++;
+
+          if (isprint (*pointer))
+            printf ("%c", *pointer);
+
+        }
+
+      if (*(pointer + 1) != 0)
+        printf ("%c", delim);
+
+      pointer++;
+    }
+}
+----------------------------------------
+
+Reversing this function would be trivial, for the purposes of
+creating a function to convert an alphanumerical IP address to a
+formatted DNS record.
+
+For the purposes of a reverse lookup, a PTR record is return. 
+Basically,the target IP is passed to the name server in a reverse
+order, and an inverse query is performed. An IP of the form "a.b.c.d"
+is passed to the name server as "d.c.b.a.in-addr.arpa" Perhaps this
+form seems familiar to you now, as you have probably seen the 
+"in-addr.arpa" notation used in BIND configuration files.
+
+This function is one to convert between the formatted IP contained in
+a PTR record and a normal IP address.
+
+----------------------------------------
+char *
+ptrtoip (char *ptrstring)
+{
+  char *ip[4], *parse, *ret;
+  int n = 1;
+
+  ip[0] = strtok (ptrstring, ".");
+
+  while ((n < 4) && ((parse = strtok (NULL, ".")) != NULL))
+    {
+      ip[n] = parse;
+      n++;
+    }
+
+  ret = (char *) malloc (16);
+  sprintf (ret, "%s.%s.%s.%s\n", ip[3], ip[2], ip[1], ip[0]);
+}
+----------------------------------------
+
+For the handling of compressed names, the GETSHORT(), GETLONG(),
+PUTSHORT(), and PUTLONG() macros are also defined in <arpa/nameser.h>
+These can be used to either inject or extract elements of records
+from DNS packets. You just have to remember that in DNS-intensive
+applications, compression methods will be employed that involve the
+use of DNS pointers. These pointers refer to bytes located in
+previous portions of the packets, as to avoid being repetitive and
+using unnecessary space. Obviously, this is key for huge name servers
+that handle thousands of requests every single minute.
+
+
+
+
+
+The Next Step: Parsing DNS Replies
+----------------------------------
+
+The following is the structure of a RR (resource record). All data is
+returned from the name server in this format.
+
+
+Byte
+|---------------|---------------|---------------|---------------|
+1               2               3               4 .. x-1
+Name (Variable length)
+|---------------|---------------|---------------|---------------|
+x		x+1		x+2		x+3
+Type		(Cont)		Class		(Cont)
+|---------------|---------------|---------------|---------------|
+x+4		x+5		x+6		x+7
+TTL		(Cont)		(Cont)		(Cont)
+|---------------|---------------|---------------|---------------|
+x+8		x+9		x+10 .. y	(Variable length)
+RDLength	(Cont)		RData		(Cont)
+|---------------|---------------|---------------|---------------|
+
+This diagram may seem a little bit odd at first, but if you're
+confused by the x's, I'll just explain it differently:
+The name is a variable length field, which you can often find the end
+of with a null space marker. After this arbitrary length are a fixed
+TYPE and CLASS of two bytes each, a TTL (time to live) of 4 bytes, a
+resource length field of 2 bytes, and following this is the meat of
+the section: the resource data which is variable length, but you
+always know how many bytes to read because that's what's stored in
+RDATA.
+
+The name is not the actual RR data; it's just the name of the node or
+object that the data pertains to. For example, if you requested an
+HINFO record for www.sun.com, www.sun.com would be the label that
+appears in the name section.
+
+It is imperative that you read the data for TYPE; this 2 byte
+integer specifies exactly what RR will follow. The values are pre-
+defined in nameser.h, but here are a few examples, especially for
+those who aren't in a UNIX environment.
+A - 1 - Requests a hostname to be mapped to a 32 bit IP address (T_A)
+NS - 2 - Requests an authoritative domain server for a hostname (T_NS)
+CNAME - 5 - Requests a canonical name (an alias) for a hostname (T_CNAME)
+SOA - 6 - Start of authority zone, contains useful info about a zone (T_SOA)
+PTR - 12 - Reverse resolution to resolve an IP address to a hostname (T_PTR)
+HINFO - 13 - Request host information (hardware usually) about a host (T_HINFO)
+MINFO - 14 - Request mailbox information about a host (T_MXINFO)
+MX - 15 - Request mail exchanger for a domain (T_MX)
+TXT - 16 - A freeform miscellaneous text screen set by configurer (T_TXT)
+SIG - 24 - A security key (T_SIG)
+AAAA - 28 - Similar to A, except this works for IPv6 not IPv4 (T_AAAA)
+IXFR - 251 - Incremental zone transfer, often used to update a zone file (T_IXFR)
+AXFR - 252 - Transfer zone of authority (the whole thing, unlike IFXR (T_AXFR)
+ANY - 255 - Signifies all, like a wildcard * matching for DNS (T_ANY)
+This last record, ANY, can not actually be returned in a message. Nor
+can T_AXFR. It is actually, a QTYPE, not a TYPE. A QTYPE, as you may
+have guessed, is a "question type." QTYPEs contain all valid TYPEs,
+but in addition to these, are 4 more (AXFR, MAILA, MAILB, and ANY).
+
+The next 2 byte value, the CLASS, is like the super class that the
+record is stored in. THe valid identifiers for this are:
+IN - Internet (1), CS - CSNet (2), CH - CHAOS (3), HS - Hesiod (4)
+There is also a wildcard type like T_ANY, called C_ANY. This value
+is also 255. Like T_ANY, which is a QTYPE, C_ANY is a QCLASS, a 
+class which can only be found in queries and not responses.
+
+The TTL (time to live) is a _signed_ 32 bit number, but its value is
+always positive, since obviously, negative times are non-existant.
+The TTL is provided for caching services. It would be inefficient to
+constantly keep querying your name server for www.yahoo.com's address
+if you frequently hit the site. Thus, when your resolver gets the
+address, it keeps it in an internal offline cache so it doesn't have
+to contact your name server the next time you look up the site. The
+record is maintained in the cache for as long as the TTL specifies.
+Large sites often have large TTL's for records that last for days.
+Some sites which provide dynamic DNS services, for example, have a 
+much shorter TTL because information isn't static, and IPs can change
+quickly. The SOA record is a notable exception to all these rules - 
+the TTL for an SOA is always 0 to avoid caching.
+
+As we mentioned before, the RDLENGTH specifies the 2-byte length of
+the actual resource data, which is contained in the RDATA section
+immediately following it.
+Additional records are not direct responses to the question, but are
+nevertheless packaged along in the answer section, if they are
+pertinent. ARs are sometimes omitted if the same RR appears elsewhere
+in the body of the packet.
+
+The resource record data is usually expressed as a bunch of labels,
+as we saw before, which are terminated by a NULL, or a character
+string, which is simply a series of characters up to 256 bytes long,
+which is treated as binary data. This section is useful for 
+interpreting various resource data:
+
+RR	Representation		Other
+--	--------------		-----
+A	32 bit address		Generates no additional records
+NS	Labels			Specifies which host is an
+	-			authoritative NS for the specified 
+	-			CLASS and domain
+	-			A records are generated to show the
+	-			address of these NS's
+CNAME   Labels			Generates no additional records
+PTR	Labels			Generates no additional records
+HINFO	2 char strings		The first char string is the CPU, the
+	-			second is the OS
+	-			Often used by FTP to synchronize OS
+	-			types for interaction purposes
+MX	u_short and label	2 byte PREFERENCE record comes first:
+	-			numerical preference of the MX
+	-			The lower value, the more preferred
+	-			the exchanger is
+	-			This is followed by an EXCHANGE label,
+	-			which specifies the host doing the
+	-			mail exchange
+	-
+	-			A records are generated in the AR 
+	-			section for the exchange LABEL
+TXT	Char string		Can contain a variable number of
+	-			character strings
+AAAA	128 bit IPv6 address	
+
+
+I didn't include the SOA RR above, because it is a special and much
+more complex type.
+The SOA RR is divided as follows:
+MNAME - RNAME - SERIAL - REFRESH - RETRY - EXPIRE - MINIMUM
+
+SUB	Representation		Other
+---	--------------		-----
+MNAME	Char string		Server which is the primary source of
+	-			data for this zone
+RNAME	Char string		The mailbox of the zone's manager
+SERIAL	4 bytes			The zone's version/serial number
+REFRESH	4 bytes			Time that should elapse before the
+	-			zone is refreshed
+RETRY	4 bytes			The time a client should wait between
+	-			retrying failed refresh operations
+EXPIRE	4 bytes			Time limit before the zone expires
+	-			and is no longer authoritative
+MINIMUM	4 bytes			An unsigned minimum standard TTL that
+	-			should be exported with any of the
+	-			zone's RRs
+
+An SOA RR isn't responsible for creating any additional records.
+An important use of the SOA record is in an incremental zone transfer
+(IXFR). This is a way of updating the zone file without a complete
+zone (AXFR) transfer. Basically, when requesting an updated zone via
+IXFR, the client has the zone serial number handy. It passes this
+SERIAL field to the server, and the server is able to create a reply
+that consists of the differing lines between the zone file with the
+passed SERIAL and the current file and its new SERIAL.
+
+We will have one more practical packet dissection exercise here.
+Consider the reply returned by the following command:
+Jonestown% host -t A zsh.interniq.org
+zsh.interniq.org has address 207.174.139.138
+The reply looks like this -
+
+b9 dc 81 80 00 01 00 01   00 02 00 02 03 7a 73 68   .............zsh
+08 69 6e 74 65 72 6e 69   71 03 6f 72 67 00 00 01   .interniq.org...
+00 01 c0 0c 00 01 00 01   00 01 50 b1 00 04 cf ae   ..........P.....
+8b 8a 08 49 4e 54 45 52   4e 49 51 03 6f 72 67 00   ...INTERNIQ.org.
+00 02 00 01 00 02 a1 f7   00 06 03 4e 53 32 c0 32   ...........NS2.2
+c0 32 00 02 00 01 00 02   a1 f7 00 06 03 4e 53 31   .2...........NS1
+c0 32 c0 4a 00 01 00 01   00 02 a1 cf 00 04 ce a8   .2.J............
+e7 5b c0 5c 00 01 00 01   00 02 a1 cf 00 04 cf ae   .[.\............
+8b 82 .. .. .. .. .. ..   .. .. .. .. .. .. .. ..   ..
+
+Let's pick this apart. 
+The first 2 bytes are an ID which are variable and will change every
+time. The next 2 bytes are the various DNS header flags, but I'll 
+leave it as an excercise to the reader to interpret them.
+We continue parsing the DNS header. With the small DNS header applet
+above, we get the following output:
+--------------------------------------------------------
+Dumping DNS packet header:
+ID = b9dc, response = yes, opcode = standard query
+Flags:   recursion desired, recursion available
+Response code - no error
+Question # - 1, Answer # - 1, NS # - 2, Additional # - 2
+--------------------------------------------------------
+We see that the QDCOUNT bytes (00 and 01) signify that there is 1
+question, there is 1 answer (ANCOUNT = 1), there are 2 authority
+entries (NSCOUNT = 2), and there were also 2 additional records
+returned (ARCOUNT = 2).
+
+We've now read past the 12 byte header and we're in the question
+section. The current byte is 0x03. This is the beginning of the QNAME
+label. We read 3 bytes and get 'zsh'. The current byte is now '0x08.
+We read for 8 bytes and get 'interniq'. The current byte is now once
+again 0x03. We read for 3 bytes and get 'org'. There is a NULL
+terminator has ended. Thus the pertinent label (QNAME) is
+zsh.interniq.org. We read the next 4 bytes (2 bytes for the QTYPE and
+2 for the QCLASS) and get 0x01 for both of them. This corresponds to
+an A type (1) and an Internet class.
+We've read from 0xb9 to 0x01 and we have the question section:
+'zsh.interniq.org'	T_A	C_IN
+
+Since the QDCOUNT was only 1, we have read our single entry and now
+we're in the answer section, whose count is also 2.
+The current byte is 0xc0. Now, this next part will require a grasp
+on DNS compression, so you should read on to the next section, "Some
+Advanced DNS Techniques" if you do not already know this, and then
+return. We see the byte 0xc0, which corresponds to a decimal value
+of 192. This is clearly larger than the max label length (MAXLABEL =
+63), so we know that we have a DNS pointer on our hands. We know that
+the pointer references the absolute offset of 'xc00c' We know that
+the first 2 bits of the first byte must be ignored, because this is
+the signature of a compressed label. So we get rid of these 2 bits by
+bitmasking them out. 
+
+Here's some code for the purpose.
+
+---------------------
+char packet[PACKETSZ], *point;
+u_short label_offset;
+....
+point = packet;
+label_offset &= 0x3fff; 	/* This bitmask clears the first 2 bits */
+point += (label_offset++);	/* Seek to the pointer */
+---------------------
+
+Think of label_offset as being an absolute offset to an element in a
+0-indexed array.
+We read the label that we have now skipped to, which is the one we
+just did above. Then we read the 2 byte TYPE and CLASS, and as one
+would expect, they are 1 and 1 again (A and IN). Then we read the 4
+byte TTL, 0x000150b1, which we cast into a signed 32 bit integer.
+Next comes the RDLENGTH section, which consists of 2 bytes. We pull
+up 0x00 and 0x04. This is the equivalent of the decimal number 4. Is
+this any surprise? Well, we're reading an RR of type A, which is a
+32 bit IP address (INADDRSZ = 4 bytes). Now we know that the RDATA
+section has 4 bytes. So we read these into a u_int32_t variable. We
+have our host's address in network byte order. A little bit of
+inet_ntoa () magic and 0xcfae8b8a becomes 207.174.139.138... voila :) 
+Where does this leave us?
+'zsh.interniq.org'	T_A	C_IN
+TTL=86193, resource len = 4, resource data = 207.174.139.138
+
+The answer section had a count of 1 and we read this single record.
+Now we're parsing the authority section. The current byte is 0x08 and
+we're reading a label. We read the next 8 bytes: 'INTERNIQ'; now the
+current byte is 0x03; we read the next 3 bytes, 'ORG' and hit a null.
+Our label is 'INTERNIQ.ORG' as this is the domain to which the RR
+pertains. The next 2 bytes are 0x00 and 0x02, which correspond to
+a TYPE of 2 or (NS). We now know we're receiving information about
+the domain's name servers. The next 2 bytes, 0x00 and 0x01, or a
+decimal 1, correspond to a CLASS of Internet. Not surprising. We read
+the next 4 values for a TTL of 0x0002a1f7. The next two bytes are
+the RDLENGTH, which we read as 6. So our RDATA section is 6 bytes
+long. We know the format of the RDATA for a T_NS record from above.
+We start parsing the label. The first byte is 0x03. We read the next
+3 bytes: 'NS2'. The next label length is 0xc0. Oh does this ever look
+familiar! It's the same one as before, which was over 63 bytes. So we
+know it's a DNS pointer to 0xc032, or decimal 50. Offset 50 leads to
+0x8, the start of INTERNIQ.
+
+So for the first authoritative reply we have -
+INTERNIQ.org	T_NS	C_IN
+TTL=0x0002alf7	resource len = 6, resource data = NS2.INTERNIQ.org
+
+Notice that the RDLENGTH was 6, and not strlen (NS2.INTERNIQ.org).
+This is because the physical space for this data was 6 bytes: 1 for
+0x3, 3 for 'NS2', and 2 for the offset (1 + 3 + 2 = 6).
+
+ARCOUNT = 2, so we still have one more authority record left.
+We're at c0 again and we know its another offset. This time, not only
+does the RDATA contain an offset, but the name as well. We know from
+before that this offset 0xc032 leads to INTERNIQ.org, so we know this
+record applies to INTERNIQ.org. So we continue reading this record
+the same way as we did above and we end up with
+INTERNIQ.org	T_NS	C_IN
+TTL=0x0002a1f7	resource len = 6, resource data = NS1.INTERNIQ.org
+
+We're in our last section, the additional resource section. ARCOUNT
+is 2, so we know we'll have 2 records. We're at 0xc0 now and we know
+our label is a pointer. We know this pointer leads to INTERNIQ.org.
+Actually, this is interesting since we have 2 pointers in a row. The
+labels from these will be concatenated together. We've done enough
+parsing, but just skimming through we can see the classes for both of
+these RR's are C_IN and the TYPEs are T_A with RDLENGTH 4. So what's
+happening? Additional resource records were returned that contained
+the IP addresses for our two name servers.
+
+Now you're pretty much ready for anything ;)
+
+
+
+
+
+Some Advanced DNS Techniques
+----------------------------
+One topic that I've touched on lightly but haven't discussed with any
+certain amount of detail has been DNS compression. Traffic through
+the DNS channel is common, and generates a high number of packets.
+For this reason, compression has been implemented to save space. Say,
+for example, that we generate some questions for a certain domain.
+We might package 3 questions concerning the A, CNAME, and MX for
+"myschool.edu." Now, the response might come back with several
+different answers, referencing domain names such as "myschool.edu,"
+"mail.myschool.edu," and "www.myschool.edu." You can see that it
+would be redundant to repeat "myschool.edu" 3 times, so compression
+has been introduced to allow us to reference this label multiple
+times with minimal space expenditure.
+
+Remember how it was said earlier that the maximum length of a label
+is only 63 bytes. This is funny: aren't we using a single byte to
+determine the length of the label Then the maximum label length
+should be 128, shouldn't it? No. The first 2 bits of every normal
+label length byte are set to 0. This gives it a maximum value of 63,
+and not 128. When compression is employed, these 2 bits are set to 1.
+So basically, an offset is a 2 byte integer that gives the absolute
+offset of the label from the beginning of the DNS header (ID field).
+Only the trailing 14 bits of this 16-bit offset are read in, as the
+first 2 are reserved and always 1.
+Compression can also be used recursively, in the sense that a label
+can point to another label, which too, contains a pointer.
+If compression is used in the RDATA section of a response, then the
+length of the compressed label is given, because that's really only
+the space that was allocated for that record.
+
+For example, if we read the a label length field, and find the first
+2 bits to be 1, we read the current 2 bytes into an integer. We seek
+to the absolute offset from the beginning of the header (after the
+2 byte length field for TCP packets) and continue reading from that 
+byte. The absolute value is found by subtracting the 14 bit offset
+00xxxxxx-xxxxxxxx from the 16 bit one, 11xxxxxx-xxxxxxxx.
+
+
+There is also another type of query we haven't yet discussed. This is
+called an inverse query. Like its descriptive name suggests, inverse
+queries are the opposite of standard ones. Instead of passing
+questions to the name server and reading answers, we pass the filled-
+in answer records to the server and expect it to return the
+appropriate questions (thus the name, inverse query). Remember, when
+doing this, to set the DNS packet header's opcode to type IQUERY.
+Don't worry about filling in every single element of the RR when
+requesting an IQUERY. The TTL obviously can not be known, and the
+owner name can't be either. Thus you can leave these two sections
+blank (zeroed out) and just fill in the TYPE, CLASS, RDLENGTH, and
+RDATA elements.
+
+
+
+
+
+Introduction to DNS Security Mechanisms
+---------------------------------------
+I will not delve very far into the specifics of these security
+features, but merely present a broad overview.
+The domain name system on today's Internet is a big jumble of various
+servers. A client queries a server which queries another server which
+queries another server to get the appropriate answer. It's a wonder
+that there's not more entanglements and failures in these systems.
+Notice through all of this that all these messages go zipping across
+the network in unencrypted form, and most are sent encapsulated in
+UDP packets, which means that attackers can spoof them easily. DNS
+also operates on a high universal base trust level that assumes that 
+equitable information will be returned to every single host. This 
+does not allow for many of the certainties of modern secure models,
+such as guarantees of authenticity, integrity, and nonrepudation.
+
+
+This brings forth the introduction of the introduction of a new
+security key resource record, or the T_KEY RR (25). If a server is
+configured to run these extensions, it will return the keys along
+with the requested data, in the AR section. The encryption scheme is
+a public key one; for those of you who aren't cryptographers, this
+basically means that rather than having a pair of identical keys for
+encryption and decryption, a public key is given to all users and a
+private key is held by the server. A public key is used to encrypt
+data which can only be decrypted with the posession of a private key,
+and the private key can encrypt data which can only be decrypted
+by a public key. This allows all users to verify a message signed by
+a public key. The keys are associated with various zones and not the
+server in particular. Thus a server won't merely have a single key to
+provide verification for all of its zones. The keys returned in the
+RRs are also signed, to ensure an even further layer of security.
+
+A KEY RR has 4 major components: the first 2 bytes are stored for
+FLAGS, the next 2 bytes describes a protocol and an algorithm (1 byte
+each), and a variable amount of data is left for a public key at the
+end.
+The first 2 bits of the FLAGS section determine the KEYTYPE -
+10 - The key can not be used for authentication
+01 - The key can not be used for confidentiality
+00 - The key can be used for either
+11 - There is no key (this stops processing of a KEY RR and leaves
+the zone data in a questionable state because it can not be verified.
+The 3-6 bits should usually be kept to 0 (the 4th bit isnt reserved,
+but the rest are).
+Bits 7 and 8 encode the name type. These values are as follows:
+00 - They key is associated with a user account defined by the name
+01 - This is a zone key for the appropriate zone given by the name
+10 - This is a key associated with an entity which is not a part of
+the zone but is still defined by the name
+11 - Reserved
+The 3rd byte of the RR, reserved for the underlying Internet protocol
+can be defined as one of the following:
+0 - Reserved
+1 - For use in connection with TTLs
+2 - For use in connection with email
+3 - dnssec (almost always should be used)
+4 - IPSEC - Identifies and prepares the host for IPSEC communication
+255 - Wildcard (specifies a key which can be used with any protocol)
+The next byte is the KEY algorithm. These values are:
+0 - Reserved
+1 - RSA/MD5
+2 - Diffie-Hellman
+3 - DSA
+4 - Elliptic curve cryptography
+253-254 - Private
+
+The next important RR type is T_SIG (24).
+The purpose of this is to create an unforgable signature for a
+resource record which is timestamped and nonrepudiable.
+This is really a complicated type, so I'm going to quickly outline
+its components:
+Field Name	Length	 Purpose
+----------	------	 -------
+Type covered	2 bytes	 This is the type of RR covered by the SIG
+Algorithm #	1 byte	 See above (T_KEY specifications)
+Labels field	1 byte	 # of labels in the SIG RR owner name
+Original TTL	4 bytes	 Securely signed original TTL
+SIG Expire	4 bytes	 UNIX based (01/01/70 GMT) absolute time of
+		-	 when the signature will expire
+SIG Inception	4 bytes	 UNIX time of when the record was signed
+Key Tag		2 bytes	 Instructs which key should be used
+Signer's Name	Variable Domain name of the signer making the SIG RR
+Signature Field	Variable Binds the SIG RR to the RRSet
+
+I know that this section does not do an extremely good job of
+explaining the mechanics of dnssec, but it is such a broad subject
+which is only a small subset of the overall DNS picture, and going
+into further detail would far surpass the scope of this tutorial.
+The important point of this section is to give an awareness of how
+the DNS security model works to send along SIG and KEY records (and
+unmentioned others) along with resource records so that their origin
+and authenticity can be verified. 
+
+
+
+
+
+Putting Use to all This Information
+-----------------------------------
+Perhaps you just read this article and you're not sure exactly how
+this information will be useful to you. Well, the fact is that this
+tutorial isn't going to be useful for everybody, but that are several
+uses of knowing raw DNS apart from simply knowing how to create your
+own resolving library or server. You may have to add support for IPv6
+resolution on a platform which is not yet fully compliant with the
+changes and does not yet support AAAA records. Mail servers must
+employ the use of an interesting name server feature that is not
+always handled in the standard socket or resolution library. This is
+the MX resource record. When you send EMAIL to abc@xyz.com, there
+need not necessarily except an xyz.com (as an A record). The mail
+server looks up the mail exchanger for this domain, rather than the
+IP address, to handle the outgoing mail. This is how some
+organizations handle EMAIL for other. There are several other uses
+that are self-apparent, but reading this article or the RFC is just a
+smart idea of how to get behind the ball if you are responsible for
+configuring a daemon like BIND. A more comprehensive knowledge of the
+protocol will certainly result in the detection of errors and
+optimization of zone files.
+
+
+
+
+
+Closing Words and References
+----------------------------
+
+Well, that's about it. This was a quick little dip into DNS, nothing
+major. You should be able to figure out the rest of it reading the
+RFC's, or if you're more adventurous, it's really pretty easy to
+reverse engineer the protocol through dumps.
+Take care and happy coding.
+
+
+
+There are some good references for this sort of thing:
+As always, consult the appropriate RFC's. These include :
+RFC #1035 : Domain Names - Implementation and Specification
+RFC #1536 : Common DNS Implementation Errors and Suggested Fixes
+RFC #1912 : Common DNS Operational and Configuration Errors
+RFC #1995 : Incremental Zone Transfer in DNS (IXFR)
+RFC #2535 : Domain Name System Security Extensions
+
+Another good series for networking programming series (even though
+it's certainly geared towards Windows/Winsock programmers) is the DNS
+portion of the "Rolling Your Own Intranet" article found at 
+http://users.neca.com/vmis/dns.htm. This site, as I said, focuses on
+Winsock, but is still pretty good for picking apart at basic DNS
+packets. And of course, my favorite Internet basics book,
+"Internetworking with TCP/IP" contains a pretty good DNS section.

@@ -1,0 +1,14 @@
+Question
+--------
+How can I disable a Sun server from broadcasting/announcing itself to
+clients that the server is running X?  I do still want to use it as a
+GUI workstation, but just not have others pick it from a list in Exceed.
+
+Answer
+------
+The following file:
+	/usr/dt/config/Xaccess 
+is the file you need to copy to:
+	/etc/dt/config/Xaccess 
+and make the appropriate changes
+(else you will lose your changes upon upgrading).

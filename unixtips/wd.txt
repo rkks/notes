@@ -1,0 +1,141 @@
+#!/bin/sh
+#
+#  @(#) wd 1.1 99/03/09
+#
+#  Used to convert sd instance numbers (eg. sd20) to SCSI hardware location
+#  (eg. c1t5d0s0) or the other way around.  Can also list all such devices
+#  by using the -all option.
+#
+#  Credits:
+#      hw2inst() function based on "phylog" script by Nick Hindley
+#      inst2hw() function based on "whatdev" script from Sun Microsystems
+#
+#  Revision History
+#      1.1 1999-03-09  Mike van der Velden
+#          Original Version.   Converts sdxx to cxdxtxsx and back.
+#          Optionally lists all such devices.
+#
+#  Feedback, bug fixes, enhancements?  Send to mvanderv@yahoo.com
+#
+
+inst2hw ()
+{
+    # Convert the sd instance number into the SCSI hardware location.  
+    # Grabbed from the "phylog" script by Nick Hindley, 1998-08-04
+    
+    DEVNAME=$1
+    TYPE=`echo $DEVNAME | cut -c 1-2`
+    NUM=`echo $DEVNAME | cut -c3-255`
+
+    DEVPATH=`sed 's/"//g' /etc/path_to_inst | \
+             nawk -v type=$TYPE -v num=$NUM   \
+                  '{if (($2==num) && ($3==type)) print $1;}'`
+    
+    if [ -z "$DEVPATH" ]; then
+        echo "No such device $DEVNAME"
+        exit 2
+    fi
+
+    # now get all the devices out of /dev.  
+    # No way that I know of to map this back.
+
+    for p in /dev/dsk /dev/rdsk /dev/rmt /dev/osa/dev/dsk /dev/osa/dev/rdsk;
+    do
+        if [ -d $p ]; then
+            DEV=`ls -l $p | \
+                    nawk -v device=$DEVPATH \
+                         '{if ($NF ~ device)  {print $(NF - 2);exit;}}'`
+            if [ ! -z "$DEV" ]; then
+                # still need work on the st/rmt devices, which currently
+                # prints out as a simple number, not as, say rmt/0.
+                echo $DEV
+                break
+            fi
+        fi
+    done
+}
+
+
+hw2inst ()
+{
+    # Convert the SCSI hardware location into the sd instance number.
+    # From the script "whatdev" from the Solaris 2.X on Sun Hardware 
+    # Answerbook (or http://docs.sun.com)
+
+    devname=$1
+
+    for p in /dev /dev/osa/dev/dsk /dev/osa/dev/rdsk /dev/dsk /dev/rdsk /dev/rmt; 
+    do
+        if [ -h $p/$devname ]; then
+            DEVPATH=$p/$devname
+            break
+        fi
+    done
+
+    if [ -z "$DEVPATH" ]; then
+        echo "No such device $devname"
+        exit 2
+    fi
+    
+
+    # print out the drive name - st0 or sd0 - given the /dev entry  
+    # first get something like "/iommu/.../.../sd@0,0"  
+    DEV=`/bin/ls -l $DEVPATH | \
+         nawk '{ n = split($11, a, "/"); split(a[n],b,":"); \
+                 for(i = 4; i < n; i++) printf("/%s",a[i]); \
+                 printf("/%s\n", b[1]) }'`  
+    if [ ! -z "$DEV" ]; then
+        # get the instance number and concatenate with the "sd"  
+        nawk -v dev=$DEV \
+             '$1 ~ dev { n = split(dev, a, "/"); split(a[n], b, "@"); \
+                         printf("%s%s\n", b[1], $2) }' /etc/path_to_inst  
+    fi
+}
+
+
+
+
+###############################################################
+#
+# MAIN
+#
+
+USAGE="$0 <device> | -all"
+
+# "verbose" is an unadvertised option, useful for debugging
+if [ "$1" = "-v" ]; then
+    set -x
+    shift
+fi
+
+if [ -z "$1" ]; then
+    echo "Usage:  $USAGE"
+    exit 1
+fi
+
+
+case $1 in
+
+    s*)  # make sure slice number is *not* part of the name
+         DEVNAME=`echo $1 | sed "s/\(s[dt][0-9]*\)[a-h]$/\1/"`
+         inst2hw $DEVNAME
+         ;;
+
+    c*)  # make sure slice number *is* part of the name
+         DEVNAME=`echo $1 | sed "s/\(c[0-9]t[0-9]d[0-9]\)$/\1s0/"`
+         hw2inst $DEVNAME
+         ;;
+
+   -all) if [ -d /dev/osa ]; then
+             PREFIX="/dev/osa"
+         fi
+         for d in ${PREFIX}/dev/rdsk/c?t?d?s0; do
+             DEVNAME=`basename $d`
+             printf "%s --- " $DEVNAME
+             hw2inst $DEVNAME
+         done
+         ;;
+
+esac
+
+exit 0

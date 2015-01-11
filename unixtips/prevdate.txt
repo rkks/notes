@@ -1,0 +1,17 @@
+=============================
+= To find the previous date =
+=============================
+
+PERL
+----
+perl -e 'print scalar(localtime(time - 86400)), "\n"'
+
+
+SHELL
+-----
+user:/> echo $TZ
+US/Eastern
+user:/> date +%D
+11/12/02
+user:/> echo `TZ=GMT+29 date +"%D"`
+11/11/02

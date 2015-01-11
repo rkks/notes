@@ -1,0 +1,21 @@
+How to change the banner of the telnet daemon when logging in
+-------------------------------------------------------------
+
+From the telnetd man page:
+
+The banner printed by in.telnetd is configurable.  The
+default is (more  or less) equivalent to "`uname -sr`" and
+will be used if no banner is set  in /etc/default/telnetd.
+To set the banner, add a line of the form:
+
+BANNER="..."
+
+to /etc/default/telnetd. 
+Nonempty banner strings are fed to shells for evaluation. 
+The default banner may be obtained by:
+
+BANNER="\\r\\n\\r\\n`uname -s` `uname -r`\\r\\n\\r\\n"
+
+and no banner will be printed if /etc/default/telnetd contains:
+
+BANNER=""

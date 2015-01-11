@@ -1,0 +1,414 @@
+       The Cuddletech Veritas Cheat Sheet
+
+		by: B. Rockwood
+	      benr@cuddletech.com
+
+
+Overview:
+--------
+
+        The purpose of this paper is to 
+quickly get you up to speed in Veritas,
+and to act as a quick referance.  All new
+users to Veritas are HIGHLY encouraged to
+first read the Veritas users guides enlucded
+with Veritas, and found on docs.sun.com
+
+Remember!: Almost all commands can use several
+        diffrent options that are similar
+        across all commands.  The most used
+        of these is "-g <diskgroup>" which
+        specifies which Disk Group the command
+        will be executed on.  For instance,
+        vxinfo will only display volume information
+        for volumes in the rootdg, to see
+        volumes in the datadg, for instance, use: 
+        Ex: "vxinfo -g datadg"
+
+
+-----------------------------------------------
+        DISPLAY and MONITORING
+-----------------------------------------------
+
+vxdisk list
+        List all disks used by Veritas (VX).
+
+vxdisk list <diskname>
+        Display detailed information about a 
+        single disk, including mutlipathing
+        information, size, type, Vx version,
+        and more.
+
+vxprint
+        Display report style information about
+        the current status of all Vx componants,
+        including disks, subdisks, plexes, and
+        volumes.
+
+vxprint <componant>
+        Display report style information about
+        the current status of ONLY the componant
+        you request.  So for instance, 
+        "vxprint vol01" shows information about
+        all subcomponants of vol01.  This works
+        for plexes, disk groups, etc.
+
+vxprint -hrt
+	Display detailed information about all
+	Vx componanats, including stwdith, 
+	ncolumns, offsets, layout type, read-
+	policy, and more.  This is best for
+	a true picture of your configuration.
+
+vxdg list
+        Display listing and state information
+        of all Disk Groups.
+
+vxdg list <diskgroup name>
+        Display detailed information about
+        a diskgroup, including flags, version,
+        logs status, etc.
+
+vxinfo
+        Display volume status and volume type.
+        By default, only displays "rootdg", 
+        to display a diffrent Disk Group,
+        use "vxinfo -g <dgname>".
+
+vxassist maxgrow <volume>
+        This command will output the maximum size
+        the volume specified can increased by,
+        specified in sectors.
+
+--------------------------------------------------
+        DISK TASKS and COMMANDS
+--------------------------------------------------
+
+vxdiskadd <devname>
+        Adds a disk to Vx by Initializing and Encapsolating
+        it.  Specified by its device name (ex: c0t1d0s2).
+        NOTE: You'll need to reboot to finalize the
+        disk addition!
+        
+        This command, can also be used to add a disk to
+        a specified disk group.  Just follow the prompts.
+        No reboots needed for changing DG's.
+
+vxedit rename <oldname> <newname>
+        Rename a Vx disk. Ex: "vxedit rename disk01 disk05"
+
+vxedit set reserve=on <diskname>
+        Sets the "reserve" flag to a Vx disk.  This
+        is used to keep specific disks from being
+        accidentally, or generally used.
+
+vxdisk offline <diskname>
+        Used to "offline" a disk.  The disk should
+        be removed from its diskgroup before being   
+        offlined.
+
+vxdisk rm <devname>
+        Used to remove disks from Vx control completely.
+        Ex: "vxdisk rm c0t1d0s2"  Make sure to 
+        removed the disk from its diskgroup, and offline
+        the disk before removing it.
+
+vxedit set spare=on <diskname>
+        Sets the "spare" flag to a Vx disk.  This is used
+        to make the specified disk a hot spare, which
+        is then added to the "hot spare pool".
+
+vxedit set spare=off <diskname>
+        Same as above but removes the disk from the
+        "hot spare pool".
+
+----------------------------------------------------
+        DISK GROUPS and COMMANDS
+----------------------------------------------------
+
+vxdg init <diskgroup> <diskname>=<devname>
+        Creates a new disk group, and assigns the naming
+        scheme to the first disk added to the group.
+        ex: "vxdg init newdg newdg01=c0t10d0s2".
+        NOTE: This is kinda tricky because the disk that
+        you're adding can't be a member of ANY DG, but
+        must be initialized.  It's easier to use
+        "vxdiskadd", and add the disk to a newdg by
+        specifying a new DG name for the DG field.
+
+vxdg deport <diskgroup>
+        Disabled a diskgroup, but doesn't remove it.  Often
+        used as an organized pool of disk to realocate, and
+        to moved DG's from one system to another.
+
+vxdg import <diskgroup>
+        Reverse of above.  Enables local access to the specified
+        disk group.
+
+vxdg -n <newdgname> <olddgname>
+        Change a Disk Groups name.
+
+vxdg list <dgname>
+        Use this to check the version numbers of Disk
+        Groups.  Shows other details about the DG too.
+
+vxdg destroy <dgname>
+        Removes the specified DG, and frees all its disks
+        back to general use by Vx.
+
+-= Quick Chart!: Disk Group Version Number Translation
+
+        VxVM          Introduced                Supported
+        Release         Version                 Versions
+        -------       ------------              ---------
+        1.2             10                        10
+        1.3             15                        15
+        2.0             20                        20
+        2.2             30                        30
+        2.3             40                        40
+        2.5             50                        50
+        3.0             60                       20-60
+
+-----------------------------------------------------------
+        SUBDISKS and COMMANDS                                                           
+-----------------------------------------------------------                                       
+
+vxmake sd <subdiskname> <disk>,<offset>,<length>
+        Creates a subdisk with the specified name,
+        and by the offset and length specified.
+        ex: "vxmake sd disk02-01 disk02,0,8000"
+        NOTE: If you are going to add this subdisk
+        to a plex, its good to check the other
+        subdisks in that plex to see what their
+        lengths and offsets are, use the command:
+        "vxprint -st"
+
+vxedit rm <subdiskname>                               
+        Removes a subdisk.                       
+                          
+vxsd assoc <plexname> <subdiskname>,....
+        Associates the specified subdisks to
+        the specified plex.  Example:
+        "vxsd assoc vol01-03 disk01-01,disk02-01"                                            
+        NOTE: Striped volumes are diffrent,                                                 
+        you need to specify the column# so                                                 
+        use the following:                                           
+                                          
+vxsd -l <col#/offset> assoc <plexname> <subdiskname>,...                          
+        Same as above, but used for associating
+	subdisks to a striped plex.  Use the command                               
+        "vxprint -st" to see what other subdisk
+        in the plex look like, and then set the
+        new subdisks column number and offset
+        (found in the seventh column of output)
+        to the appropriate value.
+                                               
+vxsd aslog <plex> <subdiskname>
+        Adds a log subdisk to the specified plex.                               
+        Ex: "vxsd aslog vol01-02 disk03-01" 
+
+vxsd dis <subdiskname>
+        Disassociates the specified subdisk from its
+        current plex.                                                      
+
+------------------------------------------------------
+        PLEXS and COMMANDS
+------------------------------------------------------
+
+vxmake plex <plexname> sd=<subdiskname>,<subdiskname>,....      
+        Creates a new plex by the name specified and
+        assigns the specified subdisks to it.
+
+vxmake plex <plexname> layout=<layout> stwidth=<stwidth> ncolumn=<ncolumn> sd=...
+	Like above command, but specifies layout type
+	as defined by <layout>, which is used for creation
+	of striped and RAID5 plexes.  The layout is
+	constrained by the defined number of columns,
+	and stripe width.  Subdisks specified are
+	added to the created plex.	
+	
+
+vxplex att <volname> <plexname>
+        Associates specified plex with specified volume.
+        (Adds a mirror)  
+        NOTE: Attachment will take a while.  Watch
+        it with Vxtask, or via vxprint
+
+vxplex dis <plexname>
+        Disassociate specified plex from its connected 
+        volume.
+
+vxedit -r rm <plexname>
+        Remove the plex.
+
+vxmend off <plexname>
+        Offlines a plex for repair to it's disks.
+
+vxplex det <plexname>
+        Detaches specified plex from its connected
+        volume, but maintians association with it's
+        volume.  The plex is no longer used
+        for I/O untill it is (re)attached.
+
+vxmend fix clean <plexname>
+        Used to clean plexes that are in the
+        "unclean" state.  Used with unstartable
+        volumes.
+
+vxplex mv <originalplex> <newplex>
+        Moves the data content from the origonal
+        plex onto a new plex.  
+        NOTE: The old plex must be active (ENABLED).
+        The new plex should be the same length, or
+        larger than the old plex.  The new plex 
+        must not be associated with another volume.
+        (duh)
+
+vxplex cp <volume> <newplex>
+        Copies the data from the specified volume
+        to a new plex.
+        NOTE: The new plex cannot be associated
+        with any other volume.  The new plex,
+        further, will NOT be attached to 
+        the specified volume.  (Also, see notes
+        from above)
+
+-------------------------------------------------------
+        VOLUMES and COMMANDS
+-------------------------------------------------------
+
+vxassist make <volumename> <length>
+        Creates a new volume with the name specified
+        and is made to the length specified.  
+        Ex: "vxassist make newvol 10m"
+        NOTE: This command will pull disk space
+        from the generally avalible Vx disk space.
+
+vxassist make <volname> <length> layout=<layouttype> <disk> <disk> ....
+        Like the above command, but with layout specified.
+        The most common layouts are: striped and raid5
+        ex: "vxassist make newvol 100m layout=raid5 disk01 disk02 disk03"
+        NOTE: See the vxassist(1M) man page for more information.
+
+vxmake vol <volname> len=<length> plex=<plexname>,...
+        Creates a new volume of specified length (usually
+        in sectors), and attachs the specified plexes to that
+        volume.  Useful for creating volumes to house 
+        copied or moved plexes.
+        NOTE: See the vxmake(1M) man page for more information.
+
+vxvol init <state> <volname> [plexname]
+        Manually sets the state of a volume.
+        NOTE: Not for the squimish.
+
+vxassist maxsize [layout=raid5]
+        Returns the maximum size avalible via Vx to create
+        a new volume.  By adding "layout=raid5" to the command
+        the calulations take into account losse due
+        to raid5.  Output is in sectors and Megs.
+
+vxassist maxgrow <volname>
+        Returns the maximum ammount of Vx space that
+        can be added to the specified volume.
+
+vxassist mirror <volname>
+        Creates a mirror for the specified volume.
+        NOTE: Think of this as "handsfree plex creation".
+        This is fast, but the disks you want used 
+        may not be used... often best to do manually.
+
+vxassist addlog <volname>
+        Adds a Dirty Region Log (DRL) for the specified volume.
+
+vxassist remove log <volname>
+        Reverse of above.
+
+vxvol start <volname>
+        Starts a volume
+
+vxvol stop <volname>
+        Stops a volume.  Alternately you can use command as
+        such: "vxvol stopall" in order to stop all volumes.
+
+vxassit growto/growby/shrinkto/shrinkby <volname> <length>
+        Resizes the volume specified.  Use one of the
+        following: growto, growby, shrinkto, and shrinkby
+        in order to descide what <length> specifies.
+        By default length is specified in sectors.
+        This does not resize the filesystem inside the volume.
+        NOTE: Don't shrink volumes to be less that 
+        its contained filesystem! (duh)
+
+vxvol set len=<length> <volname>
+        An alternate to above command.  Sets the absolute
+        lenths of the specified volume to the length
+        specified, by default, in sectors.  This 
+        does not resize the filesystem inside the volume.
+
+        NOTE: There is also a resize(1M) command, used
+        for resizing both volume AND filesytem.  See
+        the man page for that one.
+
+vxedit rm <volname>
+        Removes the specified volume. (poof!)
+        NOTE: If the volume specified is in the ENABLED
+        state, you will need to use the command
+        "vxedit -f <volname>".  Also, using the "r"
+        with "f" will remove all plexes and subdisks
+        with the volume.  If you didn't guess, "r"
+        is Recursive, and "f" is Force.
+
+----------------------------------------------------------------
+Misc Stuff:
+
+To calculate the size of a filesystem inside a volume, use
+the command:
+	fstyp -v <volume-device-path> | head -30 | grep ncg
+Ignore the errors.  Output will look this this:
+  # fstyp -v /dev/vx/rdsk/datadg/vol01 | head -30 | grep ncg
+  ncg     17152   size    70254592        blocks  65863396
+  # Broken Pipe
+  Unknown_fstyp (no matches)
+The size found after the label "size" is presented in kilobytes.
+You can convert to sectors by multiplying by 2.
+
+		-----------
+
+To calculate the size of a volume, use vxprint, and look for the
+"len".  The volume length is in sectors.  Convert to kilobytes
+by dividing by 2.
+
+
+		-------------
+
+Volume Growth Procudure:
+1) You can use vxassist to estimate the max size of 
+a given volume based on the disks you wish to add:
+ex: # vxassist -g rootdg maxgrow vol01 disk01 disk02 disk03
+
+2) Next, actually grow the volume (NOT THE FS) via the 
+command (assuming maxgrow outputed 10639360 as the maxsize):
+ex:# vxassist -g rootdg growto vol01 10639360 disk01 disk02 disk03
+
+3) Now VxVM grinds away, monitor with vxtask.
+
+4) Now Grow the Filesystem, for UFS use:
+# /usr/lib/fs/ufs/mkfs -F ufs -M /export /dev/vx/rdsk/rootdg/vol01 10639360
+
+for VXFS ufs:
+# /usr/lib/fs/vxfs/fsadm -b 10639360 -r /dev/vx/rdsk/rootdg/vol01 /mnt
+---------------------------------------------------------------
+
+5) Done!
+
+	----------
+
+Changing User/Group of a Raw Volume: (ex:)
+ vxedit -g xxxdg set group=dba data_vol_123
+ vxedit -g xxxdg set user=oracle data_vol_123
+
+
+======= Ben Rockwood == cuddletech.com ========================
+---------------------------------------------------------------
+
+

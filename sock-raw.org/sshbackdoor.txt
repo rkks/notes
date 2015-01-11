@@ -1,0 +1,171 @@
+
+===========================================
+= Backdooring OpenSSH for fun (no profit) =
+===========================================
+
+ithilgore
+sock-raw.org
+
+Idea
+=====
+
+This is just another simple proof of concept OpenSSH server backdooring. The 
+idea is that you provide a password different than the real one and the real
+one is decoded on the server side according to a 2-way algorithm. This can
+prove efficient if you know that you are being man-in-the-middle attacked but
+still want to connect to your server without revealing the real password. Keep
+in mind that public key authentication would be the best solution here, so don't
+really depend on this. Credit goes to gorlist [1] for first mentioning the
+idea.
+
+For demonstration purposes we are going to use a simple ROT-n algorithm, since
+it's one of the easiest 2-way schemes and can also take care of avoiding 
+non-printable characters. Another option would be using XOR. Note that the
+rotation step is hardcoded in the patch (rot = 5).
+
+
+Patch
+======
+
+diff -u ../openssh-5.1p1/auth-passwd.c ./auth-passwd.c
+--- ../openssh-5.1p1/auth-passwd.c      2007-10-26 07:25:12.000000000 +0300
++++ ./auth-passwd.c     2009-01-31 22:05:36.123399341 +0200
+@@ -53,6 +53,7 @@
+ #include "hostfile.h"
+ #include "auth.h"
+ #include "auth-options.h"
++#include "xmalloc.h"
+ 
+ extern Buffer loginmsg;
+ extern ServerOptions options;
+@@ -193,6 +194,8 @@
+ {
+        struct passwd *pw = authctxt->pw;
+        char *encrypted_password;
++       char *magic;
++       int rot = 5;
+ 
+        /* Just use the supplied fake password if authctxt is invalid */
+        char *pw_password = authctxt->valid ? shadow_pw(pw) : pw->pw_passwd;
+@@ -201,10 +204,18 @@
+        if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0)
+                return (1);
+ 
++       magic = magic_encode(password, rot);
++
+        /* Encrypt the candidate password using the proper salt. */
+-       encrypted_password = xcrypt(password,
++       encrypted_password = xcrypt(magic,
+            (pw_password[0] && pw_password[1]) ? pw_password : "xx");
+ 
++       fprintf(stderr, "real password hash: %s\npassword-on-wire: %s\n"
++              "decoded password: %s\ndecoded password hash %s\n", pw_password,
++               password, magic, encrypted_password);
++
++       free(magic);
++
+        /*
+         * Authentication is accepted if the encrypted passwords
+         * are identical.
+@@ -212,3 +223,27 @@
+        return (strcmp(encrypted_password, pw_password) == 0);
+ }
+ #endif
++
++char *
++magic_encode(const char *password, int rot)
++{
++       char *decbuf;
++       size_t i;
++       size_t len;
++       char temp;
++
++       len = strlen(password) + 1;
++       decbuf = xmalloc(len);
++       strlcpy(decbuf, password, len);
++       for (i = 0; i < len - 1; i++) {
++              if (decbuf[i] + rot > 0x7E)
++                      decbuf[i] = decbuf[i] + (rot % (0x7F - decbuf[i]));
++              else if (decbuf[i] + rot < 0x20) {
++                      temp = decbuf[i] - 0x20;
++                      if (temp) 
++                             decbuf[i] = decbuf[i] + (rot % temp);
++             } else
++                      decbuf[i] += rot;
++       }
++       return decbuf;
++}
+diff -u ../openssh-5.1p1/auth.h ./auth.h
+--- ../openssh-5.1p1/auth.h     2008-07-02 15:37:30.000000000 +0300
++++ ./auth.h    2009-01-31 18:52:26.897927807 +0200
+@@ -186,6 +186,7 @@
+ struct passwd *fakepw(void);
+ 
+ int     sys_auth_passwd(Authctxt *, const char *);
++char * magic_encode(const char *, int rot);
+ 
+ #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
+
+
+Demonstration
+==============
+
+User: test
+Password: test123
+Algorithm: ROT-5
+
+[ithilgore ~]$ grep test /etc/passwd
+test:x:1003:100::/home/test:/bin/bash
+
+[ithilgore ~]$ cat ~/scripts/rot.pl
+#!/usr/bin/perl
+use warnings;
+use strict;
+
+if (@ARGV < 2) {
+        die("usage: $0 string number\n");
+}
+
+my @string = split //, $ARGV[0];
+my $num = $ARGV[1];
+
+foreach (@string) {
+        if (ord($_) + $num > 0x7E) {
+                print chr(ord($_) + ($num % (0x7F - ord($_))));
+        } elsif (ord($_) + $num < 0x20) {
+                my $temp = ord($_) - 0x20;
+                if (!$temp) {
+                        print chr(ord($_));
+                } else {
+                        print chr(ord($_) + ($num % $temp));
+                }
+        } else {
+                print chr(ord($_) + $num);
+        }
+}
+print "\n";
+
+
+[ithilgore ~]$ rot.pl test123 -5
+o`no,-.
+
+We enter the above string as password.
+
+[ithilgore ~]$ ssh test@localhost
+test@localhost's password:
+
+
+[root ~]# /usr/local/sbin/sshd -d
+...
+real password hash: $1$lhMfQqJ9$/w0RFPKUyBewIfg96CSyW0
+password-on-wire: o`no,-.
+decoded password: test123
+decoded password hash $1$lhMfQqJ9$/w0RFPKUyBewIfg96CSyW0
+Accepted password for test from 127.0.0.1 port 49166 ssh2
+
+
+
+References
+===========
+
+[1] gorlist - http://int0x80.gr

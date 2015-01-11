@@ -1,0 +1,568 @@
+Coding a TCP Connect Port Scanner: Using VLSM 
+rev 1.0
+
+- C Hacker's Handbook Series #3 -
+This series has been created to help teach 
+beginning C code hackers the basics of
+security programming.
+  _                         _     
+ | |_ ___ _ _ ___ ___ ___ _| |___ 
+ |  _|  _| | |   |  _| . | . | -_|
+ |_| |_| |___|_|_|___|___|___|___|
+
+ * truncode security development *
+ http://truncode.org
+ modular <modular@truncode.org> 
+ 
+This paper assumes the reader has read and understood the first two papers in 
+this series or has basic C and BSD socket programming skills. Intermediate 
+knowledge of IP addressing and subnetting is also assumed.
+
+] Introduction
+
+Most port and vulnerability scanners assume that the user only wants to scan a
+subnet on classful boundaries. Although this works most of the time, it can be
+somewhat limiting. If the reconnaissance phase of an attack reveals that the
+target is using Variable-length subnet masking (VLSM) or Classless Interdomain
+Routing (CIDR), preparing lists for those subnets can be somewhat laborious.
+
+In this paper I cover the somewhat scarce blackart of incorporating VLSM and
+CIDR capabilities into a network scanner. I have chosen the class B address 
+172.16.0.0 to work with as an example throughout this paper.
+
+After searching for existing code or algorithms to study, I finally came upon 
+ipsc.sourgeforge.net. This is the only subnet calculator written in C I could
+find. There seem to be quite a few in javascript laying around, but most of
+the algorithms used were "clunky". I am assuming this paper is the first of 
+its kind on the Internet. Please contact me otherwise if this is not the case.
+I would enjoy looking at other solutions to this problem.
+
+Sometimes my explanations may seem overkill, but I am a firm believer of 
+breaking down problems into minute sections and analyzing them through a
+microscope.
+
+] VLSM review
+
+Let us assume that Victim Networks, Inc., a large ISP, has been assigned 
+172.16.0.0/16 to work with. We wll focus on four of their routers. Router-X 
+has routers, Router-A, Router-B, and Router-C connected to it via 
+point-to-point frame relay links.
+
+Here is a naive graphical representation:
+
+172.16.14.32/27 <- Router-A ->------------------        |--------------------|
+			       172.16.14.132/30 \          | 172.16.1.0/24
+						 \         | 
+172.16.14.64/27 <- Router-B ->--------------------------<- Router-X ->
+                               172.16.14.136/30  /         |
+			                        /          | 172.16.2.0/24
+172.16.14.96/27 <- Router-C ->-----------------/        |--------------------|
+			       172.16.14.140/30
+
+An uneducated attacker might point their tools at 172.16.0.0/16 and let them
+scan noisily away - the whole class B network (duh). What are the alternatives?
+
+We can incorporate a routine to scan IP addresses from an external file (See
+paper #2 of this series). These IP's could be generated easily with an existing
+port scanner like nmap:
+
+[modular@truncode]$ nmap -sL  -n 172.16.14.32/27 | grep '^Host' | \
+cut -d '(' -f 2 | cut -d')' -f 1 > target-ips.txt
+
+This would give us a list of IP addresses between 172.16.14.32-63. Then we 
+could feed this list into our scanner. Not too bad, but this might be awkward
+later when we want a self-reliant scanner that can automate certain tasks 
+easily.
+
+] strtok() magic
+
+The TCP port scanner should be able to take the first argument 172.16.14.32/27,
+for example, and separate it into two variables using '/' as the delimiter. I 
+will call these variables, network and mask. In order to parse argv[1] into
+separate tokens, we use the ever handy strtok function (man 3 strtok shows
+the following synopsis):
+-------------------------------------------------------------------------------
+#include <string.h>
+
+       char *strtok(char *s, const char *delim);
+       
+-------------------------------------------------------------------------------
+
+This man page explains that a token is a string of characters that do not match
+the 'delim' string. In this case 'delim' will be '/'. We will need to call 
+strtok() twice in order to cover the string before '/' as well as the string
+after '/'. The second call to strtok() should set the first argument to NULL
+because each call returns a pointer to the next token and then to NULL when 
+there are no more tokens. My explanation is almost verbatim off the man page.
+
+The following small program exemplifies how strtok() might be used by our 
+scanner:
+-------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(int argc, char *argv[])
+{
+    char *network, *mask;
+
+    network = strtok(argv[1], "/");
+    mask = strtok(NULL, "/");
+
+    /* print out tokens just for the sake
+     * of example.
+     */
+    printf("network = %s\nmask = %s\n", network, mask);
+
+    return 0;
+}
+-------------------------------------------------------------------------------
+Compile the example and run it:
+
+[modular@truncode]$ gcc strtok_ex.c -o strtok_ex
+[modular@truncode]$ ./strtok_ex 172.16.14.32/27
+network = 172.16.14.32
+mask = 27
+
+So far so good. Now we turn our attention to the art of bit shifting.
+
+] Bit Operations
+
+Before any calculations can be made the target network IP address must be
+turned into one integer. Break each octet into a binary integer to make it
+easier to understand:
+
+172 = 10101100
+16  = 10000
+14  = 1110
+32  = 100000
+ 
+Imagine 24 zeros as placeholders (think IP address - 4 octets). It always
+helps me immensely when I can see something visual. Each octet will need to 
+be shifted into its appropriate position:
+
+172 << 24
+---------
+10101100 00000000 0000000 00000000
+
+16 << 16
+--------
+00000000 00010000 0000000 00000000
+
+14 << 8
+-------- 
+00000000 00000000 0001110 00000000
+
+32 
+--------
+00000000 00000000 0000000 00100000
+
+Now all just OR all of them together:
+
+172 = 10101100 00000000 0000000 00000000
+16  = 00000000 00010000 0000000 00000000
+14  = 00000000 00000000 0001110 00000000
+32  = 00000000 00000000 0000000 00100000
+----------------------------------------
+      10101100 00010000 0001110 00100000 = 2886733344
+
+There you have it - one integer which represents a dotted-decimal IP address.
+You might notice immediately that this integer is quite large. An unsigned
+long has a range of values from 0 to 4,294,967,295 which should be enough.
+
+A function can now be written based on the previous example:
+-------------------------------------------------------------------------------
+unsigned long convert_ip(const char *t_addr)
+{
+    int octet1 = 0;
+    int octet2 = 0;
+    int octet3 = 0;
+    int octet4 = 0;
+    if(sscanf(t_addr, "%d.%d.%d.%d", 
+		&octet1, &octet2, &octet3, &octet4) < 1)
+    {
+	fprintf(stderr, "Not a standard IPv4 IP address.\n");
+	exit(1);
+    }
+    return((octet1 << 24) | (octet2 << 16) | (octet3 << 8) | octet4);
+}
+-------------------------------------------------------------------------------
+
+If you understood the bit shifting example, this function should be a piece of
+cake to understand. The function sscanf() looks for a format of "%d.%d.%d.%d"
+in the char string variable t_addr and separates each integer into a new 
+variable. Then we use the << and | operators to initiate our algorithm and
+return the unsigned long integer. The returned integer is of course the 
+first address of the subnet.
+
+Add the new convert_ip() function to the first example program:
+-------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+unsigned long convert_ip(const char *t_addr);
+
+int main(int argc, char *argv[])
+{
+	char *network, *mask;
+	network = strtok(argv[1], "/");
+	mask = strtok(NULL, "/");
+	/* print out tokens just for the sake
+	 * of example.
+	 */
+	printf("network = %s\nmask = %s\n", network, mask);
+	printf("Our transformed IP address %s is %lu\n",
+			argv[1], convert_ip(argv[1]));
+	return 0;
+}
+
+unsigned long convert_ip(const char *t_addr)
+{
+	int octet1 = 0;
+	int octet2 = 0;
+	int octet3 = 0;
+	int octet4 = 0;
+	
+	if(sscanf(t_addr, "%d.%d.%d.%d",
+				&octet1, &octet2, &octet3, &octet4) < 1)
+	{
+		fprintf(stderr, "Not a standard IPv4 IP address.\n");
+		exit(1);
+	}
+	return((octet1 << 24) | (octet2 << 16) | (octet3 << 8) | octet4);
+}
+-------------------------------------------------------------------------------
+
+] Calculating Mask Offsets
+
+In the example subnet, /27 or 255.255.255.224 was chosen as the subnet mask to
+use. This gives 2^5 = 32 addresses per subnet. Then the converted IP address is
+added to 32 and 1 is subtracted. Let's take a look back at what integer the
+convert_ip() function gave us for the 172.16.14.32 network. First one from 
+the integer 2886733344 and convert that to binary:
+
+10101100 00010000 00001110 00011111
+
+Now add 32:
+-----------
+10101100 00010000 00001110 00011111
+00000000 00000000 00000000 00100000
+-----------------------------------
+10101100 00010000 00001110 00111111
+
+As you can see this just gave us 32 new addresses. Our new function will return
+this number as the ending integer of the subnet:
+-------------------------------------------------------------------------------
+unsigned long add_masking(const char *t_addr, int mask)
+{
+	if(mask > 32 || mask < 0) /* check for valid values */
+	{
+		fprintf(stderr, "Not a valid subnet mask.\n");
+		exit(1);
+	}
+	return((int)pow(2, 32 - mask) + convert_ip(t_addr) -1);
+}
+-------------------------------------------------------------------------------
+
+] Reversing the converted IP address integers
+
+This is the last function needed before we can write a full VLSM IP generating
+program. The algorithm used here is basically the reverse of the convert_ip 
+function. This time the AND operator is used to zero out the unneeded octets 
+and then all the bits are then shifted to the right. Again take a look at the 
+first integer we used.
+
+10101100 00010000 0001110 00100000 = 2886733344
+
+10101100 00010000 0001110 00100000
+11111111 00000000 0000000 000000000 &
+-----------------------------------
+10101100 00000000 0000000 000000000 = 2885681152
+
+Now shift the integer to the right...
+
+2885681152 >> 24
+----------------
+00000000 00000000 0000000 10101100 = 172
+
+And so on...
+
+Here is an example of the reverse integer to dotted-decimal IP address 
+function:
+-------------------------------------------------------------------------------
+char *reverse_int(unsigned long addr)
+{
+	static char *buffer[BUF_SIZE];
+	snprintf((char *)buffer, BUF_SIZE, "%d.%d.%d.%d",
+			(addr & 0xff000000) >> 24,
+			(addr & 0x00ff0000) >> 16,
+			(addr & 0x0000ff00) >> 8,
+			(addr & 0x000000ff));
+	return((char *) buffer);
+}
+-------------------------------------------------------------------------------
+The snprintf() function uses the format "%d.%d.%d.%d" and writes it into the
+character string 'buffer'. Anyone familiar with writing BPF filters in tcpdump
+should recognize the logic of AND and 0xff in the reverse_int() function.
+
+] An example program
+-------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#define BUF_SIZE 128
+
+unsigned long convert_ip(const char *t_addr);
+unsigned long add_masking(const char *t_addr, int mask);
+char *reverse_int(unsigned long addr);
+
+int main(int argc, char *argv[])
+{
+    char *network, *mask;
+    unsigned long start = 0, end = 0, current = 0;
+
+    /* separate network and mask into two
+     * usable tokens
+     */
+    network = strtok(argv[1], "/");
+    mask = strtok(NULL, "/");
+
+    start = convert_ip(network);
+    end = add_masking(network, atoi(mask));
+
+    for(current = start; current <= end; current++)
+    {
+	printf("%s\n", reverse_int(current));
+    }
+
+    return 0;
+}
+
+unsigned long convert_ip(const char *t_addr)
+{
+    int octet1 = 0;
+    int octet2 = 0;
+    int octet3 = 0;
+    int octet4 = 0;
+
+    if(sscanf(t_addr, "%d.%d.%d.%d", 
+		&octet1, &octet2, &octet3, &octet4) < 1)
+    {
+	fprintf(stderr, "Not a standard IPv4 IP address.\n");
+	exit(1);
+    }
+    return((octet1 << 24) | (octet2 << 16) | (octet3 << 8) | octet4);
+}
+
+unsigned long add_masking(const char *t_addr, int mask)
+{
+    if(mask > 32 || mask < 0) /* check for valid values */
+    {
+	fprintf(stderr, "Not a valid subnet mask.\n");
+	exit(1);
+    }
+    return((int)pow(2, 32 - mask) + convert_ip(t_addr) -1);
+}
+
+char *reverse_int(unsigned long addr)
+{
+    static char *buffer[BUF_SIZE];
+    snprintf((char *)buffer, BUF_SIZE, "%d.%d.%d.%d",
+	    (addr & 0xff000000) >> 24,
+	    (addr & 0x00ff0000)	>> 16,
+	    (addr & 0x0000ff00) >> 8,	
+	    (addr & 0x000000ff));
+    return((char *) buffer);
+}
+-------------------------------------------------------------------------------
+Make sure not to forget to compile with the math library. This is necessary in
+order to use the pow() function.
+
+[modular@visioncode]$ gcc -o ipgen ipgen.c -lm
+[modular@visioncode]$ ./ipgen 172.16.14.32/27
+172.16.14.32
+172.16.14.33
+172.16.14.34
+172.16.14.35
+172.16.14.36
+172.16.14.37
+172.16.14.38
+172.16.14.39
+172.16.14.40
+172.16.14.41
+172.16.14.42
+172.16.14.43
+172.16.14.44
+172.16.14.45
+172.16.14.46
+172.16.14.47
+172.16.14.48
+172.16.14.49
+172.16.14.50
+172.16.14.51
+172.16.14.52
+172.16.14.53
+172.16.14.54
+172.16.14.55
+172.16.14.56
+172.16.14.57
+172.16.14.58
+172.16.14.59
+172.16.14.60
+172.16.14.61
+172.16.14.62
+172.16.14.63
+
+Nice! We've generated a list of IP addresses for the target network 
+172.16.14.32/27.
+
+] Using VLSM in a TCP Connect Port Scanner
+
+Now it is time to incorporate all of this newly learned information into 
+something useful. Refer to the first and second papers of this series to
+understand the port scan code.
+-------------------------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#define TRUE 	1
+#define FALSE	0
+#define BUF_SIZE 128
+
+unsigned long convert_ip(const char *t_addr);
+unsigned long add_masking(const char *t_addr, int mask);
+char *reverse_int(unsigned long addr);
+int portscan(char *remote_ip, u_short port);
+
+int main(int argc, char *argv[])
+{
+    struct hostent *he;
+    struct servent *srvc;
+    struct in_addr t_addr;
+    int start_port, end_port, counter;
+    int i;
+	    
+    /* variables for vlsm routines */
+    char *network, *mask;
+    unsigned long start = 0, end = 0, current = 0;
+
+    /* start and end ports */
+    start_port = atoi(argv[2]);
+    end_port = atoi(argv[3]);
+
+    /* separate network and mask into two
+     * usable tokens
+     */
+    network = strtok(argv[1], "/");
+    mask = strtok(NULL, "/");
+
+    start = convert_ip(network);
+    end = add_masking(network, atoi(mask));
+
+    for(current = start; current <= end; current++)
+    {
+	t_addr.s_addr = inet_addr(reverse_int(current));
+
+	if ((he=gethostbyaddr((char*)&(t_addr.s_addr),
+			sizeof(reverse_int(current)),AF_INET)) == NULL) {
+	    herror("gethostbyname");
+	    continue;
+	}
+        
+	printf("\n");
+	printf("Interesting ports on %s (%s)\n\n", 
+		he->h_name, reverse_int(current));
+	printf("port\tstate\tservice\n");
+	
+	for(counter = start_port; counter <= end_port; counter++)
+	{    
+	    if((i = portscan(reverse_int(current), counter) == 0))
+		continue;
+	    else
+		srvc = getservbyport(htons(counter), "tcp");
+	    			
+	    printf("%d/tcp\topen\t%s\n", counter, 
+		    (srvc == NULL)?"unknown":srvc->s_name);
+	}
+    }
+    return 0;
+}
+
+unsigned long convert_ip(const char *t_addr)
+{
+    int octet1 = 0;
+    int octet2 = 0;
+    int octet3 = 0;
+    int octet4 = 0;
+
+    if(sscanf(t_addr, "%d.%d.%d.%d", 
+		&octet1, &octet2, &octet3, &octet4) < 1)
+    {
+	fprintf(stderr, "Not a standard IPv4 IP address.\n");
+	exit(1);
+    }
+    return((octet1 << 24) | (octet2 << 16) | (octet3 << 8) | octet4);
+}
+
+unsigned long add_masking(const char *t_addr, int mask)
+{
+    if(mask > 32 || mask < 0) /* check for valid values */
+    {
+	fprintf(stderr, "Not a valid subnet mask.\n");
+	exit(1);
+    }
+    return((int)pow(2, 32 - mask) + convert_ip(t_addr) -1);
+}
+
+char *reverse_int(unsigned long addr)
+{
+    static char *buffer[BUF_SIZE];
+    snprintf((char *)buffer, BUF_SIZE, "%d.%d.%d.%d",
+	    (addr & 0xff000000) >> 24,
+	    (addr & 0x00ff0000)	>> 16,
+	    (addr & 0x0000ff00) >> 8,	
+	    (addr & 0x000000ff));
+    return((char *) buffer);
+}
+
+int portscan(char *remote_ip, u_short port)
+{
+    int sock_fd;
+    int state;
+    struct sockaddr_in target;
+
+    sock_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    memset(&target, 0, sizeof(target));
+    target.sin_family   = AF_INET;
+    target.sin_addr.s_addr = inet_addr(remote_ip);
+    target.sin_port = htons(port);
+
+    if(connect(sock_fd,(struct sockaddr *)&target,sizeof(target))==0)
+    {
+	state = TRUE;
+    } else {
+	state = FALSE;
+    } 
+    close(sock_fd);
+    return state;
+}
+-------------------------------------------------------------------------------
+
+Well, that code is admittedly not pretty, but it functions. As an exercise you
+could clean it up and make it nice and structured, but I will be doing this
+anyways in the next paper when I introduce pthreads. Until then!
+
+copyright(c) truncode.org 2003
+
+
+
+

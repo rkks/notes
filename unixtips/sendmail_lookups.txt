@@ -1,0 +1,24 @@
+Q.  How can I easily determine where an e-mail will go if sent to such-and-such an address?
+
+A. 
+
+Easy way
+--------
+/usr/lib/sendmail -bv e-mail_addr_to_consult
+
+For instance:
+/usr/lib/sendmail -bv amanda
+will tell you where the amanda e-mail will go and which relay it will need to 
+travel through to get there.
+
+
+More involved method
+--------------------
+/usr/lib/sendmail -bt -d38.25
+then type:
+/map aliases e-mail_addr_to_consult
+
+You should see the answer toward the bottom in all the detailed output that appears.
+when done, type:
+<ctrl>-d
+to exit.

@@ -1,0 +1,13 @@
+How can I find out if the OS has been configured to run in 
+32 bit or 64 bit Mode?
+
+On a 32 bit machine
+-------------------
+# isainfo -v
+32-bit sparc applications
+
+On a 64 bit machine
+-------------------
+# isainfo -v
+64-bit sparcv9 applications
+32-bit sparc applications

@@ -1,0 +1,93 @@
+SRDB ID: 18480
+
+SYNOPSIS: pmconfig failure message on boot
+DETAIL DESCRIPTION:
+Booting Solaris produces:
+
+  /usr/sbin/pmconfig: /etc/power.conf line (20) failed to convert
+  mount point to prom name: Invalid argument
+
+SOLUTION SUMMARY: 
+
+This is the power management "suspend and resume" (CPR) subsystem
+failing to initialise correctly.  
+
+When a machine is suspended, the CPR subsystem
+copies the current main memory into a "statefile".  On resumption
+of the system, CPR copies the contents of the statefile back into
+memory, before bring the various components of the previously
+running system to life.
+
+The /etc/power.conf file specifies the location of the CPR statefile:
+
+  statefile               /.CPR
+
+The rc boot script "/etc/rc2.d/S85power" will ensure that power.conf
+always contains an entry for "statefile".  It selects the location
+by choosing which of "/", "/usr", "/var" and "/export/home"
+has the most free disk space.
+
+When the system is being resumed, the CPR subsystem can only read the
+the statefile if it resides on a device which is visible at the PROM 
+level.  For this reason, the statefile can not be placed on a DiskSuite 
+metadevice, or a Veritas Volume.  
+
+On boot, the power management software checks the statefile configuration
+and will complain if it is unusable for resumption and will fail with:
+
+  /usr/sbin/pmconfig: /etc/power.conf line (20) failed to convert mount point
+to prom name: Invalid argument
+
+Mirroring/encapsulating the root filesystem will produce this failure.
+
+With this knowledge, there are 3 main choices:
+
+  1. Ignore the message.
+
+     The message means that CPR will not be available.  Chances are that
+     with DiskSuite/Veritas present, the system is not a candidate for
+     shutting down anyway.
+
+  2. Remove the package.
+
+     Following on from the previous option, if CPR is not wanted on
+     a system, then remove "SUNWpmu".  This is the package which contains
+     "pmconfig", "SUNWpmowu" depends on package, but the dependency can
+     be overruled, either that, or remove all the packages related to
+     power management:
+
+       SUNWpmu          Power Management Framework
+       SUNWpmr          Power Management Framework
+       SUNWcpr          Power Management Suspend/Resume (CPR)
+       SUNWpmowu        OpenWindow Power Management
+       SUNWpmowr        OpenWindow Power Management
+       SUNWpmowm        Online Manual Pages
+
+  3. Locate the statefile on a "physical" device.
+
+     If CPR is required, then the statefile needs to reside on a physical
+     device, ie something which begins "/dev/dsk".
+
+     For example, on the following system:
+
+       $ df -lk
+       Filesystem            kbytes    used   avail capacity  Mounted on
+       /proc                      0       0       0     0%    /proc
+       /dev/md/dsk/d0       1851974 1506714  289701    84%    /
+       fd                         0       0       0     0%    /dev/fd
+       swap                  120024     352  119672     1%    /tmp
+       /dev/dsk/c0t3d0s7    1869279 1669946  143255    93%    /export/local
+
+     Then "/export/local/.CPR" is a valid location for the CPR statefile.
+
+SOLARIS 7 NOTE:
+
+  Solaris 7 also has the statefile location limitation.  However, unlike
+  2.6, it does not produce the error message, but CPR still remains unuseable.
+
+APPLIES TO: Hardware, Operating Systems/Solaris/Solaris 2.6 
+
+
+
+
+-Pointed out by: Tim Lavin

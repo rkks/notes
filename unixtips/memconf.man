@@ -1,0 +1,84 @@
+.\"
+.\" Copyright (c) 1997-1999 Tom Schmidt.
+.\" This software may be freely distributed provided it is not sold for
+.\" profit and the author is credited appropriately.
+.\"
+.\" $Revision: 1.42 $
+.\"
+.TH memconf 1M "11 Oct 2001" "Maintenance Commands"
+.SH NAME
+memconf \- Display information about installed memory
+.SH SYNOPSIS
+.BI memconf
+[
+.B \-h
+] [
+.B \-D
+] [
+.B \-v
+] [
+.B explorer_dir
+] 
+.SH DESCRIPTION
+.I memconf
+is a
+.B Perl
+script that displays information about the memory installed in the system.  
+It reports the size of each SIMM/DIMM memory module installed in the system,
+including which motherboard memory slot each is in.
+And it also reports the system type and any empty memory sockets.
+It works for most Sun SPARC systems running SunOS 4.1.X or Solaris 2.X.
+
+.SH OPTIONS
+.TP 8
+.B \-h
+Display a small help message.
+.TP 8
+.B \-D
+Send results to
+.I memconf
+maintainer. This will E-mail the output of "memconf -d", "prtconf -pv" or
+"devinfo -pv", and "prtdiag -v" if available to tschmidt@micron.com
+.TP 8
+.B \-v
+Be verbose. In this mode
+.I memconf
+also reports:  banner name, model, and CPU/system frequencies, as well
+as the address range and bank numbers for each memory module.
+.TP 8
+.B explorer_dir
+Uses Sun Explorer output directory for input. You can download Sun
+Explorer from http://sunsolve.Sun.COM/diag/explorer/SUNWexplo.tar.Z
+
+.SH WEBSITE
+http://www.4schmidts.com/unix.html
+
+.SH BUGS
+Please send bug reports and enhancement requests along with the output of
+the following commands to tschmidt@micron.com as E\-mail attachments so that
+.I memconf
+can be enhanced. Please include the Sun Model and Operating System version.
+.PP
+SunOS 4.1.X
+.RS
+/usr/etc/devinfo \-pv
+.RE
+Solaris 2.X
+.RS
+/usr/sbin/prtconf \-pv
+.br
+/usr/platform/`uname \-m`/sbin/prtdiag \-v (if available)
+.RE
+.PP
+You can do this using the 'memconf -D' command.
+If an unrecognized system is a Sun clone, please also send any hardware
+documentation on the memory layout that you may have.
+
+.SH AUTHORS
+Tom Schmidt (tschmidt@micron.com)
+.br
+Based on SunManagers SUMMARY by Howard Modell (h.modell@ieee.org)
+
+.SH SEE ALSO
+devinfo(8S), prtconf(1M), prtdiag(1M), perl(1), sysinfo(1)
+

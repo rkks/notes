@@ -1,0 +1,29 @@
+Playing audio CD's automagically
+--------------------------------
+One of the features of volume management is that it allows you to configure
+audio CDs to auto-play when they are inserted into the CD-ROM drive. You can
+download a program called WorkMan (http://www.midwinter.com/workman), 
+which allows you to listen to audio CDs.
+
+In order to configure volume management to auto-play the CDs with workman, 
+add the following line to the "removable media mounter" configuration file,
+/etc/rmmount.conf:
+
+action cdrom action_workman.so /usr/openwin/bin/workman
+
+
+NOTE: This line should be added before the line that says: 
+	action cdrom action_filemgr.so
+
+
+
+For Jaz and Zip Drives
+----------------------
+You can also use volume management to mount Imoega Jaz and Zip disks 
+by adding the following line to the /etc/vold.conf file:
+
+use rmscsi drive /dev/rdsk/c*s2 dev_rmscsi.so rmscsi%d
+
+Then, to eject a Jaz or Zip disk, use the following command:
+
+# eject rmscsi

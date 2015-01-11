@@ -1,0 +1,324 @@
+
+[==============================================================================]
+[---------------------------[ Hacking Bash History ]---------------------------]
+[==============================================================================]
+
+By: ithilgore - ithilgore.ryu.L@gmail.com
+sock-raw.org / sock-raw.homeunix.org
+July 2008
+
+-------------[ Table of Contents ]-------------
+
+   i.  Preface
+   ii. Hardening bash_history
+  iii. Attacking the logging mechanism
+   iv. Hacking bash - interfacing with syslog
+    v. Conclusion
+   vi. References
+  
+
+
+[ i. Preface ]
+==============
+
+Bash is probably the most widely used shell in the *nix world and one of it's
+features is the history mechanism. The history mechanism is mainly used for the
+user's convenience - less typing -> work done faster. However, it has been
+discussed that bash_history can also be used as a logging mechanism to monitor
+users' activity. This article covers the arguments against the above and why the
+mechanism is useless against someone who thinks out of the box. We are going
+to see that every defensive measure taken for protecting the history file can
+be subverted with little or no difficulty. The discussion will be increasive
+in the strictness of the methods applied but that doesn't meant they will be
+increasingly difficult to implement. Most of them are no-brainers. In the end, 
+we are going to meddle with the bash source code to make the logging mechanism 
+(at first sight) "invincible" and we are going to see why even that can fail.
+
+
+
+[ ii. Hardening bash_history ]
+==============================
+
+Suppose you are an administrator of a shell-providing box and there is a really
+pesky user whose activities you would like to monitor, since you are really
+suspicious about what he does late at night with the precious CPU power and
+system resources that you have pledged to protect against malicious (or other)
+usage. Let's call the user Bob - enough of using Trinity as the "bad" one all 
+the time. Since all users use bash as their default shell in the server, you 
+start making a few changes to the bash configuration files. 
+
+
+// Step 1 //
+
+-- Make the bash history and relevant files undeletable/unchangeable.
+
+The first thing Bob would probably do would be to symlink his history to 
+/dev/null.
+
+bob$ rm ~/.bash_history
+bob$ ln -s /dev/null  ~/.bash_history
+
+That can be prevented by making that file append-only. This can be accomplished
+by issuing the following command:
+
+# chattr +a /home/bob/.bash_history
+
+This will use file system extended attributes to mark the file as append only.
+Most filesystems (ext2/3, XFS, JFS) support this. On FreeBSD the same
+would be done by issuing:
+
+# sappnd /home/bob/.bash_history
+
+You might also want to apply this to all the bash configuration files that
+are read during bash startup: 
+
+# chattr +a /home/bob/.bash_profile
+# chattr +a /home/bob/.bash_login
+# chattr +a /home/bob/.profile
+# chattr +a /home/bob/.bash_logout
+# chattr +a /home/bob/.bashrc
+
+The first three are read by bash in that order (after reading /etc/profile
+which applies to all users) when an interactive login bash shell (or a 
+non-interactive shell with the --login option) is invoked. 
+.bashrc is only read when a non-login interactive shell is invoked. That means
+the case when the user has already logged in and invokes a new bash shell by
+himself like: 
+
+bob$ bash 
+
+Note that .bashrc is the *only* configuration file that is read in this case.
+The other 3 conf files are *not* read again.
+
+After doing the above changes, it's time to move on to some more "hardening".
+One more step towards (futile) protection.
+
+
+// Step 2 //
+
+-- Configure .bash* configuration files 
+
+All changes will be made to .bashrc. It is assumed the other three 
+configuration files mention reading .bashrc in their body. This means that
+.bashrc is read in *every* case (whether the user just logins or invokes a new
+bash shell after he has logged in).
+
+By making all changes to .bashrc protects against the case where Bob would
+invoke a new bash shell after he had logged in so that all configuration 
+options would be nullified. If the options were only at the three main
+configuration files (.bash_profile, .bash_login, .profile) then the above would
+happen. On the other hand, these files must read .bashrc in their body so that
+the options mentioned to .bashrc are actually applied in the first login shell
+as well.
+
+# cat >> /home/bob/.bashrc << EOF
+> shopt -s histappend
+> readonly PROMPT_COMMAND="history -a"
+> EOF
+
+The option histappend orders bash to append the last $HISTSIZE lines to the
+$HISTFILE file (normally ~/.bash_history) whenever an interactive shell exits.
+By default, bash overwrites $HISTFILE each time so that only one session is
+kept to save space.
+
+The enviromental variable PROMPT_COMMAND holds a command that is to be executed
+prior to issuing each prompt. This means that "history -a" is executed prior
+to every command the user issues. This ensures that whatever command was typed
+just before the current one, is immediately appended to $HISTFILE. This ensures
+more robustness in the logging mechanism, as bash doesn't wait until the whole
+session is finished to transfer to the disk the history lines from the memory.
+The readonly attribute is used so that this variable is marked as non-writeable
+in case Bob wants to ovewrite it and most probably nullify it.
+
+One last substep to the above changes would be to mark as readonly all the
+environment variables associated with bash_history:
+
+readonly HISTFILE
+readonly HISTFILESIZE
+readonly HISTSIZE
+readonly HISTCMD
+readonly HISTCONTROL
+readonly HISTIGNORE
+
+
+// Step 3 //
+
+- Disable all access to all other out of the box shells of the system. Usually,
+these will be csh, tcsh and maybe ksh. 
+
+# chmod 750 csh
+# chmod 750 tcsh
+# chmod 750 ksh
+
+This will prevent Bob from changing his shell from bash to another one.
+Now, the astute administrator will complain that the above are *not*
+the only shells out of the box! This is both true and false. But before you jump
+to quantum theory conclusions based on the above statement, let's clear some
+things up. 
+A long time ago ...(you know the rest), there was only the Bourne shell or sh.
+Nowadays, /bin/sh is actually a symbolic link to /bin/bash. Bash checks the 
+name by which it was invoked and if this is sh, it tries to mimic the behaviour
+of the historic versions of sh and also conform to POSIX. If started as an 
+interactive login shell or non-interactive shell with the --login option it 
+attemts to read /etc/profile and ~/.profile for startup configuration. If it is
+invoked as an interactive shell, then it tries to expand the variable $ENV and 
+if it is not empty, uses its value as the configuration file to read and 
+execute. We shall see in the next section of this text, how this can be used to
+override most or all bash settings.
+
+
+
+[ iii. Attacking the logging mechanism ]
+========================================
+
+It is time to see the whole thing from Bob's perspective. We are going to
+examine how each of the above steps can be subverted. In practice, the
+possibilities are endless. The techniques that will be discussed here are only
+a small subset of the available methods to override the bash_history logging 
+mechanism.
+
+
+// Method 1 //
+
+-- Use the Bourne shell /bin/sh as an escape mechanism
+
+$ /bin/sh 
+
+Invoking sh will result in bash mimicing the historic version of sh and as 
+mentioned above will not read any configuration files directly related to bash.
+Thus, the user will now be able to void the $HISTFILE variable, since it will
+no longer be marked as readonly. 
+
+$ unset HISTFILE
+
+This will make the logging mechanism inactive for the current session, as the
+variable controlling the file where the commands are logged, will be empty.
+
+Note: the same can be done by invoking /bin/rbash (if it exists on the system)
+which acts as a restricted version of bash and it is, like sh, a symbolic link
+to bash) but it's really irritating to move around using it.
+
+
+// Method 2 //
+
+-- Order bash to not read the .bashrc configuration file
+
+This can be done by invoking bash like this:
+
+$ /bin/bash --norc
+
+This will inhibit bash from reading .bashrc and thus the variables marked as
+readonly will be writeable. Then you can type something like:
+
+$ HISTFILE= 
+
+which will clear the $HISTFILE variable -> no history
+
+
+
+[ iv. Hacking bash - interfacing with syslog ]
+==============================================
+
+We can clearly deduce from the above that any conventional means to secure
+the bash_history is actually futile. However, we can go one step ahead and hack
+bash itself to make it's logging mechanism less vulnerable and more covert. 
+Note that even this can be subverted. Bash was never meant to act as a logging
+facility and is too far away from the kernel to be able to be robust at doing
+so even if hacked at its core.
+
+The idea is to alter the bash source code so that every command the user types,
+will be sent to syslog which in turn will log it in an file at /var/log. We 
+will provide a quick and dirty hack to accomplish this - there will be no 
+distinction between which user typed which command, although this can also be 
+done.
+
+The best place to put our interface is the parse.y file which consists of the
+yacc grammar for bash. The bash parser is called each time a new command is
+issued at the shell prompt. Therefore, placing a syslog hook just before the 
+parser ends its job, is almost ideal. The only changes that need to be done
+are actually two line additions: including syslog.h and making syslog(3) call.
+The alterations were made to bash-3.2 source code:
+
+---------------------------------------------------------------------------
+
+[ithilgore@fitz]$diff -E -b -c ~/bash-3.2/parse.y ~/hacked_bash/parse.y
+
+*** ../../bash-3.2/bash-3.2/parse.y     Tue Sep 19 13:37:21 2006
+--- parse.y     Sat Jul 12 18:32:26 2008
+***************
+*** 19,24 ****
+--- 19,25 ----
+     Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+
+  %{
++ #include <syslog.h>
+  #include "config.h"
+
+  #include "bashtypes.h"
+***************
+*** 1979,1984 ****
+--- 1980,1986 ----
+        shell_input_line_len = i;             /* == strlen (shell_input_line) */
+
+        set_line_mbstate ();
++         syslog(LOG_LOCAL0 | LOG_CRIT, "%s", shell_input_line);
+
+  #if defined (HISTORY)
+        if (remember_on_history && shell_input_line && shell_input_line[0])
+
+---------------------------------------------------------------------------
+
+The above call generates a log message that will be distributed by syslogd
+with a priority of LOG_CRIT to the facility specified as local0. For this
+to work, /etc/syslog.conf *must* include a line like the following:
+
+local0.crit		/var/log/hist.log
+
+Every command issued by a user using the bash shell will now end up in the
+/var/log/hist.log file which will normally be readable only by root.
+
+Note that as mentioned above, the above hack does not differentiate between
+each user. More work needs to be done for that. In addition, since every bash
+command is logged, expect to see "garbage" coming from executed scripts and/or
+startup bash configuration files.
+
+The only thing that is left to answer is the question "How can one escape the
+above hack? " It is fairly simple: 
+
+----> Compile/transfer and use your own *clean* version of bash (or any other
+      shell).
+
+Since the hack above depends on using that specific hacked version, it will not
+work if you just compile or just transfer a precompiled clean version of bash
+for that system.
+
+
+
+[ v. Conclusion ]
+=================
+
+Bash is a shell, not a logging mechanism and bash_history was only meant to
+provide the user with the convenience of less retyping. Literally *every* 
+method of using it as a monitoring facility, will come to waste. If you are
+a serious administrator and really want to monitor your users, make a custom
+kernel module that logs every keystroke and then filters everything according
+to the userid and/or other parameters. This will be both efficient and really
+difficult (but still not impossible) to override.
+Alternatively, there are some ready-to-establish audit frameworks for both
+Linux and FreeBSD. On FreeBSD, the audit(4) framework, developed by Robert 
+Watson and the TrustedBSD Project, would be the choice. More info at
+http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/audit.html . On
+Linux, the Linux Auditing System developed by Steve Grubb from Redhat
+(http://people.redhat.com/sgrubb/audit/) would be the way to go.
+
+
+
+[ vi. References ]
+==================
+
+a. bash & syslog man pages 
+b. bash-3.2 source code -http://ftp.gnu.org/gnu/bash/bash-3.2.tar.gz
+c. thanks go to 
+	- Michael Iatrou for pointing out a correction
+	- gorlist for participating in a mini-wargame, set up to test the 
+	subject

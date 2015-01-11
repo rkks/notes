@@ -1,0 +1,25 @@
+#!/bin/ksh
+
+# Calculates total Mbytes used AND available for all locally mounted filesystems.
+# Ignores remote mounted filesystems and excludes /tmp, /proc, /cdrom, and some others. 
+# Works for Solaris, HP-UX, and AIX platforms.
+
+OS=`uname`
+
+if [ "${OS}" = "SunOS" ]; then
+        df -kl | egrep -v "proc|fd|cdrom|mnttab|run|tmp|Filesystem" | \
+        awk '{utotal += $3} {atotal += $4} END {printf ("MB used: %d \tMB available: %d \tPercent used: %.1f\n", utotal / 1024, atotal / 1024,(utotal / (utotal + atotal)) * 100)}' 
+                
+
+elif [ "${OS}" = "AIX" ]; then
+        df -k | sed /:/d | egrep -v "tmp|cdrom|Filesystem" | \
+        awk '{utotal += $2 - $3} {atotal += $3} END {printf ("MB used: %d \tMB available: %d \tPercent used: %.1f\n",utotal / 1024,atotal / 1024,(utotal / (utotal + atotal)) * 100)}'
+
+
+elif [ "${OS}" = "HP-UX" ]; then
+  bdf | sed /:/d | egrep -v "cdrom|stand|Filesystem" | \
+        awk '{utotal += $3} {atotal += $4} END {printf("MB used: %d\tMB available: %d \tPercent used: %.1f\n",utotal / 1024,atotal / 1024,(utotal / (utotal + atotal)) * 100)}'
+
+else
+  echo "$0 hasn't been setup for $OS.\nNothing I can do....Sorry."
+fi

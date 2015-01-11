@@ -1,0 +1,781 @@
+<html>
+<head>
+<title>
+Solaris Tips and Tricks</title>
+</head>
+<body>
+
+<h2>Solaris Tips and Tricks</h2>
+<ul>
+<h4>Goto:
+<b>
+<a href="/unixtips/solaris.html#A">A</a> &nbsp;
+<a href="/unixtips/solaris.html#B">B</a> &nbsp;
+<a href="/unixtips/solaris.html#C">C</a> &nbsp;
+<a href="/unixtips/solaris.html#D">D</a> &nbsp;
+<a href="/unixtips/solaris.html#E">E</a> &nbsp;
+<a href="/unixtips/solaris.html#F">F</a> &nbsp;
+<a href="/unixtips/solaris.html#G">G</a> &nbsp;
+<a href="/unixtips/solaris.html#H">H</a> &nbsp;
+<a href="/unixtips/solaris.html#I">I</a> &nbsp;
+<a href="/unixtips/solaris.html#J">J</a> &nbsp;
+<a href="/unixtips/solaris.html#K">K</a> &nbsp;
+<a href="/unixtips/solaris.html#L">L</a> &nbsp;
+<a href="/unixtips/solaris.html#M">M</a> &nbsp;
+<a href="/unixtips/solaris.html#N">N</a> &nbsp;
+<a href="/unixtips/solaris.html#O">O</a> &nbsp;
+<a href="/unixtips/solaris.html#P">P</a> &nbsp;
+<a href="/unixtips/solaris.html#Q">Q</a> &nbsp;
+<a href="/unixtips/solaris.html#R">R</a> &nbsp;
+<a href="/unixtips/solaris.html#S">S</a> &nbsp;
+<a href="/unixtips/solaris.html#T">T</a> &nbsp;
+<a href="/unixtips/solaris.html#U">U</a> &nbsp;
+<a href="/unixtips/solaris.html#V">V</a> &nbsp;
+<a href="/unixtips/solaris.html#W">W</a> &nbsp;
+<a href="/unixtips/solaris.html#X">X</a> &nbsp;
+<a href="/unixtips/solaris.html#Y">Y</a> &nbsp;
+<a href="/unixtips/solaris.html#Z">Z</a> &nbsp;
+<a href="/index.html">HOME</a> &nbsp;
+</b>
+</ul>
+
+<a name=A>
+<a name=accounts>
+<a href="/unixtips/solaris.html#accounts"><h3>Accounts</h3></a>
+<ul>
+<li>Solaris 10 allows you to <a href="http://blogs.sun.com/roller/page/gbrunett/20040923">lockout accounts after a certain number of failed logins</a>.
+<li>Solaris 10 has new features to <a href="http://blogs.sun.com/roller/page/gbrunett/20040921">manage non-login accounts and locked accounts which is no longer dainbread</a>.
+</ul>
+
+<a name=B>
+<a name=backups>
+<a href="/unixtips/solaris.html#backups"><h3>Backups</h3></a>
+<ul>
+<li>How can I <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F40133&display=plain">correct the device paths when replacing a FCAL boot disk after ufsrestoring</a>? (<b>CC</b>)
+<li>How can I use <a href="fssnap.txt">fssnap to take file-system snapshots of active UFS file-systems</a>?  There was also a <a href="http://www.samag.com/documents/s=1824/sam0201j/0201j.htm">Sys Admin article</a> on the subject.
+<li>One technique for <a href="poor_mans_mirror.dump.txt">poor man's disk mirroring</a> using ufsdump/ufsrestore.
+<li>Another technique for <a href="poor_mans_mirror.txt">poor man's disk mirroring</a> that allows the 2nd disk to be usable (read hands off as in no messing with vfstab).
+</ul>
+
+<a name=boot>
+<a href="/unixtips/solaris.html#boot"><h3>Boot</h3></a>
+<ul>
+<li>Solaris 10 has a new feature <b>boot -m verbose</b> which allows you to customize boot console output.
+<li>Common <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F28291&display=plain">boot errors and their workarounds</a>. (<b>CC</b>)
+<li>In case you ever wanted to know what the heck is going on <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F24473&display=plain">during the boot process</a>. (<b>CC</b>)
+<li>The <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F48569&display=plain">basics of the boot command</a>.
+<li>If you haven't sat down and figured out what all those scripts do, here is an <a href="http://www.mgmg-interactive.com/mgmg/solaris_startup_files.html">analysis of Solaris 8 Startup Files</a>.
+<li>Ever wonder what the box is doing <a href="boot_diagnostics.txt">before the banner and OBP prompt is displayed</a>?
+</ul>
+
+<a name=C>
+<a name=cd>
+<a href="/unixtips/solaris.html#cd"><h3>CD / CD-R</h3></a>
+<ul>
+<li>What is the <a href="find_cdrom.txt">CD-ROM called</a> on this box?
+<li>How can I <a href="create_bootable_cdrom.txt">create a bootable CD-ROM for Solaris</a>?  Another <a href="http://mah.everybody.org/docs/bootable-cdrom-for-solaris">method</a>.
+<li>How to <a href="cdr.html">burn things to a CD-R with Solaris 8</a>.
+<li><a href="http://thsun1.jinr.ru/file-archive/doc/cdr/suncdfaq/">Sun CD-ROM FAQ</a>
+</ul>
+
+<a name=chown>
+<a href="/unixtips/solaris.html#chown"><h3>Chown</h3></a>
+<ul>
+<li>How can I allow/prevent users from <a href="chown.txt">giving files away</a> to someone else?
+</ul>
+
+<a name=cluster>
+<a href="/unixtips/solaris.html#cluster"><h3>Cluster</h3></a>
+<ul>
+<li>Want to do something to multiple machines at once?  Use the Sun <a href="cluster.txt">Cluster Console Tool</a>.  NOTE: you also need the <a href="scripts.jar">scripts.jar</a>.
+<li>Need help with <a href="cluster_disk.txt">disk contention problems</a> in a "shared" storage configuration?
+</ul>
+
+<a name=commands>
+<a href="/unixtips/solaris.html#commands"><h3>Cool Commands</h3></a>
+<ul>
+<li>Peter Baer Galvin has some <a href="http://www.samag.com/documents/s=7762/sam0301n/0301n.htm">Cool Commands</a> to help you get your job done faster and easier.
+<li><a href="wgrep.txt">wgrep</a> is a windowing grep that is useful for grabbing X number of lines before and after a match.
+</ul>
+
+<a name=compiler>
+<a href="/unixtips/solaris.html#compiler"><h3>Compiler</h3></a>
+<ul>
+<li>Lost your uninstall file and need to <a href="uninstall_old_sun_workshop.txt">uninstall your old version of Sun Workshop</a>?
+</ul>
+
+<a name=cron>
+<a href="/unixtips/solaris.html#cron"><h3>Cron</h3></a>
+<ul>
+<li>Can't remember what field is what?  Just add this <a href="crontab_header.txt">header to your crontab</a>.
+<li>Want to see if your <a href="cronlog.txt">cronjob is running without errors</a>?
+</ul>
+
+<a name=D>
+<a name=date>
+<a href="/unixtips/solaris.html#date"><h3>Date</h3></a>
+<ul>
+<li>How can I get the current <a href="prevdate.txt">date/time for yesterday</a>?
+</ul>
+
+<a name=debug>
+<a href="/unixtips/solaris.html#debug"><h3>Debug</h3></a>
+<ul>
+<li>Solaris <a href="http://blogs.sun.com/roller/resources/jwadams/mdb-cheatsheet.pdf">Modular Debugger (mdb) cheatsheet</a> (PDF)
+</ul>
+
+<a name=dhcp>
+<a href="/unixtips/solaris.html#dhcp"><h3>DHCP</h3></a>
+<ul>
+<li>Why doesn't my <a href="dhcp_unknown.txt">hostname get set when using DHCP</a>?
+</ul>
+
+<a name=docs>
+<a href="/unixtips/solaris.html#docs"><h3>Docs</h3></a>
+<ul>
+<li><a href="http://www.sun.com/bigadmin/content/solSysadminGuide/solsysadmin.pdf">Solaris OE Guide for New System Administrators</a>
+<li>Sun's <a href="Sun-BestPracticesGuide.pdf">Best Practices Guide</a> (pdf)
+<li><a href="http://www.sun.com/products-n-solutions/hardware/docs/index.html">Sun documentation by product</a>
+</ul>
+
+<a name=dvd>
+<a href="/unixtips/solaris.html#dvd"><h3>DVD</h3></a>
+<ul>
+<li>Having problems <a href="dvdboot.html">booting from your DVD drive in Solaris 8</a>?
+</ul>
+<a name=E>
+<a name=email>
+<a href="/unixtips/solaris.html#email"><h3>E-mail</h3></a>
+<ul>
+<li>How can I prevent my mail server from <a href="http://mail-abuse.org/tsi/ar-fix.html">being used as a third-party relay</a>?
+<li>Why doesn't my <a href="forward_file.txt">.forward file</a> work?
+</ul>
+
+<a name=emacs>
+<a href="/unixtips/solaris.html#emacs"><h3>Emacs</h3></a>
+<ul>
+<li><a href="http://rgrjr.dyndns.org/emacs/emacs_cheat.html">Emacs cheatsheat</a>
+</ul>
+
+<a name=F>
+<a name=files>
+<a href="/unixtips/solaris.html#files"><h3>Files</h3></a>
+<ul>
+<li>How can I <a href="find_remove_file.txt">remove a file with a wierd character</a> in the name?
+</ul>
+
+<a name=filesystem>
+<a href="/unixtips/solaris.html#filesystem"><h3>Filesystems</h3></a>
+<ul>
+<li>If you are having some problems like <a href="determine_cd.txt">cannot determine current directory</a> even if the perms look ok...there is a fix.
+<li>How many <a href="number-inodes.txt">inodes are being used in a particular filesystem</a>?
+<li>Is there a way to quickly <a href="full-filesytems.txt">determine which filesystems are over 90% full</a>?
+</ul>
+
+<a name=flash>
+<a href="/unixtips/solaris.html#flash"><h3>Flash</h3></a>
+<ul>
+<li><b>NOTE:</b>  Flash requires at least <b>Solaris 8 4/01</b> and does <b>not work well with DiskSuite/softpartitions</b>.
+<li>How to <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F47413&display=plain">exclude multiple directories and filesystems without using the "-x" option</a> for Web Start Flash Archives</a>.
+<li>Example of <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F40131&display=plain">installing Web Start Flash Archives with the Solaris 8 interactive installation program</a>. (<b>CC</b>)
+<li>How to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F44580&display=plain">install Web Start Flash Archives on a Boot Environment using Live Upgrade (Command-Line)</a> (<b>CC</b>)
+<li>Infodoc on how to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F40820&display=plain">run Jumpstart with a "separate" boot and install server and utilizing a Flash Archive</a>. (<b>CC</b>)
+<li>Solaris 8 software <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F49462&display=plain">Jumpstart with a Boot Server only utilizing Flash Archive</a> (<b>CC</b>)
+<li>How to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F41341&display=plain">install a Flash Archive from a CD-ROM</a>. (<b>CC</b>)
+</ul>
+
+<a name=ftp>
+<a href="/unixtips/solaris.html#ftp"><h3>FTP</h3></a>
+<ul>
+<li><a href="autogen_ftpusers.txt">Autogenerate your /etc/ftpusers file</a> so you don't have to remember to modify it.
+<li><a href="http://www.ncftp.com/">NcFTP</a> and <a href="http://www.proftpd.org/">ProFTPD</a> are some handy, secure, configurable FTP servers.  Article on <a href="http://www.samag.com/documents/s=7667/sam0213k/0213k.htm">configuring NcFTP</a>.
+<li>How do I <a href="anon_ftp.txt">setup an anonymous FTP server</a> the long way or the <a href="anon_ftp2.txt">Sun script way</a>?
+<li>How can I <a href="ftp_only_account.txt">create an account that only allows FTP access</a>?
+<li>How can I change the <a href="ftp_banner.txt">ftp daemon's banner</a>?
+<li>Why <a href="cannot_ftp.txt">can't I ftp to the box if I can telnet to it</a>?
+</ul>
+
+<a name=H>
+<a name=hardware>
+<a href="/unixtips/solaris.html#hardware"><h3>Hardware</h3></a>
+<ul>
+<li>Sun System Handbook <a href="http://sunsolve.sun.com/handbook_pub/Systems/">Systems List</a> <a href="http://sunsolve.sun.com/handbook_pub/Devices/">Components List</a>
+<li>Article on <a href="http://developers.sun.com/solaris/articles/devicemapping.html">Solaris device mappings</a>.
+<li><a href="ftp://ftp.cs.toronto.edu/pub/jdd/suntype">suntype</a> is a script to help determine what model of Sun box you have.
+<li>Some info about <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F23476&display=plain">Sun Hardware Diagnostics</a>. (<b>CC</b>)
+<li><a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F23479&display=plain">prtdiag</a> is helpful in checking out what state your system is in. (<b>CC</b>)
+<li><a href="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</a>
+<li><a href="http://040.digital-bless.com/texts/Unofficial_Sun_Blade_100_FAQ.htm">SunBlade 100 FAQ's</a> and <a href="http://www.mit.edu/afs/sipb.mit.edu/project/eichin/photogallery/test_002.html">pictures</a>.
+<li><a href="http://sunsolve.sun.com/handbook_pub/General/LEDs_TOC.html">Sun System LED Descriptions</a>
+</ul>
+
+<a name=hostid>
+<a href="/unixtips/solaris.html#hostid"><h3>Hostid</h3></a>
+<ul>
+<li>How can you <a href="http://www.squirrel.com/squirrel/sun-nvram-hostid.faq.html">replace your nvram chip or change your hostid</a>?
+</ul>
+
+<a name=I>
+<a name=inetd>
+<a href="/unixtips/solaris.html#inetd"><h3>Inetd</h3></a>
+<ul>
+<li>How can I <a href="inetd_logging.txt">log all telnet/ftp connections</a>?
+</ul>
+
+<a name=J>
+<a name=jumpstart>
+<a href="/unixtips/solaris.html#jumpstart"><h3>Jumpstart</h3></a>
+<ul>
+<li>Solaris 10 has a new <a href="http://blogs.sun.com/roller/page/gbrunett/20040927">Reduced Networking Software Group</a> that you can build up to have exactly what you want in it.
+<li>Article on how to <a href="http://www.sun.com/solutions/blueprints/0504/817-7288.pdf">boot off CD-ROM to do Jumpstart installations</a>. (PDF)
+<li>Great Blueprints article on <a href="http://www.sun.com/solutions/blueprints/0802/816-7587-10.pdf">Customizing JumpStart Framework for Installation and Recovery</a> (PDF)
+<br><br>
+<li><a href="http://clue.eng.iastate.edu/uberjs/">UberJS</a> is designed to help with jumpstarting w/o RARP'ing over the network.
+<li>Method for having a <a href="http://unix.derkeiler.com/Newsgroups/comp.unix.solaris/2003-05/1450.html">self-contained jumpstart/flash DVD</a>.
+<li>The <a href="http://www.sun.com/bigadmin/content/jet/">JumpStart Enterprise Toolkit</a> helps simplify the JumpStart process.
+<li>The <a href="http://javashoplm.sun.com/ECom/docs/Welcome.jsp?StoreId=8&PartDetailId=MR-SYS-1.0-G-ALL-F&TransactionId=Try">MR System for Rapid Recovery Toolkit</a> helps you create a mini-root (via JumpStart) that will allow you to access VxVM, Networker, NetBackup</a>, etc.
+<li>There are several very good <a href="http://www.sun.com/solutions/blueprints/browsesubject.html#jumpstart">Sun BluePrints for setting up Jumpstart and customizing it for a recovery mini-root</a>.
+<br><br>
+<li>I need help <a href="automate_pkg_install.txt">automating package installs</a>.
+<li>Here is a <a href="http://www.samag.com/documents/s=1165/sam0005a/0005a.htm">SysAdmin article to get you started with JumpStart</a>.
+<li>Tips for automating a <a href="jumpstart_sol8.txt">Solaris 8 jumpstart</a>.
+<li>How would I <a href="jumpstart_kernel_patch.txt">add a kernel patch to a jumpstart image</a>?
+</ul>
+
+<a name=K>
+<a name=kernel>
+<a href="/unixtips/solaris.html#kernel"><h3>Kernel</h3></a>
+<ul>
+<li>If you are still running Solaris 2.6, <a href="sol26_kernel_bug.txt">don't apply 105181-33</a>.
+<li>What are the different tunable kernel paramters for Solaris <a href="kernel_2.6.txt">2.3 - 2.6</a>, <a href="http://docs-pdf.sun.com/816-0607/816-0607.pdf">Solaris 8</a> (PDF) <a href="http://docs-pdf.sun.com/806-7009/806-7009.pdf">Solaris 9</a>? (PDF)
+</ul>
+
+<a name=keyboard>
+<a href="/unixtips/solaris.html#keyboard"><h3>Keyboard</h3></a>
+<ul>
+<li>How can I <a href="suspend_key.txt">disable the power/suspend key</a>?
+<li>How can you <a href="remove_keyboard.txt">remove the keyboard</a> from a running machine?
+</ul>
+
+<a name=L>
+<a name=library>
+<a href="/unixtips/solaris.html#library"><h3>Libraries</a> (or the lack of them)</h3>
+<ul>
+<li><a href="library_crle.txt">CRLE will allow you to configure your runtime linking environment from the system level</a>.
+<li><a href="missing_library.txt">Accidentally removed/renamed a critical library file</a> and can't get it back?
+</ul>
+
+<a name=links>
+<a href="/unixtips/solaris.html#links"><h3>Links</h3></a>
+<ul>
+<li><a href="http://www.coolcommands.com/" target="_blank">coolcommands.com</a> has a searchable database of commands or one-line scripts which provide a function in a UNIX environment.
+<li><a href="http://www.stokely.com/" target="_blank">Celeste Stokely</a> has information and links to just about anything and everything UNIX related.
+<li><a href="http://www.sun.com/bigadmin/" target="_blank">Sun's One-Stop Location for SA's</a> web site.
+<li><a href="http://www.sundot.com/" target="_blank">Sundot has real life UNIX observations and tips</a>.
+<li><a href="http://www.sunhelp.org/" target="_blank">Sunhelp - the name speaks for itself</a>
+<li>If you are needing used Sun equipment, <a href="http://www.acclinet.com/" target="_blank">Acclinet gives you a 48 month warranty on anything they sell</a>!
+<li><a href="http://unixguide.net/sun/sunobscure.shtml" target="_blank">Solaris Infrequently Asked and Obscure Questions</a>
+</ul>
+
+<a name=M>
+<a name=memory>
+<a href="/unixtips/solaris.html#memory"><h3>Memory</h3></a>
+<ul>
+<li><a href="http://sunsolve.sun.com/handbook_pub/Devices/Memory/MEM_TOC.html">Sun Memory Module Compatibility Chart</a>
+<li><a href="http://www.4schmidts.com/unix.html">memconf</a> will tell you what kind of memory is in your Sun box without opening it.
+<li>Why do I have more <a href="sol8_more_free_mem.txt">free memory after I upgrade to Solaris 8</a>?
+</ul>
+
+<a name=modem>
+<a href="/unixtips/solaris.html#modem"><h3>Modems</h3></a>
+<ul>
+<li>How can I setup my external modem to...  Go directly to <a href="http://www.stokely.com/unix.serial.port.resources/index.html">Celeste's serial port resources pages</a>.
+</ul>
+
+<a name=N>
+<a name=nfs>
+<a href="/unixtips/solaris.html#nfs"><h3>NFS</h3></a>
+<ul>
+<li>You can now <a href="http://docs.sun.com/db/doc/816-7125/6md5dso1m?q=logging&a=view">log NFS file operations.
+<li>How can I fix the <a href="stale_nfs.txt">Stale NFS file handle</a> error message?
+<li>Having problems <a href="umount.txt">unmounting a busy FS in Solaris 7 or 8</a>?
+</ul>
+
+<a name=network>
+<a href="/unixtips/solaris.html#network"><h3>Network</h3></a>
+<ul>
+<li>Trying to decide <a href="http://www.faqs.org/rfcs/rfc1178.html">what to call your servers</a>?
+<li><a href="http://www.networkuptime.com/faqs/ethernet/">Ethernet FAQ</a>
+<li><a href="http://colin.bitterfield.com/virtual-ethernet.html">How to setup more than 255 virtual ethernets</a> on Solaris 8 (Sparc)
+<li><a href="http://javashoplm.sun.com/ECom/docs/Welcome.jsp?StoreId=8&PartDetailId=SolOpEnBlueP-1.0-ALL-G-F&TransactionId=try">nddconfig</a> sets network driver parameters to prevent some network attacks.
+<li>If I have multiple NIC's, how can I do outbound load spreading for Solaris 8 or have redundant network connections? <a href="ip_network_multipathing.pdf">Sun Answerbook</a> &nbsp; <a href="http://www.samag.com/documents/s=7933/sam0305a/0305a.htm">SysAdmin article</a> &nbsp; <a href="http://www.sun.com/solutions/blueprints/1102/806-7230.pdf">Sun BluePrints article</a> (pdf)
+<li>Where can I find a <a href="http://www.sun.com/software/securenet/lite/">FREE firewall program</a> for Sol 8?  SunScreen is included in Solaris 9.
+<li>How can I log or limit/deny certain hosts from telnet/ftp/etc. to my box?  Download tcp-wrappers from <a href="http://sunfreeware.com/">Sunfreeware.com</a>.
+<li>How do I <a href="change_hostname_ip.txt">manually change the hostname or IP</a> or <a href="solaris_change_hostname_script.txt">change the hostname via a script</a>?
+<br> <br>
+<li>How do I <a href="set_nic_settings.txt">set the NIC speed/duplex</a>?
+<li>How can I <a href="nic_check.txt">display what my current NIC speed/duplex settings</a> are?
+<li>What are the <a href="sun_nic_faqs.txt">limitations when using multiple NIC's</a>?
+<li>Ok, what about <a href="trunking.txt">setting up trunking on a QFE card</a>?
+<br> <br>
+<li>When multiple interfaces are installed and it complains they are not plugged in, you can stop those error messages with <b>setenv tpe_link test false</b> at the ok prompt.
+<li>How can I <a href="ftp://coast.cs.purdue.edu/pub/tools/unix/sysutils/ifstatus/ifstatus-4.0.tar.gz">determine if an interface is in promiscuous mode</a>?
+<li>How can I <a href="sniffer-trick.txt">prevent being detected while snooping</a>?
+<li>How do I interpret the output of <a href="http://www.cymru.com/Documents/Sun/netstat-k-stats.txt">netstat -k</a>?
+<li>How do I <a href="broadcast_pings.txt">turn off replies to broadcast pings</a>?
+<br> <br>
+<li>Where can I find information about <a href="http://www.sean.de/Solaris/soltune.html">tuning my TCP/IP stack</a>?
+<li>I have heard that Solaris web servers are slow to serve MS clients?  How can I <a href="http://www.sun.com/sun-on-net/performance/tcp.slowstart.html">speed up their access</a>?
+<li>What if I don't want to use the <a href="default_router.txt">/etc/defaultrouter</a> file?
+<li>So what do those <a href="fddi.txt">lights on the back of my FDDI card</a> mean?
+<br> <br>
+<li>How do <a href="trunking_v_interface_group.txt">interface groups differ from trunking</a>?
+<li>Why should I <a href="interface_group_overview.txt">use interface groups</a>?
+<li>I want to know more about <a href="interface_group_details.txt">interface groups</a>?
+</ul>
+
+<a name=nis>
+<a href="/unixtips/solaris.html#nis"><h3>NIS</h3></a>
+<ul>
+<li>Some info on <a href="protect_nis.txt">protecting your NIS maps</a>.
+<li>Here is a nice <a href="securing_nis.txt">method to secure NIS</a>.
+</ul>
+
+<a name=null>
+<a href="/unixtips/solaris.html#null"><h3>/dev/null</h3></a>
+<ul>
+<li>How can I <a href="dev_null.txt">recreate /dev/null</a>?
+</ul>
+
+<a name=O>
+<a name=obp>
+<a href="/unixtips/solaris.html#obp"><h3>OBP</h3></a>
+<ul>
+<li>How can I reset the default boot-file (or anything else)? <b>set-default boot-file</b>
+<li><a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F19290&display=plain">Change/create the boot-device alias</a> while the server is running using the "eeprom" command. (<b>CC</b>)
+<li>How to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F45692&display=plain">view OBP aliases from a booted system</a> (<b>CC</b>) or have a <a href="obp_print_aliases.txt">script cut out the relevant OBP aliases section for you</a>.
+<li><a href="SunOBP_Quick_Ref.pdf">Sun OBP Quick Reference Guide</a> (PDF)
+<li>Available <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F23476&display=plain">OpenBoot Prom diagnostic commands</a> (<b>CC</b>)
+</ul>
+
+<a name=os>
+<a href="/unixtips/solaris.html#os"><h3>OS</h3></a>
+<ul>
+<li>The <a href="http://sunsolve.sun.com/pub-cgi/show.pl?target=content/content6">Top 10 reasons you should upgrade at least to Solaris 8</a>.
+<li>Reasons you should consider <a href="http://wwws.sun.com/software/solaris/programs/sol9upgrade.html">upgrade to Solaris 9</a>.
+<li>How can I tell if I am running in <a href="32v64bit.txt">32 bit or 64 bit mode</a>?
+<li>Where can I find out more info about <a href="http://developers.sun.com/solaris/articles/64_bit_booting.html">booting the 32 or 64-Bit Kernel</a>?
+<li>Which OS release am I running?  <b>cat /var/sadm/softinfo/INST_RELEASE</b>  OR  <b>cat /etc/release</b>
+<li>What is the <a href="http://wwws.sun.com/software/solaris/fcc/releases.html">latest version of Solaris</a> that is available?
+<li>Where can I find the <a href="http://wwws.sun.com/software/solaris/fcc/fcc.html">Solaris Family Comparison Chart</a> of features for each OS version?
+</ul>
+
+<a name=P>
+<a name=package>
+<a href="/unixtips/solaris.html#package"><h3>Packages</h3></a>
+<ul>
+<li>Info on how you can <a href="http://www.eek.org/docs/spdoc.html">make your own Solaris packages</a>.
+<li>How can you <a href="file-n-package.txt">determine which package a file belongs to</a>?
+</ul>
+
+<a name=password>
+<a href="/unixtips/solaris.html#password"><h3>Passwords</h3></a>
+<ul>
+<li>Solaris 10 has a <a href="http://blogs.sun.com/roller/page/gbrunett/20040928">new password history feature</a>.
+</ul>
+
+<a name=patch>
+<a href="/unixtips/solaris.html#patch"><h3>Patches</h3></a>
+<ul>
+<li>How can you <a href="initial_or_upgrade.txt">determine if this is a clean install or an upgraded Solaris system</a>?
+<li>What are the various <a href="patch_exit_codes.txt">patch exit codes</a>?
+</ul>
+
+<a name=performance>
+<a href="/unixtips/solaris.html#performance"><h3>Performance Tips</h3></a>
+<ul>
+<li><a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?doc=finfodoc%2F21622">Performance and Tuning on Solaris 2.6, 7 and 8</a>
+</ul>
+
+<a name=power>
+<a href="/unixtips/solaris.html#power"><h3>Power/CPR</h3></a>
+<ul>
+<li>Why do I get some error message about <a href="power_cpr.txt">/etc/power.conf</a>?
+</ul>
+
+<a name=paging>
+<a href="/unixtips/solaris.html#paging"><h3>Priority Paging</h3></a>
+<ul>
+<li>Why <a href="http://sunsolve.sun.com/pub-cgi/show.pl?target=content/content8">shouldn't I be using priority paging on Solaris 8 and 9</a>?
+<li>What is <a href="priority_paging.txt">priority paging</a> and why do I need it if I am running pre Solaris 8?
+<li><a href="http://www.sun.com/sun-on-net/performance/priority_paging.html">Priority Paging FAQ</a>
+</ul>
+
+<a name=ports>
+<a href="/unixtips/solaris.html#ports"><h3>Ports</h3></a>
+<ul>
+<li>How can you determine <a href="port2pid">which process is using that port</a>?  Otherwise, you must use LSOF.
+</ul>
+
+<a name=printing>
+<a href="/unixtips/solaris.html#printing"><h3>Printing</h3></a>
+<ul>
+<li>Tech article on the <a href="http://developers.sun.com/solaris/articles/basicprinting.html">basics of printing</a>.
+</ul>
+
+<a name=process>
+<a href="/unixtips/solaris.html#process"><h3>Processes</h3></a>
+<ul>
+<li>Solaris 10 allows you to <a href="http://blogs.sun.com/roller/page/gbrunett/20040924">limit the display of other user's processes</a>.
+<li><b>pargs -e</b> will display a process' environment variables
+</ul>
+
+<a name=R>
+<a name=raid>
+<a href="/unixtips/solaris.html#raid"><h3>RAID</h3></a>
+<ul>
+<li>The Sun Fire v440 has <b>onboard hardware RAID 1</b>. <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F72294&display=plain">raidctl Solaris 8 man page</a>
+<li>Here's how to <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F73040&display=plain">detect a failed v440 hardware RAID 1 disk and the process to replace it</a>.
+<li>Why can't I <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=fsrdb%2F73595&display=plain">create a 2nd mirrorset using the v440's onboard RAID card</a>?
+<li><a href="http://www.ofb.net/~jheiss/raid10/">Why is RAID 1+0 better than RAID 0+1</a>?
+<li>Description and summary chart of the <a href="http://www.pcguide.com/ref/hdd/perf/raid/levels/index.htm">different RAID levels</a>.
+<li>AC&NC <a href="http://www.acnc.com/04_01_00.html">describes the different RAID levels</a> in an easy to understand format.
+<li><a href="http://www.acnc.com/04_02.html">RAID benchmarking tools</a>
+</ul>
+
+<a name=rm6>
+<a href="/unixtips/solaris.html#rm6"><h3>Raid Manager / RM6 / A1000</h3></a>
+<ul>
+<li>How to <a href="http://www.3113.com/dave/sun/a1000-reset.txt">reset the A1000/A3x00 configuration</a> if you have been swapping disks with other A1000's or have the orange light on w/o any hardware errors.
+<li>Here is <a href="http://www.rootprompt.net/a1000.html">another/quicker method to reset the A1000 configuration</a>.
+<li>How can you <a href="remove_a1000_dacstore.txt">wipe the DACstore from an A1000 drive</a>?
+<li>How can I create <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F14818&display=plain">A1000 & A3x00 luns with Raid Manager 6.22 and not have to reboot</a>?
+<li>Here are the <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F26765&display=plain">CLI equivalents to saving a raid module profile in RM6</a>.
+<li>Here are some <a href="http://www.eng.auburn.edu/pub/mail-lists/ssastuff/Solaris8-A1000.html">instructions on how to setup an A1000 on Solaris 8</a>
+<li>Is it possible to <a href="swap_a1000_battery.html">swap the A1000 cache battery without powering the array off</a>?
+<li>Known bug with RM 6.22 results in the following error messages:  <a href="raid_manager_622_bug.txt">"Auto configure failed" or "Wrong number of drives entered for the RAID level given"</a>.
+<li>Think you have a <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F21825&display=plain">failing power supply</a> on your A1000/A3000? (<b>CC</b>)
+<li>Some info on the different <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F24532&display=plain">RM6 Controller States</a>. (<b>CC</b>)
+<li>You need to read this Infodoc if you are trying to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F22176&display=plain">run RM on Solaris 8</a>. (<b>CC</b>)
+<li>Having <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?doc=srdb%2F22142&zone_32=22142">long boot times</a> (90mins) with >8 LUN support on A1000 and A3x00 configurations? (<b>CC</b>)
+</ul>
+
+<a name=register>
+<a href="/unixtips/solaris.html#register"><h3>Registration</h3></a>
+<ul>
+<li>You can <a href="never_register.txt">disable prompting for user or system registration reminder</a> after installing Solaris.
+</ul>
+
+<a name=rosetta>
+<a href="/unixtips/solaris.html#rosetta"><h3>Rosetta Stones</h3></a>
+<ul>
+<li>SysAdmin quick <a href="http://www.unixporting.com/quickguide.html">comparison of Solaris 8, HP-UX, FreeBSD, Linux, AIX</a>
+<li>Compares: <a href="http://www.unixguide.net/unixguide.shtml">AIX, FreeBSD, HP-UX, Redhat, Solaris, Tru64</a> (<a href="http://www.unixguide.net/unixguide.pdf">PDF</a>)
+<li>Compares: <a href="http://www.bhami.com/rosetta.html">Everything and the kitchen sink</a> (<a href="http://www.bhami.com/unix-rosetta.pdf">PDF</a>)
+</ul>
+
+<a name=S>
+<a name=scsi>
+<a href="/unixtips/solaris.html#scsi"><h3>SCSI disks</h3></a>
+<ul>
+<li>Here is how to <a href="http://www.eng.auburn.edu/pub/mail-lists/ssastuff/booted.html">determine which root disk you are booted from</a>.
+<li>Quick how-to on <a href="http://www.sundot.com/cgi-bin/blosxom.cgi/unix/solaris/#bootalias">setting up Sun eeprom aliases for alternative boot disks</a>.
+<li>The script <a href="ftp://ftp.cs.toronto.edu/pub/jdd/scsiinfo/">scsiinfo</a> will displays information about SCSI devices attached to a given system (like probe-scsi, but from the OS).
+<li><b>iostat -En</b> will also provide you with SCSI device information.
+<li><a href=wd.txt>WD</a> converts sd instance numbers to logical device names and vice versa.
+<li><a href="http://www.sarcheck.com/dmap.htm">dmap</a> is a utility from SarCheck that also provides instance numbers/logical device names.
+<li><a href="getspace.txt">Getspace</a> is a handy little script to grab the used and free space via df -k.
+<li>Need to <a href="add_disks_hot.txt">add SCSI disks "hot"</a> or make it see your cdrom (Solaris 7 and earlier)?  &nbsp; &nbsp; In Solaris 8, use <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F14818&display=plain">devfsadm</a> -c disk.
+</ul>
+
+<a name=security>
+<a href="/unixtips/solaris.html#security"><h3>Security</h3></a>
+<ul>
+<li>The <a href="http://www.sun.com/bigadmin/content/submitted/Solaris_build_document.pdf">Solaris 8 Build Document</a> has lots of handy security checks, scripts, etc. (PDF) [<a href="Solaris_build_document.pdf">locally</a>]
+<li>Solaris Security Toolkit <a href="http://javashoplm.sun.com/ECom/docs/Welcome.jsp?StoreId=8&PartDetailId=817-0074-10&TransactionId=try">FixModes</a>
+<li><a href="http://www.spitzner.net/armoring.html">Armoring Solaris</a> <a href="http://www.spitzner.net/armoring2.html">Armoring Solaris: II</a>
+<li>The <a href="http://www.itworld.com/Comp/2377/security-faq/pfindex.html">Solaris Security FAQ</a>
+<li>Here are some suggestions for <a href="http://www.samag.com/documents/s=1157/sam0013c/0013c.htm">securing Solaris</a>.
+</ul>
+
+<a name=sed>
+<a href="/unixtips/solaris.html#sed"><h3>Sed</h3></a>
+<ul>
+<li>Handy <a href="http://www.student.northpark.edu/pemente/sed/sed1line.txt">sed one-liners</a>.
+</ul>
+
+<a name=sendmail>
+<a href="/unixtips/solaris.html#sendmail"><h3>Sendmail</h3></a>
+<ul>
+<li>How can I easily <a href="sendmail_lookups.txt">look up where this e-mail address will go</a>?
+<li>Need to know which <a href="sendmail_version.txt">version of sendmail I'm running</a>.
+<li>How can I allow <a href="http://www.samag.com/documents/s=8228/sam0306a/0306a.htm">Sendmail to run w/o accepting mail from other servers</a>? (also check ou the Oct. 2003 issue for more info)
+<li>How can I change the <a href="sendmail_banner.txt">sendmail banner</a>?
+</ul>
+
+<a name=smf>
+<a href="/unixtips/solaris.html#smf"><h3>Service Management Facility (SMF)</h3></a>
+<ul>
+<li>SMF has a new function <b>svcs -x</b> to <a href="http://blogs.sun.com/roller/page/dp/20041029">help figure out what is wrong with my system</a>.
+<li>SMF has <a href="http://blogs.sun.com/roller/page/dp/20041029">changed the way the system starts up and shuts down.  The /etc/rc?.d/ directories are all LEGACY facilities</a>.
+<li>Solaris 10 has some <a href="http://blogs.sun.com/roller/page/tobin/20040928">new features with svcadm</a>.
+<li><a href="http://www.sun.com/bigadmin/content/selfheal/smf-quickstart.html">SMF quickstart guide</a>
+<li>Solaris 10 allows <a href="http://blogs.sun.com/roller/page/sch/20040726">enabling and disabling of services using the svc* commands</a>.
+<li>Here's the <a href="http://www.sun.com/bigadmin/content/selfheal/sdev_intro.html">SMF developer introduction</a>.
+</ul>
+
+<a name=setk>
+<a href="/unixtips/solaris.html#setk"><h3>SE Toolkit</h3></a>
+<ul>
+<li>Where can I find the <a href="http://www.setoolkit.com/">SE Toolkit</a>?
+<li>Please be careful when running <a href="http://www.sun.com/980922/tuning2/">virtual_adrian</a> as it will make changes to the kernel following Adrian's rules.
+</ul>
+
+<a name=shell>
+<a href="/unixtips/solaris.html#shell"><h3>Shell</h3></a>
+<ul>
+<li>How can you <a href="interactive_login.txt">determine if you have an interacive login</a>?
+<li>Lots of <a href="/aixtips/ksh_tips.txt">good info (memory refreshers) on KSH</a>.
+<li><a href="http://www.kornshell.com/doc/faq.html">KSH FAQ</a>
+<li><a href="http://www.kornshell.com/examples/">KSH examples</a>
+<li>How can I <a href="http://www.gnu.org/directory/Software_development/shell/shc.html">compile a shell script</a> so people can't change it or strings/view the password? <a href="http://www.datsi.fi.upm.es/~frosal/frosal.html">Francisco's home page</a>
+</ul>
+
+<a name=svm>
+<a href="/unixtips/solaris.html#svm"><h3>Solstice DiskSuite/Solaris Volume Manager (SDS/SVM)</h3></a>
+<ul>
+<li>If you are running SVM and have slow disk transfer rates, make sure to apply <a href="http://sunsolve.sun.com/search/advsearch.do?collection=PATCH&type=collections&max=50&language=en&queryKey5=113073&toDocument=yes">113073 to speed things up by a factor of 3</a>.
+<li>Please note the <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F73132&display=plain">NEW procedure to replace SVM disks that have gone bad</a>.  The old method for SDS no longer works with those device ID's.
+<br> <br>
+<li>Here is a nice <a href="soft-partitions.html">soft partitioning doc for DiskSuite/SVM</a>  The only other docs are the man pages.
+<li>Undocumented setting to <a href="ignore_quorum.txt">ignore the quorum rule in DiskSuite 4.2.1</a>.
+<li>What to do when <a href="sds_fix_broken_mirror.txt">one of your DiskSuite mirrors went bad</a> and you didn't use the above tip.
+<li>Where can I get the <b>newest</b> version of <a href="http://wwws.sun.com/software/solaris/ds/ds-disksuite/">Solstice DiskSuite that supports soft partitions</a>? The Solaris 8 patch is actually <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?doctype=coll&doc=patches/108693&type=0">108693</a>.  It is built into Solaris 9 as Solaris Volume Manager. (<b>CC</b>)
+<li>If you are running Solaris 2.6/7 and want to use soft partions, you must upgrade to Solaris 8/9</a>.  The patch revision (106628-18) has a serious, silent 4 GB bug, so they have withdrawn it.
+<br>
+<li>BluePrints article on <a href="http://www.sun.com/solutions/blueprints/1103/817-4368.html">SVM Performance Best Practices</a>.
+<li>Can I convince <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=srdb%2F45222&display=plain">DiskSuite do RAID 1+0</a> (which is better than 0+1, <a href="/unixtips/solaris.html#raid">and why</a>)? (<b>CC</b>)
+<br><br>
+<li>It is hard to keep all these different names Sun assigns to everything straight.  Where can I find a <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F24824&display=plain">list of all the product aliases for SDS/SVM/etc</a>? (<b>CC</b>)
+<li>Great way to have <a href="http://samag.com/solaris/column/0106.htm">DiskSuite/SVM coexist with Veritas</a> and let each do what it does best.
+<li>Nice doc on how to <a href="Disk.Replacement.Procedure-SDS4.2.doc">replace a mirror gone bad</a>. <a href="Disk.Replacement.Procedure-SDS4.2.pdf">PDF</a>
+<li>Quick method for <a href="disksuite.txt">mirroring your root disk with DiskSuite (Solaris Volume Manager)</a> and an example of how the <a href="svm_root_disk_layout.html">SVM root disk could be laid out</a>.
+<br> <br>
+<li>How should I <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=srdb%2F72119&display=plain">replace a failed root disk in a Sun Fire 280r (or any FCAL disk) when it is running SVM/SDS</a> and why you can't do it the way you think should work... (<b>CC</b>)
+<li>How do I increase the number of metadevices?  Check the <a href="ods_faq.txt">DiskSuite FAQ</a>
+<li>How do I remove the boot disk from DiskSuite control?  Check the <a href="ods_faq.txt">DiskSuite FAQ</a>
+</ul>
+
+<a name=sort>
+<a href="/unixtips/solaris.html#sort"><h3>Sort</h3></a>
+<ul>
+<li>Sort can be used to <a href="http://blogs.sun.com/roller/page/sch/20040702">generate a list sorted by the first field, with only the highest valued second field for each first field value</a>.
+</ul>
+
+<a name=ssh>
+<a href="/unixtips/solaris.html#ssh"><h3>SSH</h3></a>
+<ul>
+<li><a href="http://sourceforge.net/projects/clusterssh/">ClusterSSH</a> allows you to control a number of xterm windows via a single console.
+<li>How do I get <a href="http://www.snailbook.com/faq/trusted-host-howto.auto.html">trusted-host authentication working</a>?
+<li>How can I get <a href="http://www.employees.org/~satch/ssh/faq/ssh-faq-9.html#ss9.4.5">hostbased authentication to work with SSH2</a>?
+</ul>
+
+<a name=starfire>
+<a href="/unixtips/solaris.html#starfire"><h3>Starfire / E10k</h3></a>
+<ul>
+<li>A short article on <a href="http://www.samag.com/documents/s=1157/sam0013b/0013b.htm">Starfire Administration</a>
+</ul>
+
+<a name=stopa>
+<a href="/unixtips/solaris.html#stopa"><h3>Stop-A, L1-A, break key sequence</h3></a>
+<ul>
+<li>How can we <a href="disable_stopa.txt">prevent the Stop-A key from being used</a> if we don't have a keyswitch?
+<li>How can we create an <a href="alternate_break_sequence.txt">alternate keyboard sequence for the BREAK signal</a> on a dumb terminal?
+<li>How do I prevent a spurious BREAK (includes terminal server reboot) signal from halting my Sun server? <a href="http://www.cisco.com/warp/public/770/fn-tsbreak.html">Cisco method (Workaround section)</a> or the <a href="http://www.stokely.com/unix.sysadm.resources/faqs.sun.html#sun.break.link">Stokely method</a>
+<li>How the different <a href="http://www.conserver.com/consoles/breakoff.html">terminal servers stack up</a> on this issue.
+<li>How do I send the <a href="http://www.cisco.com/warp/public/701/61.html">break sequence (aka STOP-A or L1-A)</a> using my terminal program?
+<li>Here is the explanation of the <a href="break_signal_answer.txt">resistor between the pins fix</a> and where it came from.
+</ul>
+
+<a name=storage>
+<a href="/unixtips/solaris.html#storage"><h3>Storage Arrays</h3></a>
+<ul>
+<li><a href="http://www.eng.auburn.edu/pub/mail-lists/ssastuff/">Storage Array helpful tips</a>
+</ul>
+
+<a name=syslog>
+<a href="/unixtips/solaris.html#syslog"><h3>Syslog</h3></a>
+<ul>
+<li>How to prevent <a href="turn_off_remote_syslog.txt">syslog from accepting remote messages</a>.
+</ul>
+
+<a name=su>
+<a href="/unixtips/solaris.html#su"><h3>Su</h3></a>
+<ul>
+<li>Need to log when someone uses su?  Use this <a href="ftp://coast.cs.purdue.edu/pub/tools/unix/sysutils/dummy_su/dummy_su.c">dummy su program instead</a>.
+</ul>
+
+<a name=sysunconfig>
+<a href="/unixtips/solaris.html#sysunconfig"><h3>Sys-unconfig</h3></a>
+<ul>
+<li>If sys-uconfig wipes out your LDAP config files during Flash installs in Solaris 9, you need <a href="http://sunsolve.sun.com/private-cgi/findPatch.pl?patchId=112941">Patch-ID# 112941</a>. (<b>CC</b>)
+<li>Is your <a href="sysunconfig_sol8.txt">sys-unconfig broken in Solaris 8</a>?
+</ul>
+
+<a name=T>
+<a name=tar>
+<a href="/unixtips/solaris.html#tar"><h3>Tar</h3></a>
+<ul>
+<li>Show me the easiest way to <a href="tartips.txt">move files between directories using tar</a>.
+<li>Oops, I accidentally created a <a href="absolute_path_tar.html">tar file with an absolute path</a>.
+<li>How can I <a href="tar_wildcard.txt">use wildcards when extracting only certain files</a> from a tarfile?
+<li>Trying to use <a href="tar_dev_null.txt">tar with include/exclude lists</a>?  Use /dev/null as the destination.
+</ul>
+
+<a name=telnet>
+<a href="/unixtips/solaris.html#telnet"><h3>Telnet</h3></a>
+<ul>
+<li>How can I create an account that <a href="telnet_only_account.txt">only allows telnet/login access</a> (no FTP)?
+<li>How can I change the default <a href="telnet_banner.txt">telnet banner</a>?
+</ul>
+
+<a name=terminal>
+<a href="/unixtips/solaris.html#terminal"><h3>Terminals</h3></a>
+<ul>
+<li>How come my server won't boot <a href="terminal_woes.txt">until I connect my terminal to it</a>?
+</ul>
+
+<a name=tz>
+<a href="/unixtips/solaris.html#tz"><h3>Timezone</h3></a>
+<ul>
+<li>How do I <a href="timezone.txt">change the timezone</a> my Sun server is in?
+</ul>
+
+<a name=top>
+<a href="/unixtips/solaris.html#top"><h3>Top</h3></a>
+<ul>
+<li><a href="ftp://ftp.groupsys.com/pub/top/">Top</a> is very handy at getting a snapshot of your server.
+</ul>
+
+<a name=U>
+<a name=uadmin>
+<a href="/unixtips/solaris.html#uadmin"><h3>Uadmin</h3></a>
+<ul>
+<li>What are all the <a href="uadmin.txt">options to uadmin</a>?
+</ul>
+
+<a name=ufs>
+<a href="/unixtips/solaris.html#ufs"><h3>UFS</h3></a>
+<ul>
+<li>The performance of <a href="http://docs.sun.com/db/doc/817-0493/6mg9pruag?q=libraries+linkers+guide&a=view">UFS logging improves or exceeds the level of performance of nonlogging file systems</a> in Solaris 08/2003.
+<li>How can I <a href="ufs_logging.txt">enable UFS logging</a> on Solaris 7 and later?
+<li>Why <a href="http://www.itworld.com/Comp/2377/swol-0922-supersys/">aren't you logging</a>?
+</ul>
+
+<a name=V>
+<a name=vxfs>
+<a href="/unixtips/solaris.html#vxfs"><h3>Veritas File System</h3></a>
+<ul>
+<li><a href="http://eval.veritas.com/downloads/van/fs_quickref.pdf">VxFS quick reference guide</a>
+</ul>
+
+<a name=vxvm>
+<a href="/unixtips/solaris.html#vxvm"><h3>Veritas Volume Manager</h3></a>
+<ul>
+<li><a href="http://eval.veritas.com/downloads/van/vm_quickref.pdf">Basic VxVM commands quick reference sheet</a> (PDF)
+<li><a href="http://eval.veritas.com/downloads/van/avm_quickref.pdf">Advanced VxVM quick reference sheet</a> (PDF)
+<li>Sun doc on <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F40842&display=plain">how to replace a disk in a 280r when you are using Veritas to mirror the disks</a>. (<b>CC</b>)
+<li>Here is the <a href="http://www.sunhelpdesk.com/static.php?file=Mirroring_Boot_Disks_Veritas_Volume_Manager.htm">best way to mirror your root disk with Veritas</a>.
+<li>How to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F27603&display=plain">create a RAID 1+0 (striped-pro) volume</a>. (<b>CC</b>)
+<li>How to <a href="http://sunsolve.sun.com/private-cgi/retrieve.pl?type=0&doc=infodoc%2F27172&display=plain">convert an existing RAID 0+1 volume to RAID 1+0</a>. (<b>CC</b>)
+<li>How to <a href="http://seer.support.veritas.com/docs/192620.htm">disable and re-enable VERITAS Volume Manager (VxVM) at boot time when the boot disk is encapsulated</a>.
+<li>How do you <a href="http://www.eng.auburn.edu/pub/mail-lists/ssastuff/e3500.html">replace an E3500 internal FCAL disk</a>?
+<li>How can I <a href="http://www.eng.auburn.edu/pub/mail-lists/ssastuff/rootdisk.html">replace a failing/failed primary rootdisk</a>?
+<li><a href="http://sunsolve.Sun.COM/private-cgi/retrieve.pl?type=0&doc=faqs%2F2086&display=plain">Top 10 FAQ's</a> about Volume Manager. (<b>CC</b>)
+<li>How do I <a href="veritas_add_disk.txt">add a disk "hot" to Veritas</a>?
+</ul>
+
+<a name=vvr>
+<a href="/unixtips/solaris.html#vvr"><h3>Veritas Volume Replicator</h3></a>
+<ul>
+<li><a href="http://eval.veritas.com/downloads/van/vvr_quickref.pdf">VVR quick reference guide</a>
+</ul>
+
+<a name=vi>
+<a href="/unixtips/solaris.html#vi"><h3>VI</h3></a>
+<ul>
+<li><a href="http://www.lagmonster.org/docs/vi.html">VI Cheatsheet</a> <a href="http://vh224401.truman.edu/~dbindner/mirror/vi-ref.pdf">PDF</a>
+<li><a href="http://www.thomer.com/vi/vi.html">VI lovers</a> home page
+<li>How can I <a href="vi_file_reversal.txt">reverse a text file with vi</a>?
+<li>Can I <a href="vi_delete_blank_lines.txt">delete blank lines in a file using vi</a>?
+<li>If I wanted to make the <a href="vi_mass_changes.txt">same change several times in file</a>, use vi.
+</ul>
+
+<a name=video>
+<a href="/unixtips/solaris.html#video"><h3>Video</h3></a>
+<ul>
+<li>How can I <a href="video_refresh.txt">print a list of all possible resolution/refresh rates for your screen</a>?
+<li>Would you like to <a href="24_bit.txt">set your display to 24 bit color</a>?
+<li>Where can I find the cable adapters that will let me <a href="http://www.stokely.com/unix.sysadm.resources/faqs3.sun.html#nonsun.mon">use my PC's monitor on a Sun box</a>?
+<li>Sun's official answer on using <a href="http://sunsolve.sun.com/pub-cgi/retrieve.pl?type=0&doc=finfodoc%2F48365&display=plain">Sun monitors on a PC</a>.
+<li>How to <a href="http://www.uglypeople.co.uk/sun_monitor/">connect a SUN monitor to a PC</a>.
+</ul>
+
+<a name=vold>
+<a href="/unixtips/solaris.html#vold"><h3>Vold (Volume Management)</h3></a>
+<ul>
+<li>Want to <a href="vold.txt">automatically play audio cd's or mount your Jaz drive</a>?
+</ul>
+
+<a name=X>
+<a name=xdm>
+<a href="/unixtips/solaris.html#xdm"><h3>X or Xdm</h3></a>
+<ul>
+<li>I need to <a href="http://sunportal.sunmanagers.org/pipermail/summaries/2002-December/002803.html">add a login warning message when logging into CDE</a>.
+<li>How can I <a href="disable_xdm_broadcast.txt">keep my Sun server from announcing that it will serve as an X server</a>?
+</ul>
+
+<a name=audio>
+<a href="/unixtips/solaris.html#audio"><h3>Xaudio</h3></a>
+<ul>
+<li>Getting a bunch of <a href="xaudio_disable.txt">error messages in syslog related to Xaserver</a>?
+</ul>
+
+<a name=Z>
+<a name=zone>
+<a href="/unixtips/solaris.html#zone"><h3>Solaris Zones</h3></a>
+<ul>
+<li>Solaris 10 (02/2004) now has <a href="http://www.sun.com/bigadmin/content/zones/">zones available</a>.
+<li><a href="http://www.blastwave.org/docs/Solaris-10-b51/DMC-0002/zlogin.html">Zlogin manpage</a>
+</ul>
+
+<br>
+<br>
+NOTE:  (<b>CC</b>) means must login to SunSolve (for Contract Customers)
+<br>
+<br>
+<a href="mailto:tips@sysunconfig.net?&Subject=Solaris Tips Page">Comments, suggestions, complaints, nifty tip to add?</a> <br><br><br><br>
+
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0073175262803390";
+google_ad_width = 728;
+google_ad_height = 90;
+google_ad_format = "728x90_as";
+google_ad_channel ="";
+google_ad_type = "text";
+google_color_border = "DFF2FD";
+google_color_bg = "DFF2FD";
+google_color_link = "0000CC";
+google_color_url = "008000";
+google_color_text = "000000";
+//--></script>
+<script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+  </script>
+</center>
+<!--
+<a href="http://www.1and1.com/?k_id=8168685"><img src="/pics/1and1_logo.gif" border=0 align=center alt="1 & 1"></a> &nbsp; &nbsp; &nbsp; Currently <a href="http://www.1and1.com/?k_id=8168685">1and1.com</a> is hosting sysunconfig.net.  They have a much better setup than the previous company and for a *much better* deal.
+-->
+</body>
+</html>

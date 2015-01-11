@@ -1,0 +1,167 @@
+Document ID: 2085
+
+SYNOPSIS:  Ten common Solstice Disksuite questions
+
+DETAIL DESCRIPTION:
+
+ 1.  DiskSuite versions and compatibility
+ 2.  How to populate md.conf file
+ 3.  How to suppress forceload message
+ 4.  Replicas on SSA marked as 'bad'
+ 5.  Checking metadevice states
+ 6.  Failed boot under DiskSuite control
+ 7.  Checking replica states
+ 8.  Explanation of disksets
+ 9.  Increase the number of metadevices
+10.  Metainit command for RAID5
+
+
+SOLUTION SUMMARY:
+
+1.  Which version of DiskSuite runs on SunOS 4.1.4?
+
+    Online: DiskSuite 1.0 is the only version of DiskSuite compatible 
+    with SunOS 4.X.
+        
+    While installing DiskSuite 1.0, you may encounter an error:
+
+    This software is not compatible with the current operating system.
+
+    This is the list of compatible operating systems:
+
+                  4.1.1
+                  4.1.2
+
+    Do you want to continue? [y|n]
+
+    Simply answer "y" and continue with the installation.
+
+    DiskSuite 1.0 is compatible with SunOS 4.1.2, 4.1.2, 4.1.3, and 4.1.4.
+
+    Online DiskSuite 2.0, 2.0.1 and 3.0 are compatible with Solaris 2.1
+    and later releases of Solaris 2.X.
+
+    Solstice Disksuite 4.0 is compatible with Solaris 2.3 and later 
+    Solaris 2.X releases.
+
+    Solstice Disksuite 4.1 is compatible with Solaris 2.4 and later 
+    Solaris 2.X releases.
+
+2.  After setting up Metadevices using metatool, how do I record
+    the configuration in the md.tab file?"
+
+    Run the following command after the configuration is complete
+    to record the configuration:
+  
+    metastat -p > /etc/opt/SUNWmd/md.tab
+
+3.  During the boot process, the message "WARNING: forceload of 
+    misc/md_hotspares failed." appears, what does it mean? 
+                                         
+    This warning is harmless and can be ignored.  The forceload statement
+    in the /etc/system file is designed to load the device driver as
+    soon as possible in the boot process.  If the device driver is not
+    needed, it will not load, and reports this type of warning message.
+
+    To suppress the message, create an empty hotspare pool with the command:
+
+    # metainit hsp001
+
+4.  Upon reboot, all replicas on the SPARCStorage Array go bad.
+    How do I prevent this?
+        
+    Add the following entries to the /etc/system file to avoid this problem:
+
+     forceload: drv/ssd
+     forceload: drv/SUNW,pln
+     forceload: drv/SUNW,soc
+
+    You add forceloads to the /etc/system file so that the SSA 200 disks are 
+    available early in the boot process.
+        
+5.  A disk went bad and needs to be replaced, how do I find the 
+    state of the DiskSuite software?
+
+    Use the metastat command to find the state of the Disksuite configuration.
+    If a component is in need of maintenance, the metastat output will
+    give the course of action required.
+
+6.  How do I remove the boot disk from DiskSuite control?
+
+        ok boot cdrom
+        # fsck   /dev/rdsk/c0....
+        # mount /dev/dsk/c0t3d0s0 /a
+        Note: this assumes that your boot device is target three on 
+        controller zero.
+        # vi /a/etc/system
+            comment [*] out entries pertaining to / being a metadevice
+            (rootdev:pseudo/md:0,blk)
+        # vi /a/etc/vfstab
+            change metadevice name to physical disk partition for all
+            file systems associated with booting
+        # mv /a/etc/opt/SUNWmd/etc/mddb.cf /a/etc/opt/SUNWmd/prob.mddb.cf
+        # umount /a
+        # fsck /dev/rdsk/c0t3d0s0
+        # reboot
+
+7.  How do I check the status of the state database replicas?
+
+    Use the metadb command to find the state of the Disksuite replicas.
+    If a replica is in need of attention, the flags will report appropriately.
+
+    Often the SDS metatool will report the replicas to be in a critical 
+    state when metadb reports no problems.
+
+        # metadb -i
+                flags           first blk       block count
+             a m  pc luo        16              1034 	/dev/dsk/c1t5d0s4
+             a    pc luo        1050            1034   	/dev/dsk/c1t5d0s4
+             a    pc luo        2084            1034  	/dev/dsk/c1t5d0s4
+         o - replica active prior to last mddb configuration change
+         u - replica is up to date
+         l - locator for this replica was read successfully
+         c - replica's location was in /etc/opt/SUNWmd/mddb.cf
+         p - replica's location was patched in kernel
+         m - replica is master, this is replica selected as input
+         W - replica has device write errors
+         a - replica is active, commits are occurring to this replica
+         M - replica had problem with master blocks
+         D - replica had problem with data blocks
+         F - replica had format problems
+         S - replica is too small to hold current data base
+         R - replica had device read errors
+
+8. How are disksets used?
+
+   A shared diskset is a grouping of two hosts and disk drives in which all
+   the drives are accessible by both hosts.  Disksuite requires that the
+   device name be identical on each host in the diskset.  There is one
+   metadevice state database per shared diskset and one on the local disks
+   of each host. 
+
+   Before you can begin to create or administer disksets, the disksuite
+   software must be installed on each host in the diskset and each host
+   must have local database replicas set up.  In addition, all disks that
+   you plan to share between hosts in the diskset must be connected to each
+   host and must have the same name (shared_diskset name) on each host. 
+
+9. How do I create more than 128 meta devices?
+
+   Edit the file /kernel/drv/md.conf file and change the "nmd" field from 
+   nmd=128 to whatever amount is needed (i.e., 255).
+        
+   Then boot -r to build these new devices.
+
+10. How do I metainit a RAID5 device?
+
+    metainit d0 -r c2t0d0s4 c2t2d0s4 c2t4d0s4 c2t0d4s4 c2t3d1s4 -k -i 32b
+ 
+    If you omit the -k option data loss will occur.
+    This only applies to existing RAID5 metadevices, not new ones.
+
+
+DATE APPROVED: 03/25/98
+KEYWORDS:      disksuite forceload RAID5
+
+OS RELEASE:    N/A
+

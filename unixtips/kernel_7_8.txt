@@ -1,0 +1,8 @@
+Typing
+	nm -x /dev/ksyms
+
+will list all 12,000+ tunable parameters.
+
+
+
+-Contributed by: Tim Lavin

@@ -1,0 +1,7 @@
+If you want to have a default list of folks to keep out from using FTP, 
+why not build the file dynamically from cron everyday with an entry like such:
+
+35 0 * * * cat /etc/ftpusers.template > /etc/ftpusers 2> /dev/null ; awk -F: '($3 < 100) || ($3 > 60000) {print $1}' /etc/passwd >> /etc/ftpusers
+
+Where your ftpusers.template file may contain user accounts that you also want 
+to exclude from using FTP, but aren't below UID 100 or above 60000.

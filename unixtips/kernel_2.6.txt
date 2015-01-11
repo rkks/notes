@@ -1,0 +1,154 @@
+INFODOC ID: 11915 STATUS: Issued 
+SYNOPSIS: List of tunable parameters for Solaris 2.3 through 2.6 
+DETAIL DESCRIPTION: 
+
+The following table lists the general kernel parameters that can be tuned.
+
+Parameter       Description
+---------       -----------
+
+dump_cnt        Size of the dump
+
+autoup          Used in struct var for dynamic configuration of the 
+	        age that a delayed-write buffer must be,in seconds, 
+	        before bdflush will write it out (default = 60)
+
+bufhwm          Used in struct var for v_bufhwm; it's the high water 
+	        mark for buffer cache memory usage, in Kbytes 
+	        (default = 2% of physical memory).
+
+maxusers        Maximum number of users 
+	        The default is number of Megabytes in physical memory minus 2.
+
+max_nprocs      Maximum number of processes (default = 10 + 16 * maxusers).
+
+maxuprc         The maximum number of user processes.
+	 	(default = max_nprocs - 5)
+
+rstchown        POSIX_CHOWN_RESTRICTED is enabled (default = 1).
+
+ngroups_max     Maximum number of supplementary groups per user 
+	 	(default = 32).
+
+rlim_fd_cur     Maximum number of open file descriptors per process
+	 	sysem wide (default = 64, max = 1024) also seelimit(1).
+
+
+Streams Parameters:
+
+nautopush       Number of entries in the autopush free list, 
+	 the high water mark for Streams administrative 
+	 devices (sads). One autopush entry is needed for each 
+	 entry in the /etc/iu.ap file and any others that may 
+	 be configured by using the autopush command directly,
+	 or by openingthe sad device and using the SAD_SAP
+	 ioctl(). If you run out of autopush entries, the ioctl()
+	 will return -1 and set errno to ENOSR (out of streams
+	 resources).
+
+sadcnt    Number allowed of concurrent opens of both
+	 /dev/sad/user and /dev/sad/admin (default 16).
+	 Once all are in use, open() will return -1 and 
+	 set errno to ENXIO (No such device or address).
+
+
+Psuedo Devices: (Needs reboot -r to take effect)
+
+npty     Number of 4.X pseudo-ttys configured (default = 48).
+	 The device entries are /dev/pty*
+
+pt_cnt   Number of 5.X pseudo-ttys configured (default = 48).
+	 (keep below 3000)
+	 The device entries are /dev/pts/*
+
+
+
+Paging Parameters:
+
+physmem  Sets the number of pages usable in physical memory.
+	 Only use this for testing, it reduces the size of usable memory.
+
+minfree  Memory threshold which determines when to start swapping
+	 processes, when free memory falls to this level swapping
+	 begins (default:
+	 2.5.1 and later : desfree / 2
+	 2.5 : desfree / 2 at most 100k bytes (sun4d 200k bytes)
+	 2.4 : 4d = 50 pages, all others 25 pages
+	 2.3 : physmem / 64 ).
+
+desfree  This is the desired free level, this determines when
+	 paging is abandoned for swapping. When free memory stays 
+	 below this level for 30 seconds, swapping kicks in
+	 (default:
+	 2.5.1 and later : lotsfree / 2
+	 2.5 : physmem / 64 at most 200k bytes (sun4d 400k bytes)
+	 2.4 : 4d = 100 pages, all others 50 pages, 
+	 2.3 : physmem / 32 ).
+
+lotsfree Memory threshold which determines when to start paging.
+	 When free memory falls below this level paging begins
+	 (default:
+	 2.5.1 and later : physmem / 64 or at least 512k bytes worth of pages
+	 2.5 : physmem / 32 at most 512k bytes (sun4d 1024k bytes)
+	 2.4 : 4d = 256 pages all others 128 pages
+	 2.3 : physmem / 16 ).
+
+fastscan The number of pages scanned per second when free memory
+	 is zero, the scan rate increases as free memory falls
+	 from lotsfree to zero, reaching fastscan (default:
+	 2.5 and later : physmem / 2 with 64Mb of memory being max
+	 2.4 : physmem / 4 with 64Mb of memory being max
+	 2.3 : physmem / 2 ).
+
+slowscan The number of pages scanned per second when free memory
+	 is equal to lotsfree, also see fastscan (default:
+	 2.5 and later : fastscan / 10 but not to exceed 100
+	 2.4 : is fixed at 100, 
+	 2.3 : fastscan / 10 ).
+
+handspreadpages The distance between the fronthand and backhand in
+	 the clock algorithm. The larger the number the longer an
+	 idle page can stay in memory (default:
+	 2.5 and later : fastscan
+	 2.4 : physmem / 4
+	 2.3 : physmem / 2 ).
+
+maxpgio  The maximum number of page-out I/O operations per second.
+	 This acts as a throttle for the page deamon to prevent
+	 page thrashing ((DISKRPM * 2) /3 ).
+
+t_gpgslo 2.1 through 2.3, Used to set the threshold on when to 
+	 swap out processes (default 25 pages ).
+
+
+
+File System Parameters:
+
+ufs_ninode      Maximum number of inodes.
+	 	(default = max_nprocs + 16 + maxusers + 64)
+
+ndquot   Number of disk quota structures.
+	 (default = (maxusers * NMOUNT / 4) + max_nprocs)
+
+ncsize   Number of dnlc entries.
+	 (default = max_procs + 16 + maxusers + 64);
+	 dnlc is the directory-name lookup cache
+
+
+TCP/IP Parameters:
+
+arptab_size     Size of arp table
+
+ipcnt           Size of ip_pcb
+
+ipprovcnt       Size of provider
+
+loopcnt         Size of loop_pcb
+
+ntcp            Number of tcp devices, tcp_dev
+
+nudp            Number of udp devices, udp_dev
+
+
+APPLIES TO: Hardware, Operating Systems/Solaris/Solaris 2.x, AFO Vertical Team 
+Docs, AFO Vertical Team Docs/Kernel 

@@ -1,0 +1,6 @@
+To disable the Stop-A key on a Sun box, you can:
+
+	- Turn the keyswitch to the Lock position
+		OR
+	- Enter the following line into /etc/system and reboot:
+		set abort_enable = 0

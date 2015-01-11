@@ -1,0 +1,52 @@
+Anonymous FTP can be set up under Solaris by performing the following steps. 
+Remember, however, that Anonymous FTP opens up your system to allow anonymous
+users to perform file transfers. In general, Anonymous FTP should be considered
+a security concern and should be enabled only if it is absolutely necessary. 
+Also, to allow FTP to work properly in a chroot environment, make sure that 
+the file system containing the FTP home directory is not mounted as nosuid.
+
+1. Create the FTP home directory structure: 
+mkdir /export/ftp/pub
+mkdir /export/ftp/bin
+mkdir /export/ftp/dev
+mkdir /export/ftp/etc
+mkdir /export/ftp/usr
+mkdir /export/ftp/usr/lib
+
+2. Add the ls command to the FTP bin directory: 
+cp /usr/bin/ls /export/ftp/bin
+chmod 111 /export/ftp/bin/ls
+
+3. Copy the necessary libraries into the FTP directory structure: 
+cp /usr/lib/ld.so* /export/ftp/usr/lib
+cp /usr/lib/libc.so.1 /usr/lib/libdl.so.1 /export/ftp/usr/lib
+cp /usr/lib/libintl.so.1 usr/lib/libw.so.1 /export/ftp/usr/lib
+cp /etc/passwd /etc/group /etc/netconfig /export/ftp/etc
+
+4. Copy the necessary files into the FTP directory structure to resolve NIS names: 
+cp /usr/lib/nss*.so.1 /export/ftp/usr/lib
+cp /usr/lib/libnsl.so.1 /export/ftp/usr/lib
+cp /usr/lib/straddr.so /export/ftp/usr/lib
+cp /etc/nsswitch.conf /export/ftp/etc
+
+5. Set the permissions for the /export/ftp/usr/lib and /export/ftp/etc directories: 
+chmod 555 /export/ftp/usr/lib/*
+chmod 444 /export/ftp/etc/*
+
+6. Set the permissions of all the created directories: 
+chmod 555 /export/ftp/usr/lib
+chmod 555 /export/ftp/usr
+chmod 555 /export/ftp/bin
+chmod 555 /export/ftp/dev
+chmod 555 /export/ftp/etc
+chmod 755 /export/ftp/pub
+chmod 555 /export/ftp
+
+7. Add the following line to the /etc/passwd file: 
+ftp:x:30000:30000:Anonymous FTP:/export/ftp:/bin/false
+
+8. Add the following line to the /etc/shadow file: 
+ftp:NP:6445::::
+
+9. Make sure that everything is owned by root and not by FTP: 
+chown -R root /export/ftp

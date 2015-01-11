@@ -1,0 +1,47 @@
+Why do I have more free memory after I upgrade to Solaris 8?
+
+
+In Solaris 7 and below all spare memory was used for the file system
+cache. This resulted in cache pollution with file system data and
+meant that file system data often had to be paged out in order start
+applications, and it also meant that large amounts of file system
+activity could purge critical data from the cache.
+
+Application startup performance was dealt with by adding the
+priority_paging tuneable, however, large amounts of file system
+activity could still result in cache pollution. Another side effect
+of this feature was that machines would rarely show any free memory,
+except at initial startup time. This meant that memory shortages had
+to be second guessed by studying the output of sar -g to spot
+consistently high scan rates, although sometimes this could just be
+due to high levels of file system activity.
+
+In Solaris 8 the memory model was changed. A 'cyclical page cache'
+model was introduced. The file system free list is dedicated to the
+caching of file system data only and all other objects, such as
+applications, the kernel, shared memory segments, etc. are maintained
+on a separate free list.
+
+This means that many of the problems associated with the pre-Solaris
+8 model are overcome as the file system cache essentially pages
+against itself and heavy file system activity will not cause
+applications or other non-file system data to be paged out. If more
+memory is required by non-file system data is required then the size
+of the file system cache is reduced.
+
+The major differences with this architecture are that the system no
+longer includes the file system cache as used memory resulting in the
+three following most noticeable changes:
+
+1) Higher Page Reclaims 
+2) Higher Free Memory Values 
+3) Zero Scan Rates
+
+This means now that if the amount of free memory displayed by either
+vmstat or sar -r is low then you really have a memory shortage and
+that the if the output of sar -g show non-zero scan rates then the
+machine is really paging system data, as file system data is no
+longer included.
+
+
+-by Ken Robson

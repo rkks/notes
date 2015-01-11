@@ -1,0 +1,15 @@
+When simply entered at the command prompt, crle reports the current library search path.
+
+Configuration file [3]: /var/ld/ld.config
+  Default Library Path (ELF):   /usr/lib:/usr/lib/secure
+  Trusted Directories (ELF):    /usr/lib/secure  (system default)
+
+To add /usr/local/lib to this path and update (or create) the config file, the following is entered:
+ 
+crle -c /var/ld/ld.config -l /usr/lib:/usr/lib/secure:/usr/local/lib
+
+Be careful with this, as I'm sure you could completely destroy the library path which will render the system (hopefully temporarily) inoperable.
+
+
+
+Contributed by:  Pete McDonnell

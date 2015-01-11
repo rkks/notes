@@ -1,0 +1,60 @@
+Ifgrps adds some intelligence to IP's source address selection and outbound
+interface selection to allow IP traffic to flow on any of the interfaces.
+
+The Solaris IP implementation adds a cache entry per destination IP
+address, which can be viewed with the netstat command:
+
+% netstat -ra | grep UHA
+Ifgrps come into play when creating these cache entries.
+
+Use the ndd command to enable/disable ifgrps, as follows:
+  ndd -set /dev/ip ip_enable_group_ifs 0 
+
+
+When a cache entry is created with ip_enable_group_ifs set to 1, a source
+address for this entry is selected and the outgoing interface is assigned 
+based on this source address. This behavior is new for 2.6, and is part of
+the ifgrps functionality.  
+
+The algorithm is:
+
+  1. If there's a cache entry, use it, and send traffic out that
+     interface regardless of source address.
+
+  2. If there's no cache entry, check if there's a source address
+     already in the datagram.  If so, create a cache entry with 
+     the interface corresponding to the source address.  (NEW IN 2.6)
+
+  3. With no entry and no source address, round-robin to one of
+     the interfaces in the interface group that routing says to
+     use. (NEW IN 2.6)
+
+If ip_enable_group_ifs is set to 0, the machine reverts to pre-2.6 behavior: 
+
+  1. If there's a cache entry, use it, and send traffic out that
+     interface regardless of source address.
+
+  2. If there's no cache entry, use the interface routing indicates
+     (it'll always be just one) and set the cache entry to that.
+
+Note: There are two important limitations to what is described above when
+      ifgrps is enabled:
+  1.For logical interfaces (le0:1, le0:2 etc) the load balancing does 
+    not take place and only the physical interface associated with the 
+    logical interfaces le0 is listed in the interface group list. 
+
+  2.For systems with a number of physical interfaces and some logical 
+    interfaces, the load balancing takes place only on the physical  
+    interfaces and not on the logical interfaces. 
+
+
+
+From patch 105786:
+------------------
+Synopsis: SunOS 5.6: /kernel/drv/ip patch
+
+BugID 4077132: ip_enable_group_ifs=0 doesn't pick default hostname
+The ip patch fix restores the correct behaviour of interface groups. The new
+code has the ip_enable_group_ifs disabled by default, and so it restores the old
+behaviour and the first physical interface acts as the *primary interface*. 
+

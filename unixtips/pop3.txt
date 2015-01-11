@@ -1,0 +1,146 @@
+TITLE    : Using telnet to collect mail from a pop3 server.
+OS LEVEL : None
+DATE     : 07/06/2000
+VERSION  : 1.0
+ORIGINALLY FROM: http://www.mort.level5.net/johnr/howto/pop3.txt
+
+----------------------------------------------------------------------------
+
+To log into the pop3 server :-
+
+
+1, Telnet to the pop3 server on port 110 :
+
+   telnet pop3.server.name 110
+
+   You should get an "+OK" response.
+
+2, Enter your pop3 user account name :
+
+   user roebuckj
+
+   You should get an "+OK" response.
+
+3, Enter your pop3 user account password :
+
+   pass letmein
+
+   You should get an "+OK" response.
+
+
+----------------------------------------------------------------------------
+
+You are now logged into the pop3 server and can list, read and delete the
+mail messages on the server.
+
+Basic commands :-
+
+
+stat				Reports number of mail messages on the 
+				server, and the total size in bytes.
+
+list				Lists the size of each mail message in bytes.
+
+retr (mail message number)	Cats the mail message to screen
+
+dele (mail message number)	Deletes the mail message from the server
+
+rset				Resets the status of all emails on the server
+				to "unread".
+
+quit				Logs out of the pop3 server and closes the
+				telnet session.
+
+
+POP3 server replys :-
+
++OK
+-ERR
+
+
+----------------------------------------------------------------------------
+
+EXAMPLE :
+---------
+
+root@kevin(/etc)>telnet pop.mailserver.net 110
+
+Trying...
+Connected to pop.mailserver.net
+Escape character is '^]'.
++OK <29912.957778379@pop.mailserver.net>
+user roebuckj
++OK 
+pass letmein
++OK 
+list
++OK 
+1 2160
+.
+retr 1
++OK 
+X-From_: virusalert@freeserve.com Fri May 05 17:50:50 2000
+Envelope-to: user@freeserve.co.uk
+Delivery-date: Fri, 05 May 2000 17:50:50 +0100
+Received: from [194.152.76.137] (helo=gate-isdn.freeserve.theplanet.co.uk)
+        by mail.freeserve.net with smtp (Exim 3.13 #0)
+        id 12nlJS-0001cC-99
+        for user@freeserve.co.uk; Fri, 05 May 2000 17:50:50 +0100
+Received: from virusalert by gate-isdn.freeserve.theplanet.co.uk with local (Exim 1.62 #1)
+        id 12nlJN-0007ak-99; Fri, 5 May 2000 17:50:45 +0100
+To: user@freeserve.co.uk
+Message-Id: <E12nlJN-0007ak-00@gate-isdn.freeserve.theplanet.co.uk>
+From: Virus Alert <virusalert@freeserve.com>
+Subject: Virus Warning
+Date: Fri, 5 May 2000 17:50:45 +0100
+
+Dear Freeserve member,
+
+As you may already be aware, following reports on the news and in the
+press, there is a new email virus that began being transmitted yesterday,
+it can be identified by the subject line "ILOVEYOU" 
+
+Immediately the virus was identified Freeserve took steps to prevent it
+spreading to our users and also prevent any Freeserve user passing on the
+virus to other parties.
+
+There is, however, the possibility that you may have received an infected
+email before our security measures were put in place. If you have an email
+in your inbox with the subject "ILOVEYOU" and have not yet opened it then
+simply deleting it will ensure that your PC is not affected, it would also
+be worth deleting the mail from the deleted folder as an extra precaution. 
+
+In the unfortunate event that you have opened the mail and the attachment
+you will need to clean your PC using antivirus software that has the
+latest virus update installed. Alternatively you can visit the following
+website and use their online virus scanning tool,
+
+http://housecall.antivirus.com/housecall/start_corp.asp
+
+For future reference it is worth remembering that any email with
+attachments where you are not absolutely certain of the origin should be
+treated with suspicion. 
+
+I hope that this clarifies the current situation and reassures you that
+Freeserve takes your security very seriously indeed. 
+
+Regards
+
+Chris Fletcher,
+Customer Service Manager, Freeserve
+
+.
+list
++OK 
+1 2160
+.
+dele 1
++OK 
+list
++OK 
+.
+quit
++OK 
+Connection closed.
+
+root@kevin(/etc)>

@@ -1,0 +1,64 @@
+It won't work, in most instances.  The Cisco web page is Enormously
+misleading, and any sites that echo the Cisco page are just as
+misleading.  (Celeste's page is the least misleading of the ones
+I've seen so far)
+
+The resistor between pin 3 and 25 method originated in an e-mail message
+sent to Sun Support several years ago (ca. 1992 or 1993) by a Sun customer.
+It was something that the customer tried and enjoyed some success with.
+Sun support has given the details of the method out from time to time,
+but they have never promised that it would work.  Apparently some folks
+at Cisco got hold of the method and re-published it on their web site.
+
+Here are the three most important facts about the resistor method,
+followed by a more technical explanation of its effects:
+
+  1) It was never designed to *block* break signals sent by a terminal,
+     computer, or terminal server connected to the Sun machine.
+
+  2) It was never *possible* for the resistor to block break signals
+     transmitted from the terminal/computer/terminal-server.
+
+  3) It was only intended to suppress glitches produced by plugging or
+     unplugging an RS232 cable, so those glitches would not look like
+     a break signal to the Sun.
+
+Unplugging or plugging an RS232 cable causes the pins to make and break
+contact a few times as you slide the connectors together.  This can
+cause the signal on the Sun's RxD (Receive Data) pin to jump from 0V
+to -5V and back as contact is made and broken.  Capacitance and/or
+inductance in the cable can cause the voltage jump from -5V back to
+0V to overshoot and produce a glitch of positive voltage.  If the cable
+conditions are right, the glitch can rise above +3.5V, and can last
+longer than a couple thousandths of a second (milliseconds).  This kind
+of glitch looks exactly like a break signal to the Sun machine.
+
+Glitches caused by cable capacitance or inductance like that usually
+don't have a lot of energy behind them.  The resistor we're talking about
+was designed to drain off enough energy so the cable-induced glitches
+can't rise high enough or last long enough to look like a break signal
+to the Sun.  So the resistor can sometimes help when unplugging or
+plugging the console cable causes your Sun to halt.
+
+However, it can't help the other kinds of break signals.  These are
+often caused by powering the attached terminal/computer/terminal-server
+down or up.  When this happens, the RS232 driver circuitry in the attached
+device forces the voltage on the pin to +3.5V (or higher), and backs it
+up with a LOT of energy from its power supply.  Since this kind of glitch
+has plenty of energy behind it, the resistor can't drain enough away to
+prevent the signal from looking like a break to the Sun.  The resistor
+won't help.  (it was never intended to help this situation anyway)
+
+The only solutions when you have equipment that glitches its outputs like
+that are to (a) re-design the equipment to clamp the output voltage to
+zero volts when the power is cycled, (b) replace the equipment with other
+equipment that doesn't let its outputs glitch, or (c) reconfigure the Sun
+to not halt on the break signal.
+
+
+Infodoc 21258 on sunsolve.sun.com describes the patches and procedure
+to make Solaris 2.6 and later halt on an "alternate" abort sequence
+instead of the RS232 break signal.
+
+     
+-Greg Andrews

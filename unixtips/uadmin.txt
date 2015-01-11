@@ -1,0 +1,14 @@
+Q: What are all the options to uadmin?
+
+A:
+uadmin 2 0	sync the filesystems and drops system to ok prompt
+uadmin 2 1	sync the filesystems and reboots to multi-user mode 
+uadmin 2 2	sync the filesystems and reboots interactively                   
+uadmin 2 3	sync the filesystems and reboots to single-user mode 
+uadmin 2 6	sync the filesystems and powers off the system
+
+uadmin 1 0	do not sync filesystems and drops system to ok prompt
+uadmin 1 1	do not sync filesystems and reboots to multi-user mode 
+uadmin 1 2	do not sync filesystems and reboots interactively                   
+uadmin 1 3	do not sync filesystems and reboots to single-user mode 
+uadmin 1 6	do not sync filesystems and powers off the system

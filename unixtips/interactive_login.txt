@@ -1,0 +1,10 @@
+How does one determine whether the login is interactive or not in the bourne shell?
+
+
+The portable way maybe:
+
+if tty -s ; then
+# interactive use
+else
+# non interactive use
+fi

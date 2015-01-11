@@ -1,0 +1,88 @@
+#!/bin/ksh
+#
+# Orf Gelbrich - orf@gelbrich.com
+# 7/6/2001
+# Script mirrors c0t0d0s0 (disk1) to c0t1d0s0 (disk2)
+# Script mirrors c0t0d0s1 (disk1) to c0t1d0s1 (disk2)
+# Script mirrors c0t0d0s3 (disk1) to c0t1d0s3 (disk2)
+# Script mirrors c0t0d0s4 (disk1) to c0t1d0s4 (disk2)
+#
+export f1="/usr/local/etc/mirrorbox.log"
+export line="------------------------------------------------------------------"
+#
+# set up the log file
+#
+echo $line  >> $f1
+date >> $f1
+echo $line  >> $f1
+#
+# find out which disk we are on
+#
+export disk1=`df -k |  grep c0t | head -1 | awk '{ FS="/"} { print $4}' | awk '{print $1}'`
+echo "We are on this disk : $disk1" >> $f1
+if [ $disk1 != "c0t0d0s0" ] ; then
+        echo "Error this is not disk 1 = $disk1" >> $f1
+        exit 1
+fi
+#
+# copy the two partitons
+#
+dd if=/dev/dsk/c0t0d0s0 of=/dev/dsk/c0t1d0s0 bs=524288   2>&1 >> $f1 2>&1
+dd if=/dev/dsk/c0t0d0s1 of=/dev/dsk/c0t1d0s1 bs=524288   2>&1 >> $f1 2>&1
+dd if=/dev/dsk/c0t0d0s3 of=/dev/dsk/c0t1d0s3 bs=524288   2>&1 >> $f1 2>&1
+dd if=/dev/dsk/c0t0d0s4 of=/dev/dsk/c0t1d0s4 bs=524288   2>&1 >> $f1 2>&1
+#
+# copy the boot block to the spare disk
+#
+cd /usr/platform/`/usr/bin/uname -i`/lib/fs/ufs >> $f1
+installboot bootblk /dev/rdsk/c0t1d0s0 >> $f1
+#
+# unmount the file systems
+#
+umount /mnt1 >> $f1
+umount /mnt2 >> $f1
+umount /mnt3 >> $f1
+umount /mnt4 >> $f1
+#
+# run fsck on the spare file systems
+#
+fsck -y /dev/dsk/c0t1d0s0 >> $f1
+fsck -y /dev/dsk/c0t1d0s1 >> $f1
+fsck -y /dev/dsk/c0t1d0s3 >> $f1
+fsck -y /dev/dsk/c0t1d0s4 >> $f1
+#
+# mount the spare disk slice 0 and 3
+#
+ 
+if [ ! -d /mnt1 ]; then
+        mkdir /mnt1 >> $f1
+fi
+if [ ! -d /mnt2 ]; then
+        mkdir /mnt2 >> $f1
+fi
+if [ ! -d /mnt3 ]; then
+        mkdir /mnt3 >> $f1
+fi
+if [ ! -d /mnt4 ]; then
+        mkdir /mnt4 >> $f1
+fi
+mount -f ufs /dev/dsk/c0t1d0s0 /mnt1 >> $f1
+mount -f ufs /dev/dsk/c0t1d0s1 /mnt2 >> $f1
+mount -f ufs /dev/dsk/c0t1d0s3 /mnt3 >> $f1
+mount -f ufs /dev/dsk/c0t1d0s4 /mnt4 >> $f1
+#
+# fix the vfstab file on disk2  (t0 -> t2)
+#
+cd /mnt1/etc >> $f1
+cp vfstab vfstab.old >> $f1
+sed 's/t0/t1/g' vfstab > vfstab.new
+cp vfstab.new vfstab >> $f1
+cd /
+#
+# close out the log file
+#
+echo $line  >> $f1
+date >> $f1
+echo $line  >> $f1
+ 
+exit 0

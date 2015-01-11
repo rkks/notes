@@ -1,0 +1,12 @@
+If you are getting lots of error messages in your syslog that look like:
+
+inetd[140]: /usr/openwin/bin/Xaserver: Hangup
+last message repeated 2623 times
+inetd[140]: /usr/openwin/bin/Xaserver: Hangup
+last message repeated 2497 times
+
+Just go into /etc/inet/inetd.conf
+and comment out the line about xaudio/Xaserver.
+
+Then, of course, you need to hup the inetd process to have the change take affect.
+	

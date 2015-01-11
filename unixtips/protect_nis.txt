@@ -1,0 +1,41 @@
+Protecting the NIS Maps Directory
+
+
+The /var/yp directory should only be accessible by root. Change the
+permissions accordingly. If you are running TripWire, COPS or any
+other security tool, you should make it a part of the security audit
+process.
+
+Setup /var/yp/securenets
+
+You should configure NIS to make its maps available only to certain
+networks. This can be done with the /var/yp/securenets file, here is
+an example:
+
+255.255.255.0 10.10.20.0 255.255.255.0 10.10.21.0
+
+To restrict availability to hosts, simply add the IP address of that
+host(s):
+
+255.255.255.0 10.10.20.2 255.255.255.0 10.10.20.1
+
+Secure your Root account
+
+The root account should always be local! You should never allow it to
+be a part of NIS. If a hacker discovered the root password, he/she
+would have access to all of the machines within the NIS domain. Also,
+if NIS ever failed, you may not be able to login as root on any
+machine in the domain.
+
+Move NIS Maps
+
+NIS uses the /etc/passwd, /etc/shadow, /etc/inetd/netmasks files by
+default for its maps. Two problems with this are; anyone with login
+access to the system will be able to read all of the NIS maps;
+second, with /etc/passwd and /etc/shadow as NIS map sources, root
+login will be possible only if NIS is running properly. You should
+move these files out of the /etc directory.
+
+
+
+-by Gunther Vanaken

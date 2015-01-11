@@ -1,0 +1,1039 @@
+<HTML>
+<HEAD>
+<TITLE>Solaris Volume Manager - Soft Partitioning Explained</TITLE>
+</HEAD>
+
+This document was originally posted at: <a href="http://www2.primushost.com/~griff/soft-partitions.html">http://www2.primushost.com/~griff/soft-partitions.html</a> <br>
+however, it has been unavailable for some time now.
+<br> <br> <br>
+
+<I>Last Updated: Wed Aug 22 2001</I>
+<H1>
+<CENTER>
+Solstice DiskSuite / Solaris Volume Manager
+<BR>
+<BR>
+Soft Partitioning
+<BR>
+<BR>
+<HR WIDTH="70%">
+<FONT SIZE=-1 COLOR="DarkBlue">
+<BR>A Primer for Understanding Soft Partitioning,
+<BR>a new feature in Solstice DiskSuite (Solaris Volume Manager)
+</FONT>
+</CENTER>
+</H1>
+<HR WIDTH="70%">
+
+<P>
+The intent of this document is to describe Soft Partitioning within
+Solstice DiskSuite (soon-to-be-renamed Solaris Volume Manager), and
+offer a short primer/tutorial on how to create, use, and delete them.
+
+<P>
+Until now, Solaris, without any volume management software, has only
+ever allowed a fixed number of partitions on a physical disk (seven (7)
+on SPARC platforms).  With the increase in capacity of disks, this
+limitation has become a severe restriction.
+
+<P>
+SDS/SVM uses these slices for its metadevices (sub-mirrors, trans,
+stripes, and RAID5) and hence is faced with the same limitation,
+whereas Veritas Volume Manager (VxVM) allows for the logical
+partitioning of disks into a <I>virtually</I> unlimited number of
+subdisks.
+
+<P>
+Soft Partitioning allows for a disk to be subdivided into many
+partitions which are controlled and maintained by software, thereby
+removing the limitation of the number of partitions on a disk. A soft
+partition is made up of one or more "<I>extents</I>".  An extent
+describes the parts of the physical disk that make up the soft
+partition.  While the maximum number of extents per soft partition is
+2147483647, the majority of soft partitions will use only one (1)
+extent.
+
+
+<BR><P><HR><H2>What is new?</H2>
+
+<P>
+Soft Partitioning was <B>not</B> in the original Solstice DiskSuite
+4.2.1 Release, which coincided with the release of Solaris 8.  However,
+the soft partitioning functionality was released in patch 108693-06 for
+SDS 4.2.1.
+
+<P>
+When Solaris 9 gets released, the "Solstice DiskSuite" name will change
+to "Solaris Volume Manager" ("SVM") and it will be bundled in with
+Solaris 9.  Soft Partitioning will, of course, be part of the base
+functionality of that release.
+
+<P>
+Soft Partitions are implemented by new kernel driver: <B>md_sp</B>.
+
+<PRE>
+   #<B> modinfo | grep md_sp</B>
+   228 78328000 4743 - 1 md_sp (Meta disk soft partition module)
+</PRE>
+
+There are new options to the <I>metainit</I> command:
+<PRE>
+   <B>metainit</B> <I>softpart</I> <B>-p [-e]</B> <I>component size</I>
+   <B>metainit</B> <I>softpart</I> <B>-p</B> <I>component</I> <B>-o</B> <I>offset</I> <B>-b</B> <I>size</I>
+</PRE>
+
+The <I>metattach</I> command has been modified to allow for growing of
+soft partitions:
+<PRE>
+   <B>metattach</B> <I>softpart size</I>
+</PRE>
+
+There is a new command... <I>metarecover</I>:
+<PRE>
+   <B>metarecover [-n] [-v]</B> <I>component</I> <B>-p [-d|-m]</B>
+</PRE>
+
+<P><B>NOTE</B>: the <B>-p</B> option means that the command refers to
+soft partitions.
+
+
+<BR><P><HR><H2>Creating Soft Partitions</H2>
+
+There are three methods to create a soft partition using the
+<I>metainit</I> command:
+
+<OL>
+<P><LI>Specifying an unused disk and size (with the <B>-e</B> option).
+For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d0 -p -e c1t0d0 200m</B>
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+The <B>-e</B> option requires that the name of the disk supplied be in
+the form <B>c#t#d#</B>.
+
+<P>
+The last parameter (200m) specifies the initial size of the soft
+partition. The sizes can be specified in blocks, kilobytes, megabytes,
+gigabytes, and terabytes.
+
+<P>
+The <B>-e</B> option causes the disk to be repartitioned such that
+slice 7 has enough space to hold a replica (although no replica is
+actually created on this disk) and slice 0 contains the rest of the
+space.  Slice 2 is removed from the disk.  The soft partition that is
+being created is put into slice 0.  Further soft partitions can be
+created on slice 0 by the next method of creating a soft partition.
+
+<P>
+After this command is run, the layout of the disk would like
+similar to this example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   Part      Tag   Flag   Cylinders     Size           Blocks
+     0 unassigned   wm     5 - 2035   999.63MB   (2031/0/0) 2047248
+     1 unassigned   wm     0            0        (0/0/0)          0
+     2 unassigned   wm     0            0        (0/0/0)          0
+     3 unassigned   wm     0            0        (0/0/0)          0
+     4 unassigned   wm     0            0        (0/0/0)          0
+     5 unassigned   wm     0            0        (0/0/0)          0
+     6 unassigned   wm     0            0        (0/0/0)          0
+     7 unassigned   wu     0 -   4      2.46MB   (5/0/0)       5040
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+This command (with the <B>-e</B>) can only be run on an empty disk (one
+that is not used in any other metadevice).  If another metadevice or
+replica already exists on this disk, one of the following messages will
+be printed, and no soft partition will be created.
+
+<PRE>
+   metainit: hostname: c#t#d#s0: has appeared more than once in the specification of d#
+</PRE>
+or
+<PRE>
+   metainit: hostname: c#t#d#s#: has a metadevice database replica
+</PRE>
+
+<P><LI>
+Specifying an existing slice name and size (without the <B>-e</B>
+option).  This will be the most common method of creation.  For
+example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+    #<B> metainit d1 -p c1t0d0s0 1g</B>
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+This will create a soft partition on the specified slice.  No
+repartitioning of the disk is done.  Provided there is space on the
+slice, additional soft partitions could be created as required.  The
+device name must include the slice number (c#t#d#s#).
+
+<P>
+If another soft partition already exists in this slice, this one will
+be created immediately after the existing one.  Therefore, no overlap
+of soft partitions can occur by accident.
+
+<P><LI>
+Specifying an existing slice and absolute offset and size values.
+For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d2 -p c1t0d0s0 -o 2048 -b 1024</B>
+</TD></TR></TABLE>
+</PRE>
+
+The <B>-o</B> parameter signifies the offset into the slice, and the
+<B>-b</B> parameter is the size for the soft partition.
+All numbers are in blocks (a block is 512 bytes).
+
+The <I>metainit</I> command ensures that extents and soft
+partitions do not overlap.  For example, the following is an attempt
+to create overlapping soft partitions.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 -o 1 -b 2024</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p c1t0d0s0 -o 2000 -b 2024</B>
+   metainit: hostname: d2: overlapping extents specified
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+An offset of <B>0</B> is not valid, as the first block on a slice
+containing a soft partition contains the initial extent header.
+Each extent header consumes 1 block of disk and each soft
+partition will have an extent header placed at the end of each extent.
+Extent headers are explained in more detail in the next section.
+
+<P>
+<B>NOTE:</B> This method is not documented in the man page for
+<I>metainit</I> and is not recommended for manual use.  It is here
+because a subsequent <B>metastat -p</B> command will output information
+in this format.
+</OL>
+
+<BR><P><HR><H2>Extent Headers</H2>
+
+<P>
+Whenever a soft partiton is created in a disk slice, an "extent header"
+is written to disk.  Internally to Sun, these are sometimes referred to
+as "watermarks".
+
+<P>
+An extent header is a consistency record and contains such information
+as the metadevice (soft partition) name, it's status, it's size, and a
+checksum.  Each extent header 1 block (512 bytes) in size.
+
+<P>
+The following diagram shows an example 100MB slice (c1t0d0s0) and the
+extent headers (watermarks) that have been created on it.  The command
+to make the soft partition shown was
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 20m</B>
+</TD></TR></TABLE>
+</PRE>
+
+<!--
+<CENTER>
+<IMG SRC="softpart-diag1.jpg">
+</CENTER>
+->>
+
+<P>
+There is always an extent header on the first and last blocks in the slice.
+Note that the 80MB of space left over from the creation of the soft
+partition can be used to make one or more additional soft partitions.
+Each additional soft partition will create an additional extent header to
+be created as well.
+
+</OL>
+
+<BR><P><HR><H2>Mirroring Soft Partitions</H2>
+
+Once you have created soft partitions, what can you do with them?
+Well, one thing to do is to create mirrors out of them.  Unfortunately,
+even though a soft partition is a metadevice, they cannot serve
+directly as a submirror.  For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d10 -p c1t11d0s4 100m</B>
+   d10: Soft Partition is setup
+   #<B> metainit d20 -m d10</B>
+   metainit: hostname: d10: invalid unit
+</TD></TR></TABLE>
+</PRE>
+
+Instead, you must first take the soft partition and create a
+simple concat/stripe out of it.  For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d10 -p c1t0d0s0 100m</B>
+   d10: Soft Partition is setup
+   #<B> metainit d20 1 1 d10</B>
+   d20: Concat/Stripe is setup
+   #<B> metainit d30 -m d20</B>
+   d30: Mirror is setup
+
+   #<B> metainit d11 -p c2t0d0s0 100m</B>
+   d11: Soft Partition is setup
+   #<B> metainit d21 1 1 d11</B>
+   d21: Concat/Stripe is setup
+   #<B> metattach d30 d21</B>
+   d30: submirror d21 is attached
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Once done, the resulting <I>metastat</I> output of the mirror
+will look like this:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metastat d30</B>
+
+   d30: Mirror
+       Submirror 0: d20
+         State: Okay
+       Submirror 1: d21
+         State: Okay
+       Pass: 1
+       Read option: roundrobin (default)
+       Write option: parallel (default)
+       Size: 204624 blocks
+
+   d20: Submirror of d30
+       State: Okay
+       Size: 204624 blocks
+       Stripe 0:
+           Device              Start Block  Dbase State        Hot Spare
+           d10                        0     No    Okay
+
+   d10: Soft Partition
+       Component: c1t0d0s0
+       State: Okay
+       Size: 204800 blocks
+           Extent              Start Block              Block count
+                0                        1                   204800
+
+   d21: Submirror of d30
+       State: Okay
+       Size: 204624 blocks
+       Stripe 0:
+           Device              Start Block  Dbase State        Hot Spare
+           d11                        0     No    Okay
+
+   d11: Soft Partition
+       Component: c2t0d0s0
+       State: Okay
+       Size: 204800 blocks
+           Extent              Start Block              Block count
+                0                        1                   204800
+</TD></TR></TABLE>
+</PRE>
+
+<BR><P><HR><H2>Combining Soft Partitions Together into a RAID5 Device</H2>
+
+<P>
+RAID5 devices can be made up of soft partitions directly.
+This example shows 4 soft partitions (from 4 separate slices)
+striped together to make a RAID5 device:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 10m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p c2t0d0s0 10m</B>
+   d2: Soft Partition is setup
+   #<B> metainit d3 -p c3t0d0s0 10m</B>
+   d3: Soft Partition is setup
+   #<B> metainit d4 -p c4t0d0s0 10m</B>
+   d4: Soft Partition is setup
+   #<B> metainit d10 -r d1 d2 d3 d4</B>
+   d10: RAID is setup
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Once done, the resulting <I>metastat</I> output of the RAID5 device
+will look like this:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metastat d10</B>
+
+   d10: RAID
+       State: Okay
+       Interlace: 32 blocks
+       Size: 59472 blocks
+   Original device:
+       Size: 60384 blocks
+           Device              Start Block  Dbase State        Hot Spare
+           d1                       330     No    Okay
+           d2                       330     No    Okay
+           d3                       330     No    Okay
+           d4                       330     No    Okay
+
+   d1: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                        1                    20480
+
+   d2: Soft Partition
+       Component: c1t0d4s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                        1                    20480
+
+   d3: Soft Partition
+       Component: c1t1d1s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                        1                    20480
+
+   d4: Soft Partition
+       Component: c1t1d3s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                        1                    20480
+</TD></TR></TABLE>
+</PRE>
+
+<BR><P><HR><H2>Using Soft Partitions for MetaTrans (UFS Logging) Devices</H2>
+
+MetaTrans devices (UFS logging) can be built on top of soft
+partitions.  Soft partitions can be used for the master device, the
+logging device, or both.  In the following example, soft partitions
+are used for both the master and the logging device:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 500m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p c2t0d0s0 50m</B>
+   d2: Soft Partition is setup
+   #<B> metainit d10 -t d1 d2</B>
+   d1: Trans is setup
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Once done, the resulting <I>metastat</I> output of the metatrans device
+will look like this:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metastat d10</B>
+   d10: Trans
+       State: Okay
+       Size: 1024000 blocks
+       Master Device: d1
+       Logging Device: d2
+
+   d1: Soft Partition
+       Component: c1t1d3s0
+       State: Okay
+       Size: 1024000 blocks
+           Extent              Start Block              Block count
+                0                        1                  1024000
+
+   d2: Logging device for d10
+       State: Okay
+       Size: 102142 blocks
+
+   d2: Soft Partition
+       Component: c1t1d1s0
+       State: Okay
+       Size: 102400 blocks
+           Extent              Start Block              Block count
+                0                        1                   102400
+</TD></TR></TABLE>
+</PRE>
+
+<BR><P><HR><H2>Layering</H2>
+
+<P>
+Most of the time, soft partitions are made on a disk slice.  However,
+there are certain situations where it can be beneficial to make a soft
+partition on <I>top</I> of an existing metadevice.  This is referred to
+as <B>layering</B>.
+
+<P>
+For example, say you have a 90GB RAID5 device made up of 6 18GB disks.
+You can then take that 90GB device and "split it up" into many soft
+partitions.  These many soft partitions then can be accessed as
+separate simple metadevices, although the data in them is protected by
+the RAID5 parity in the underlying device.
+
+<P>
+Soft partitions can be layered <I>only</I> on top of concat/stripes,
+mirrors, and RAID5 devices. Soft partitions cannot be layered on top of
+a metatrans device or directly on top of another soft partition.
+
+<P>
+Here is an example of layering soft partitions on top of an existing
+RAID5 metadevice.  First, we create the RAID5 device, then
+soft partition that device into 3 100MB partitions (obviously, we
+could create <I>more</I> than just 3 soft partitions).
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d0 -r c1t0d2s0 c1t0d4s0 c1t1d1s0 c1t1d3s0</B>
+   d0: RAID is setup
+
+   #<B> metainit d1 -p d0 100m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p d0 100m</B>
+   d2: Soft Partition is setup
+   #<B> metainit d3 -p d0 100m</B>
+   d3: Soft Partition is setup
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Each of the resulting soft partitions (<B>d1</B>, <B>d2</B>, and
+<B>d3</B>) can be accessed individually (i.e., <I>newfs</I> and
+<I>mount</I>).
+
+<P>
+Soft partitions can be built on top of an existing mirror device as
+well, just like we did above on the RAID5 device.  In the following
+example, the mirror device (<B>d0</B>) is "carved up" into 3 smaller
+soft partitions.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d10 1 1 c1t0d2s0</B>
+   d10: Concat/Stripe is setup
+   #<B> metainit d20 1 1 c2t0d0s0</B>
+   d20: Concat/Stripe is setup
+   #<B> metainit d0 -m d10 d20</B>
+   d0: Mirror is setup
+
+   #<B> metainit d1 -p d0 100m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p d0 100m</B>
+   d2: Soft Partition is setup
+   #<B> metainit d3 -p d0 100m</B>
+   d3: Soft Partition is setup
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Soft partitions are not allowed to be parented by other soft partitions
+directly.  For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 100m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p d1 10m</B>
+   metainit: hostname: d1: invalid unit
+</TD></TR></TABLE>
+</PRE>
+
+Soft partitions also cannot be built on top of trans (UFS logging)
+devices.  For example:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -t d10 d20</B>
+   d1: Trans is setup
+   #<B> metainit d2 -p d1 100m</B>
+   metainit: hostname: d1: invalid unit
+</TD></TR></TABLE>
+</PRE>
+
+
+<BR><P><HR><H2>Growing Soft Partitions</H2>
+
+<P>
+A soft partition can be grown by the use of the <I>metattach</I>
+command.  There is no mechanism to shrink a soft partition.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metattach d0 10m</B>
+   d0: Soft Partition has been grown
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+When additional space is added to an existing soft partition,
+the additional space is taken from any available space on the same
+device and might not be contiguous with the existing soft partition.
+Growing soft partitions must be done with free space in the same
+device as the current soft partition.
+
+<P>
+The following example shows how growing a soft partition will increase
+the size of the current extent:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d2s0 100m</B>
+   d1: Soft Partition is setup
+   #<B> metastat d1</B>
+   d1: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 204800 blocks
+           Extent              Start Block              Block count
+                0                        1                   204800
+
+   #<B> metattach d1 50m</B>
+   d1: Soft Partition has been grown
+   #<B> metastat d1</B>
+   d1: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 307200 blocks
+           Extent              Start Block              Block count
+                0                        1                   307200
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Note how after the <I>metattach</I> is run, there is still only one
+extent, but the (block count) has grown from 204800 (100MB) to
+307200 (150MB).
+
+<P>
+In the following example, the extent cannot be grown, as it was above,
+because another soft partition is "in the way".  Therefore, a second
+extent is created in the same slice.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d2s0 100m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p c1t0d2s0 10m</B>
+   d2: Soft Partition is setup
+   #<B> metastat</B>
+   d1: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 204800 blocks
+           Extent              Start Block              Block count
+                0                        1                   204800
+
+   d2: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                   204802                    20480
+
+   #<B> metattach d1 50m</B>
+   d1: Soft Partition has been grown
+   #<B> metastat</B>
+   d1: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 307200 blocks
+           Extent              Start Block              Block count
+                0                        1                   204800
+                1                   225283                   102400
+
+   d2: Soft Partition
+       Component: c1t0d2s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                   204802                    20480
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Note how <B>d1</B> now has two non-contiguous extents that
+together make up the 307200 (150MB) blocks.
+
+<P>
+<B>NOTE</B>: Growing the metadevice does not modify the data or the
+filesystem inside the metadevice.  If the metadevice contains a
+filesystem, you must use the appropriate command(s) to grow that
+filesystem after the metadevice has been grown.
+
+<BR><P><HR><H2>Deleting Soft Partitions</H2>
+
+This is achieved by using the <I>metaclear</I> command in the normal way:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metaclear d0</B>
+   d0: Soft Partition is cleared
+</TD></TR></TABLE>
+</PRE>
+
+If other metadevices are using the soft partition, the <I>metaclear</I>
+will error with:
+
+<PRE>
+   metaclear: hostname: d0: metadevice in use
+</PRE>
+
+
+<BR><P><HR><H2>Using Soft Partitions with Disksets</H2>
+
+<P>
+There are no differences with soft partitioning in a diskset, other
+than having to specify the <B>-s</B> option on the commandline to
+specify the diskset name.
+
+<P>
+The only potential problem occurs when dealing with <B>did</B> disk
+devices that are in a SunCluster configuration.  Unfortunately, the
+naming convention of the <B>did</B> devices is similar to that of
+SDS/SVM in that the disks are referred to as <B>d</B>#.  This
+means that SDS/SVM could confuse a <B>did</B> disk with a metadevice
+when creating a soft partition.
+
+<P>
+The simple workaround to this problem is to use the full path to the
+<B>did</B> device on the <I>metainint</I> commandline in order to
+prevent any confusion.
+
+<P>
+For example, the following command to create a 1GB soft partition on
+<B>/dev/did/rdsk/d7s0</B> would be invalid:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit -s set2 d0 -p d7s0 1g</B>
+</TD></TR></TABLE>
+</PRE>
+
+Instead, the correct command to run would be:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit -s set2 d0 -p /dev/did/rdsk/d7s0 1g</B>
+</TD></TR></TABLE>
+</PRE>
+
+
+<BR><P><HR><H2>How to list the soft partitions in a given slice</H2>
+
+<P>
+The <I>metarecover</I> command, with the <B>-n</B> and <B>-v</B>
+options, will display information about the soft partitons existing in
+a given slice.
+
+<P>
+The <I>metarecover</I> command actually scans the given slice for
+extent headers and prints the information that it finds about those
+headers.
+
+<P>
+In each slice/device, there are also 2 additional extent headers; one
+which preceeds the free space in the slice, and the one on the last
+block of the slice.  These are printed as well.  This is an easy way to
+determine how much free space is available in a slice for
+additional soft partitions.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metarecover -v -n /dev/rdsk/c1t0d0s0 -p</B>
+   Verifying on-disk structures on c1t0d0s0.
+   The following extent headers were found on c1t0d0s0.
+    Name  Seq#    Type          Offset          Length
+      d0     0   ALLOC               0           20481
+      d1     0   ALLOC           20481           40961
+    NONE     0     END        17674901               1
+    NONE     0    FREE           61442        17613459
+   Found 2 soft partition(s) on c1t0d0s0.
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+In the above example, there were 2 soft partitions (d0 and
+d1) found on c1t0d0s0, as well as 17613458 blocks (approx 8.4GB)
+of unallocated free space.
+
+<P>
+<B>IMPORTANT NOTE:</B> The information printed by this command is
+relative to the extent header, not the soft partition itself.
+Therefore, the 'offset' is the starting location of the extent header,
+not the extent itself.  Also, the 'length' given is the length of the
+extent plus the header.  Therefore, in the example above, there are
+only 17613458 free blocks, not 17613459 blocks.
+
+<P>
+Because soft partitions can be layered above metadevices like mirrors
+or RAID5 devices (see <I>layering</I>, above), this command can also be
+run on them to determine the locations and sizes of the extent
+headers.  In the example below, <B>d0</B> is a RAID5 metadevice which
+has 4 soft partitions in it.  There is no free space left in this
+device.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metarecover -v -n d0 -p</B>
+   Verifying on-disk structures on d0.
+   The following extent headers were found on d0.
+                   Name  Seq#    Type               Offset               Length
+                     d1     0   ALLOC                    0               204801
+                     d2     0   ALLOC               204801               204801
+                     d3     0   ALLOC               409602               204801
+                    d99     0   ALLOC               614403              7573580
+                   NONE     0     END              8187983                    1
+   Found 4 soft partition(s) on d0.
+</TD></TR></TABLE>
+</PRE>
+
+
+<BR><P><HR><H2>Fragmentation</H2>
+
+<P>
+Fragmentation of free space will occur on a slice when there has been
+activity in creating, deleting, and possibly growing soft partitions.
+At this time, there is no method to defragment a disk.
+
+<P>
+For example, the following sequence of commands can result in some
+amount of fragmentation.  First, create 2 10MB soft partitions on a slice.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metainit d1 -p c1t0d0s0 10m</B>
+   d1: Soft Partition is setup
+   #<B> metainit d2 -p c1t0d0s0 10m</B>
+   d2: Soft Partition is setup
+</TD></TR></TABLE>
+</PRE>
+
+<P>
+Then, remove the first 10MB soft partition and then create a 20MB soft
+partition.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metaclear d1</B>
+   d1: Soft Partition is cleared
+   #<B> metainit d3 -p c1t0d0s0 20m</B>
+   d3: Soft Partition is setup
+</TD></TR></TABLE>
+</PRE>
+
+When the <B>d3</B> metadevice was created, the 10MB of free space at
+the beginning of the slice is not used, because there is a contiguous
+20MB space available further out that can be used instead.  Therefore,
+the 10MB of free space is skipped over in favor of the first 20MB of
+contiguous space.  The <I>metarecover</I> command will show the
+fragmentation (multiple free spaces):
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   #<B> metarecover -v -n c1t0d0s0 -p</B>
+   Verifying on-disk structures on c1t0d0s0.
+   The following extent headers were found on c1t0d0s0.
+                Name  Seq#    Type               Offset               Length
+                  d2     0   ALLOC                20481                20481
+                  d3     0   ALLOC                40962                40961
+                NONE     0     END              2047247                    1
+                NONE     0    FREE                81923              1965324
+                NONE     0    FREE                    0                20481
+   Found 2 soft partition(s) on c1t0d0s0.
+</TD></TR></TABLE>
+</PRE>
+
+<BR><P><HR><H2>Recovering Soft Partitions</H2>
+
+The 'metarecover' command is run when something has gone wrong.  It should
+not be run except to recover from a catastrophic problem.
+
+There are two main functions that this command does.  It can
+<P><OL>
+<LI>
+scan through the given slice and recreate the soft partitions
+that it finds there.  this is good when moving a disk with soft
+partitions to a new machine.  The option to use on the metarecover
+command is <B>-d</B>.
+<P><LI>
+reads through the current replica and creates the soft partitions
+on the given slice.  This is good to run after a disk fails and
+gets replaced with a new one.  The option to use on the metarecover
+command is <B>-m</B>.
+</OL>
+
+<H3>Recreating Information in the Replica from the Extent Headers</H3>
+
+Here is a very simple example showing a disk which had soft partitions
+created on it (in slice 0) on another host, which is being moved to a
+new machine.  We wish to extract the soft partitions on this new
+machine.
+
+Currently, there are no metadevices created.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metastat</B>
+</TD></TR></TABLE>
+</PRE>
+
+This command scans the given slice (in this case, "c0t0d0s0") and, for
+each soft partition it finds in that slice, it puts an entry into the
+current replica.
+
+The data on the disk is not modified, and nothing on the slice
+specified is modified.  All that happens is that the extent headers are
+read and information is written to the replica.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metarecover c0t0d0s0 -p -d</B>
+   The following soft partitions were found and will be added to
+   your metadevice configuration.
+    Name            Size     No. of Extents
+     d1           61440         1
+     d2           20480         1
+   WARNING: You are about to add one or more soft partition
+   metadevices to your metadevice configuration.  If there
+   appears to be an error in the soft partition(s) displayed
+   above, do NOT proceed with this recovery operation.
+
+   Are you sure you want to do this (yes/no)? <B>yes</B>
+
+   c0t0d0s0: Soft Partitions recovered from device.
+</TD></TR></TABLE>
+</PRE>
+
+Now, we can see the soft partition metadevices have been created for us:
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metastat</B>
+   d1: Soft Partition
+       Component: c0t0d0s0
+       State: Okay
+       Size: 61440 blocks
+           Extent              Start Block              Block count
+                0                   120836                    61440
+
+   d2: Soft Partition
+       Component: c0t0d0s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                    20482                    20480
+</TD></TR></TABLE>
+</PRE>
+
+
+
+<H3>Recreating Soft Partitions from Information in the Replica</H3>
+
+This example essentially does the opposite of example 1.
+
+In this case, the actual extent headers on the disk have been lost,
+either because something wrote over them, or because the disk
+hosting the soft partitions had to be replaced with new disk drive.
+
+Although the replica shows the soft partitions to be "Okay":
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metastat</B>
+   d1: Soft Partition
+       Component: c0t0d0s0
+       State: Okay
+       Size: 61440 blocks
+           Extent              Start Block              Block count
+                0                   120836                    61440
+
+   d2: Soft Partition
+       Component: c0t0d0s0
+       State: Okay
+       Size: 20480 blocks
+           Extent              Start Block              Block count
+                0                    20482                    20480
+</TD></TR></TABLE>
+</PRE>
+
+there are no extent headers on the disk, so I/O to the disk will error
+out.
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>dd if=/dev/zero of=/dev/md/rdsk/d2</B>
+   dd: /dev/md/rdsk/d2: open: I/O error
+</TD></TR></TABLE>
+</PRE>
+
+To check the disk to see if any extent headers exist on the disk,
+you can run the command
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metarecover -n c0t0d0s0 -p</B>
+   found incorrect magic number 0, expected 20000127.
+   No extent headers found on c0t0d0s0.
+   c0t0d0s0: On-disk structures invalid or no soft partitions found.
+   metarecover: hostname: d0: bad magic number in extent header
+</TD></TR></TABLE>
+</PRE>
+
+The above command confirms that there are no extent headers on the disk.
+
+To have the extent headers written out to the disk, according to the
+information currently in the replica, run the command
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metarecover c0t0d0s0 -p -m</B>
+   c0t0d0s0: Soft Partition metadb configuration is valid
+
+   WARNING: You are about to overwrite portions of c0t0d0s0
+   with soft partition metadata. The extent headers will be
+   written to match the existing metadb configuration.  If
+   the device was not previously setup with this
+   configuration, data loss may result.
+
+   Are you sure you want to do this (yes/no)? <B>yes</B>
+
+   c0t0d0s0: Soft Partitions recovered from metadb
+</TD></TR></TABLE>
+</PRE>
+
+Now, the extent headers have been written to the disk, so I/O
+will work correctly now.  Running the verify command again, we
+see
+
+<P><TABLE border=1 cellspacing=1 cellpadding=5 width=75%><TR BGCOLOR="#FFFFFF"><TD>
+<PRE>
+   # <B>metarecover -n c0t0d0s0 -p</B>
+   c0t0d0s0: Soft Partition metadb configuration is valid
+   c0t0d0s0: Soft Partition metadb matches extent header configuration
+</TD></TR></TABLE>
+</PRE>
+
+
+
+
+
+
+
+<HR>
+
+</BODY>
+</HTML>

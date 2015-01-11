@@ -1,0 +1,74 @@
+Interface Groups (for Solaris 2.6)
+----------------------------------
+To turn on interface groups:
+ndd -set /dev/ip ip_enable_group_ifs 1
+
+How can I check what the setting is?
+ndd -get /dev/ip ip_enable_group_ifs
+
+
+
+What do interface groups help me with?
+--------------------------------------
+How is the outgoing IP address selected when more than one interface is configured? 
+	OR
+Why doesn't Solaris respond back on same address that the packet arrived on? 
+	OR
+Why are incoming packets going to both hme0 and hme1 but all outgoing packets
+    leaving the server via hme0 only?
+
+
+
+Answers to maddening questions from above
+-----------------------------------------
+IP routing on Solaris is strictly destination based and Solaris does not 
+necessarily respond back out on the same interface.  Solaris uses standard 
+IP routing and will respond back out on first match in the routing table. 
+
+Without interface groups and with multiple interfaces having the same network
+route, the outgoing interface selected is the one that comes first in the 
+logical order (check with "route get <IP#>" and netstat -rvan) 
+
+The primary (lowest interface instance) is usually selected as the first 
+interface in the routing list that corresponds to that subnet. 
+
+
+
+How Interface Groups can help
+-----------------------------
+When a connection is made to the server, an IP cache entry is made which contains 
+the interface that the client connected to.  All packets going to that client 
+will leave the server via that interface.  The cache entry is valid for the 
+length of the ARP entry for that host.
+
+If the same client now connects to the other interface of the server, the 
+return packets will leave via the interface in the cache, not via the 
+interface they arrived on.
+
+Another client which connects to the server's second interface will have 
+its return packets leave via the second interface.  This will give good load
+balancing over a number of interfaces.
+
+If one interface breaks (unplugged), then any client server sessions that
+go through that interface will hang. If the client has a session through the
+interface that is still working, then it won't hang (unless the server is 
+dependent on a service that is using the failed interface). Once the cache
+entry expires, a new connection from the client to the server through the
+remaining interface will create a new cache entry for this host. 
+
+If a session was hung because the packets back to the client were leaving 
+via the broken interface (but were arriving via the working interface)
+then the new cache entry will make the packets leave via the working
+interface instead.
+
+Of course any sessions where the packets arrived on the broken interface
+will still be hung as the client can't contact the interface (but it could
+start a new connection via the interface still working).
+
+
+
+
+
+
+NOTE:  Make sure you have installed patch 105786 that is supposed to fix Bug ID 4077132 
+       (ip_enable_group_ifs=0 doesn't pick default hostname)

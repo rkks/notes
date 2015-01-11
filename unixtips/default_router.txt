@@ -1,0 +1,12 @@
+Instead of using /etc/defaultrouter to configure the routing on Sun
+machines, you can turn the router discovery protocol (rdisc on Sun) on the
+router. 
+
+The Sun machines that don't have /etc/defaultrouter or any other
+static routers defined will automatically start the in.rdisc at boot time to
+find the router for you (Solaris 8, it should also work for earlier
+releases). I believe Cisco routers also support this protocol (could be
+wrong on that one).
+
+
+-Contribued by Arshad Khan

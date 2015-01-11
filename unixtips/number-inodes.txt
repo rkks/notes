@@ -1,0 +1,14 @@
+To determine how many inodes are being used per filesystem, run the following:
+
+server> /usr/bin/df -F ufs -o i
+Filesystem             iused   ifree  %iused  Mounted on
+/dev/md/dsk/d1         40354  334430    11%   /
+/dev/md/dsk/d10        47065  448743     9%   /usr
+/dev/md/dsk/d13         6526  489282     1%   /var
+/dev/md/dsk/d7         48854  446954    10%   /opt
+/dev/md/dsk/d16          794 1342182     0%   /data
+
+
+If you run out of inodes in a filesystem, even if you have free space, you will not be able to create additional files.
+
+The only way to remedy this situation is recreate the filesystem with more inodes (via newfs).

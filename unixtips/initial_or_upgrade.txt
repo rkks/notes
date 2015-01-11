@@ -1,0 +1,8 @@
+How can you tell if a system has been upgraded versus a clean install?
+ 
+    cd /var/sadm
+ 
+If an "upgrade" directory exists, the system was upgraded.  
+If only the "install" directory exists, no upgrade has been performed.
+
+-Contributed by:  Andrea Hile 

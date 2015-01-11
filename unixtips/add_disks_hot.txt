@@ -1,0 +1,15 @@
+After plugging the disks in, do a:
+	drvconfig
+	disks	(for SCSI disks)
+	tapes	(for tape drive)
+	ports	(for serial ports)
+	devlinks	
+	
+Also, if you forgot to power on your external cdrom before turing your server on, and it shows up in "sysdef" as:
+	 (driver not attached)
+do a:
+	drvconfig cdrom
+It should now appear in a "sysdef".
+
+
+-Contributed by Arshad Khan

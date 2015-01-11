@@ -1,0 +1,23 @@
+To disable the power/suspend key (the key on your top right corner), there are a couple of options...
+
+Option A
+--------
+Rename the file in:
+   /usr/openwin/bin/speckeysd
+to 
+   /usr/openwin/bin/speckeysd.old
+and reboot the system.
+
+Option B
+--------
+perl -i -p -e 's!^SunPowerSwitch!#SunPowerSwitch!' /usr/openwin/lib/speckeysd.map
+perl -i -p -e 's!^SunPowerSwitchShift!#SunPowerSwitchShift!' /usr/openwin/lib/speckeysd.map
+
+Option C
+--------
+Edit: /etc/default/sys-suspend
+
+Option D
+--------
+Reassign it to do something else via /usr/openwin/lib/speckeysd.map:
+SunPowerSwitch - $OPENWINHOME/bin/xlock -mode random -nice 10 -allowroot

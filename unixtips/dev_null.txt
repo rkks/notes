@@ -1,0 +1,22 @@
+How to recreate /dev/null and how did I get here?
+
+
+If you tried to move a file to /dev/null as root, that will do it.  :)
+
+
+
+
+
+To just recreate the soft link "/dev/null"
+------------------------------------------
+as root, type: devlinks
+
+
+
+If you have messed up the original device in /devices/....
+----------------------------------------------------------
+mknod /devices/pseudo/mm@0:null c 13 2
+chown root:sys /devices/pseudo/mm@0:null
+chmod 666 /devices/pseudo/mm@0:null
+cd /dev
+ln -s ../devices/pseudo/mm@0:null null

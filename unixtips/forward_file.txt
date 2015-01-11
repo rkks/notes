@@ -1,0 +1,15 @@
+If you are having problems where you have created a .forward file in 
+your home directory to forward e-mails from one account (say school)
+to another (your work) and it just won't forward them?
+
+First, make sure you typed the e-mail address properly...duh.
+
+Next, make sure the file isn't group or world writable.
+
+Lastly, make sure your home directory isn't group or world writable.
+
+
+
+The last one bit me for the longest time.  :(
+
+-Dave Cashion

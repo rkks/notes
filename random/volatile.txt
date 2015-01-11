@@ -1,0 +1,149 @@
+=============================
+1. direct probing of RAM size
+=============================
+
+	volatile char *Mem;
+
+	for(Mem=Start; Mem < End; Mem += Incr)
+	{	*Mem=0x55;
+		if(*Mem != 0x55)
+			break;
+		*Mem=0xAA;
+		if(*Mem != 0xAA)
+			break; }
+
+C expects RAM to be 100% functional i.e. what you write to RAM
+can be read back immediately, without error. The compiler may
+"optimize" the memory-test code above by caching the byte *Mem
+in a register. "volatile" prevents this i.e. the byte at Mem
+gets read from memory every time it's needed.
+
+(The algorithm shown here is very naive. There are much better
+ways to test RAM.)
+
+=====================
+2. OS syscall handler
+=====================
+
+void syscall(volatile long EDI, volatile long ESI,
+	volatile long EBP, volatile long ESP,
+	volatile long EBX, volatile long EDX,
+	volatile long ECX, volatile long EAX,
+	volatile long DS, volatile long ES,
+	volatile long FS, volatile long GS)
+{/* EAX==1 for read() */
+	if(EAX == 1)
+/* read ECX bytes from file handle EDX to DS:EBX
+return number of bytes actually read */
+                EAX=sys_read(EBX, ECX, DS, EDX);
+	/* else ... */ }
+
+The syscall software interrupt goes to an assembly-language stub
+(not shown here), which pushes all the registers on the stack,
+then calls the C code above. When this C code returns, the
+modified values on the stack (EAX is modified here) are popped
+back into the registers before IRET.
+
+Again, this is not what C expects. It assumes the values on the
+stack will be popped and discarded. Without the "volatile",
+compiler optimization will eliminate the store to EAX on the
+stack, because it's "useless". (DJGPP appears to do this without
+issuing a warning message, even with -Wall.)
+
+===================
+3. for smaller code
+===================
+
+u32 readBE32(u8 *Buffer)
+{	/* volatile */union
+	{	u32 Dword;
+		u8 Byte[4]; } Temp;
+
+	Temp.Byte[0]=Buffer[3];
+	Temp.Byte[1]=Buffer[2];
+	Temp.Byte[2]=Buffer[1];
+	Temp.Byte[3]=Buffer[0];
+	return(Temp.Dword); }
+
+Byte-shuffling method for converting data from big endian byte
+order (Motorola) to little endian (Intel).
+
+Compiler optimization (-O2 with DJGPP) actually makes this code
+larger (52 bytes without 'volatile', 36 bytes with 'volatile').
+
+=====================================
+4. global data modified by interrupts
+=====================================
+
+volatile char IDEInterruptOccured;
+
+void irq14(void)
+{       IDEInterruptOccured=1;
+        outportb(0x20, 0x20); } /* reset 8259 chip */
+
+
+/* ... */
+        while(!IDEInterruptOccured)
+                /* sit and wait */ ;
+
+I don't know if compiler optimization will cache a global
+variable (IDEInterruptOccured) in a register, but you should
+defend against it anyway.
+
+=============================
+5. when RAM is not really RAM
+=============================
+
+int writeEEPROMByte(u8 Data, u16 Offset)
+{       u16 Await;
+	u8 *Dst;
+
+        Dst=EEPROM_BASE + Offset;
+/* if the EEPROM already has this value in it,
+skip this write operation (saves wear) */
+	if(*Dst != Data)
+	{	*Dst=Data;
+/* write it and read it back until it verifies (D7 polling) */
+                for(Await=EEPROM_TIMEOUT; Await != 0; Await--)
+                {       if(*Dst == Data)
+                                break; }
+                if(Await == 0)
+                        return(-1); }   /* timeout (failure) */
+        return(0); }                    /* success */
+
+This code is for an embedded system. It writes a byte to a
+parallel-interface EEPROM chip. After such a write, attempting
+to read from the chip will return the last value you wrote, with
+bit b7 inverted. This situation persists until the internal
+write cycle completes, several milliseconds later.
+
+When compiled with DJGPP and heavy (-O2) optimization, the inner
+for() loop gets converted to  code like this:
+
+00001568 <L6>:
+    1568:       38 ca           cmpb   %cl,%dl
+    156a:       74 04           je     1570 <L4>
+    156c:       66 48           decw   %ax
+    156e:       75 f8           jne    1568 <L6>
+
+The compiler has cached the byte at Dst in one of the registers
+(dl). Nothing in this loop changes either the value of dl or cl,
+therefore, the first comparison will always fail. The write will
+ALWAYS timeout.
+
+Fix it:
+        volatile u8 *Dst;
+
+With this change, the compiled inner loop code becomes
+
+0000156c <L6>:
+    156c:       8a 01           movb   (%ecx),%al
+    156e:       38 d8           cmpb   %bl,%al
+    1570:       74 04           je     1576 <L4>
+    1572:       66 4a           decw   %dx
+    1574:       75 f6           jne    156c <L6>
+
+Now the byte at Dst is no longer being cached in a register.
+Rather, it is being reloaded from memory each time it's needed.
+When the EEPROM write cycle ends, and the byte read back from the
+chip verifies, the loop will exit successfully.

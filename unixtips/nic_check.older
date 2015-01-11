@@ -1,0 +1,49 @@
+#!/bin/ksh
+#set -xv
+#
+# nic_check - 01/12/2001 - David Cashion
+#
+# Defaults to give interface info on hme0, but you can provide a different one.
+# NOTE:  Needs to be run as root.
+#
+# Usage:  nic_check [INTERFACEinstance]
+#
+#  Example:  nic_check hme0
+#            nic_check qfe1
+#         
+
+#### Pick the interface given or default to hme0
+if [[ $# -eq 1 ]]; then
+	interface=$(echo $1 | cut -c1-3)
+	int_inst=$(echo $1 | cut -c4)
+else
+	interface=hme
+	int_inst=0
+fi         
+
+
+#### First we have to select the interface and instance
+if [[ -n $(/usr/sbin/ndd -set /dev/$interface instance $int_inst) ]]; then
+        print "ERROR: No such animal: ${interface}$int_inst"
+	exit 1
+fi
+
+print "Results for ${interface}$int_inst"
+echo "---------------------"
+
+#### 0=internal, 1=external
+print -n "Transciever: "
+[[ $(/usr/sbin/ndd -get /dev/$interface transceiver_inuse) -eq 0 ]] && print "internal" || print "external"
+
+#### 0=down, 1=up
+print -n "Link: "
+[[ $(/usr/sbin/ndd -get /dev/$interface link_status) -eq 0 ]] && print "down" || print "up"
+
+#### 0=10Mb, 1=100Mb
+print -n "Speed: "
+[[ $(/usr/sbin/ndd -get /dev/$interface link_speed) -eq 0 ]] && print "10Mb" || print "100Mb"
+
+#### 0=half, 1=full duplex
+print -n "Duplex: "
+[[ $(/usr/sbin/ndd -get /dev/$interface link_mode) -eq 0 ]] && print "half\n" || print "full\n"
+

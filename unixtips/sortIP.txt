@@ -1,0 +1,33 @@
+Problem:   How can I sort a file of IP addresses?
+
+Answer:    You have to tell sort to sort them numerically by field.
+
+This doesn't work:
+	sort -n -t. file_with_ip_addrs
+	
+10.1.1.1
+10.1.1.11
+10.1.1.112
+10.1.1.12
+10.1.1.2
+10.1.1.20
+10.1.1.21
+
+
+Try this instead
+	sort -n -t. -k 1,1 -k 2,2 -k 3,3 -k 4,4 file_with_ip_addrs
+	
+10.1.1.1
+10.1.1.2
+10.1.1.11
+10.1.1.12
+10.1.1.20
+10.1.1.21
+10.1.1.112
+
+
+
+
+
+
+-Contributed by:  Arshad Khan

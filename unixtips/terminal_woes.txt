@@ -1,0 +1,16 @@
+Problem
+-------
+The systems does not boot up if a terminal is not connected to serial port.
+I mean, when I issue the reboot command, system simply locks at the
+stage loading the OS (i.e. the rotating / sign) and waits until a terminal
+connected. The system can wait at this stage for days and starts to boot up
+as soon as a termial is connected.
+
+
+Solution
+--------
+From the OK prompt :
+		setenv ttya-ignore-cd true
+
+Basically you've got the system set to wait until CD (carrier detect)
+comes up until it will boot.

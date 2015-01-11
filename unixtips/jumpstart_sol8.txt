@@ -1,0 +1,75 @@
+SRDB ID: 22104
+
+SYNOPSIS: Solaris 8 JumpStart prompts for IPv6 or Security Policy    
+
+DETAIL DESCRIPTION:
+
+Using a Solaris 7 sysidcfg file for preconfiguring and automating a 
+Solaris 8 JumpStart installation will cause the install to prompt for 
+the following six windows:
+
+    - The Solaris Installation Program
+      About navigation..
+
+    - Identify This System
+
+    - IPv6
+	  Enable IPv6
+	  -----------
+	  [ ] Yes
+	  [X] No
+
+    - Confirm the following information
+       Enable IPv6: No
+
+    - Configure Security Policy:
+       Specify Yes if the system will use the Kerberos security mechanism.
+       Specify No if this system will use standard UNIX security.
+
+	  Configure Kerberos Security
+	  ---------------------------
+	  [ ] Yes
+	  [X] No
+
+    - Confirm the following information.  If it is correct, press F2;
+       Configure Kerberos Security: No
+
+
+
+SOLUTION SUMMARY:
+
+Solution
+
+To automate a Solaris 8 JumpStart installation, two keywords need to 
+be appended to a Solaris 7 sysidcfg file.
+
+    protocol_ipv6
+    and
+    security_policy    
+
+Example of sysidcfg:
+
+    system_locale=en_US
+    timezone=US/Eastern
+    timeserver=timeserver_ip_address
+    terminal=sun-cmd
+    name_service=NONE
+    root_password=cut & paste from /etc/shadow
+
+    network_interface=hme0    {protocol_ipv6=no}
+    security_policy=NONE
+
+Also, you must create separate paths to the sysidcfg files.
+Example:
+
+    /jumpstart/sysidcfg.sol7/sysidcfg
+    /jumpstart/sysidcfg.sol8/sysidcfg
+
+Example of /etc/bootparams entry for sysidcfg:
+
+    sysid_config=server_name:/jumpstart/sysidcfg.sol8
+
+NOTE: This is documented in the Solaris 8 "Advanced Installation Guide" on page
+44. However, it is stated that the protocol_ipv6 keyword is optional if DHCP
+is not used. 
+

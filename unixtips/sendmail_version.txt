@@ -1,0 +1,8 @@
+Q. How is the easiest way to determine which version of Sendmail we are running?
+
+A.
+
+Either:
+a) Look in your logfile where all the mail.* messages get logged (consult syslog.conf)
+b) Run the following command:
+	/usr/lib/sendmail -d0.1 -bt < /dev/null | grep -i version

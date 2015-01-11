@@ -1,0 +1,31 @@
+How to improve NIS security & make it more fault tolerant
+
+
+NIS has inherent security and fault tolerance issues.  By using the following method to secure NIS,
+you also make it more fault tolerant.  The downside is discussed below.
+
+First read the man page for the securenets file.  
+Then place the file in the /var/yp directory on your NIS master and do not allow any machines 
+to retrieve NIS information from the master.
+Finally, set each NIS client to be a NIS secondary, and in the /var/yp/securenets file only allow 
+each machine to retrieve NIS information from itself.
+
+This means that:
+1) No machine outside of your defined NIS primaries and secondaries will be able to retrieve
+   any NIS information.
+2) All NIS information will now be retreived via the loopback interface, which is almost as 
+   fast as using the local files.
+3) No machine will be dependent on any other for NIS information.
+
+
+The downside to this approach is obviously that it requires a lot more bandwidth to push out 
+the NIS maps.  I have found that this approach scales well to a couple of thousand hosts. 
+After this point you can follow approaches such as limiting pushing the maps out to once a day after
+hours, etc.
+
+PLEASE NOTE: NIS is inherently insecure and provides little authentication over and above IP address.
+If you require truly secure Directory Services, you should investigate NIS+ or LDAP over SSL.
+
+
+
+-Ken Robson

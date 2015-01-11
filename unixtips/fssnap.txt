@@ -1,0 +1,51 @@
+Using fssnap in Solaris 8 update 4/01 & beyond
+
+
+What Is fssnap?
+In the 04/01 maintenance release of Solaris 8, Sun kindly introduced
+the ability to produce file-system snapshots of UFS file-systems.
+This allows you to take consistent back-ups of active file-systems.
+
+How Does It Work?
+When you create a snapshot of a file-system you conceptually create
+two file-systems that are initially identical. These are
+conventionally referred to as the front and back file-systems. The
+front file-system is the "real" file system and it continues to look
+and behave in the same manner (almost - see below), as prior to the
+snapshot being taken (i.e. people can still read and write to the
+file-system as normal). However the back file-system is a read-only
+copy of the front-file system taken at the time of the snapshot
+creation (i.e. it as an exact snapshot of the file-system which does
+not change). The effect of the back-file system is created by having
+a backing file and every time a write is applied to the front-file
+system a copy of the existing (i.e. unchanged) data is placed in the
+backing file. You can then mount the back-end file system using
+special devices and back-up the file system. When reading from this
+file-system you are using a virtual file-system. Each time you read
+from the back file-system (i.e. the frozen copy), the file-system
+code checks if the block had changed in the front file-system. If it
+has, it returns the copy from the backing file (i.e. the unchanged
+copy). This means that you can keep a static copy of a file-system
+for the duration of a back-up, as long as the file-system in which
+the backing file is located, is large enough to hold all the data
+that changes in the front file-system during the backup.
+
+What Are The Drawbacks?
+There are a couple of negative effects that should be noted. Due to
+the overhead of the copy to the backing file during a write to the
+front file-system, write performance is slightly reduced during the
+snapshot operation. It should also be noted that if the front
+file-system is quite active (in terms of writes) then obviously the
+size of the backing file will grow very quickly. There are no adverse
+side effects (aside from filling a file-system) if the file-system
+containing the backing file runs out of space, usually the backing
+file will automatically be deleted and whatever commands are running
+against the mounted snapshot will fail.
+
+Where Can I Get The Details?
+An administrators guide is available from Sun at:
+http://docs.sun.com/ab2/coll.736.2/S8ADMINSUPP/@Ab2PageView/2977?DwebQuery=fssnap&oqt=fssnap&Ab2Lang=C&Ab2Enc=iso-8859-1.
+
+
+
+-by Ken Robson

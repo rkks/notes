@@ -1,0 +1,212 @@
+  		[----Stay anonymous on the web------]
+
+..By MAx member of :MPD:		(c) 1998 MAx [4d5044]
+
+Note..This tutorial will teach a average day user how to keep all his 
+Esentual info limited so attacks from Hackers cant be made
+
+SHouth outs: Myth leader of MPD u rule dude,All members of MPD, and 
+everyone else who i should shout out too u know who u are.
+
+The topics..
+1.What are packets.
+2.Getting a http proxy.
+3.How http proxy work.
+4.How to secrure http packets.
+5.How to edit what o's and mozilla info send. 
+6.Getting a socket proxy.
+7.How socket proxy work.
+8.Cookies.
+9.Final note.
+-----------------------------------------------------------------------
+
+1.What are packets.
+
+Packets are very simple on the net There are millions of user's now for 
+secrurity and other reasons there must be ways of establishing difference 
+between user's Thus is done by packets, Packets are used when ever u connect
+to a remote server/system Its identify's who is connecting.
+An example of a http packet.( [Connect from MAx.mpd.com]
+[206.14.13.32] (Mozilla/4.05 [en] (X11;I;Linux 2.0.34 i586) on December 
+2, 1998 at 14:34:45 )
+Now ill tell u what it is saying if u dont know.
+*Note*(Http packets is the way u are sending info through the web 
+browser whenever u connect to a server/mechine/site )
+[connected from MAx.mpd.com]-This is my host
+[206.14.13.32]- is my ip
+(Mozilla/4.05)- is the version of mozilla im using
+(X11;I;Linux 2.0.32 i586)- Is The O's(operating system) And version of 
+the o's im running
+[On december 2, 1998 at 14:34:45] - is day/year/time
+Now u know how it works this is one way Hackers get all the info they 
+need on your computer to hack it.
+Now we dont want this anymore THus anonymous proxies where invented to 
+give keep user's on the net secrure.Using anonymous proxies isnt 
+100% secrure as the hacker can still do means on getting your real 
+ip/host/os ill talk about that later but it makes it very hard for a hacker 
+to get your ip/host once behind a proxy.
+Now http isnt the only means of packets there are also socket packets which
+ill talk about later.
+
+2.How http proxy work.
+A http proxy works like server it is actuelly and what it does is when
+setup in your browser when ever u want to go to sites.It will connect 
+to there proxy server first then the proxy server conncts to the site 
+u want to go to THus leaving no evendence of u on the site just the 
+proxy server.(Dont worry once u setup a proxy dont think u always have 
+to type in the proxy in first then go to there and type the site u want
+too go to. :)It dont work like that once u have entered the proxy settings
+in ya browser it will auto do the proxy for u all u have to do is surf the 
+net.(Setting up a http proxy descussed later)
+
+3. Getting a http proxy
+Http proxies are very easyly found on the net as there are many 
+commited Http proxy server's around that are free.
+Ill give a list of some http proxies for your all sorry if your 
+country proxy isn't here just search on the net for (Http proxy)
+and ull find one.
+***Austria***		 Port
+			
+cache02.netway.at        :80  
+mail.ppl.co.at		 :8080
+speth08.wu-wien.ac.at	 :8080
+pong.ping.at		 :8080
+
+***Australia***                                                                     
+proxy.gwbbs.net.au	 :80
+chrome.one.net.au	 :8080
+proxy.newave.net.au	 :8080
+ws.edi.com.au		 :80
+mimas.scu.edu.au	 :80
+proxy.omcs.com.au	 :8080
+jethro.meriden.pas.com.au:8080
+albany.jrc.net.au	 :80
+basil.acr.net.au         :8080
+
+***Belgium***
+
+cache-mar.belbone.be     :80
+
+***Bulgaria***
+
+conan.gocis.bg		 :8080
+
+***Brazil***
+
+200.250.14.5)ct-nt-02.cybertelecom.com.br :8080
+sanan.com.br		 :8080
+
+***Canada***
+proxy.collegemv.qc.ca  	 :8080
+srvprx.cspaysbleuets.qc.ca :80
+valliere.csvalliere.qc.ca :80
+keeper.albertc.on.ca	 :8080	
+cproxy1.justice.gc.ca	 :80
+proxy.cslouis-hemon.qc.ca :8080
+gateway.kwantlen.bc.ca   :80
+
+***Switzerland***
+
+cache1.worldcom.ch   	 :8080
+cache2.worldcom.ch	 :8080	
+cache3.worldcom.ch	 :8080
+web-cache-2.cern.ch	 :80
+proxy.span.ch		 :8080
+gip-lausanne-nc.globalip.ch :80
+gip-lausanne-cf2.globalip.ch :8080
+gip-lausanne-cf1.globalip.ch :8080
+proxy2.iso.ch		 :8080
+proxy.iprolink.ch        :80
+
+***China***
+
+proxy.szptt.net.cn	 :8080                                                  
+			 
+***United States***
+
+hpux.mesd.k12.or.us	 :8080
+gatekeeper.ci.slc.ut.us  :8080
+episd.elpaso.k12.tx.us 	 :8080
+svc.logan.k12.ut.us 	 :8001
+proxy.eup.k12.mi.us 	 :8080
+svc.nues.k12.ut.us	 :8001
+proxy.eup.k12.mi.us	 :8080
+(207.78.252.100)oakweb.oak-web.washington-ch.oh.us :80
+homnibus.nvc.cc.ca.us	 :80
+et.mohave.cc.az.us	 :80
+
+(ok id say i gave out enough if ya local country not there go search
+the net and if cant find use another country one that is close to u)
+
+4.How to secrure Http packets
+Like i said before this is a normal http packet
+( [Connect from MAx.mpd.com]
+[206.14.13.32] (Mozilla/4.05 [en] (X11;I;Linux 2.0.34 i586) on December 
+2, 1998 at 14:34:45 )
+Now to Make your ip and host anonymous to web browsing we are going to 
+use http proxy with ya browser.THis is done by going to ya options
+and finding the info on proxy settings in thus put in all
+avalable places in proxy setting etc.ftp,http,secruity,
+Except leave sockets part blank THis isnt a socket proxy its a http
+Now after setting up a proxy in the proxy settings and putting in the 
+port too.Our new packets will look like this.
+( [Connect from The_proxies_host]
+[The_proxies_ip] (Mozilla/4.05 [en] (X11;I;Linux 2.0.34 i586) on December 
+2, 1998 at 14:34:45 )
+Now u might be thinking cool :) No longer have everdence of me on there 
+server but dam they know my o's and version of mozilla later on ill 
+descuse how to change that.U might also be thinking WOW now i can surf 
+100% secure on the net.U are not totally right.IF a hacker had a real 
+grunge on u.He has now the proxy u are using there ip/host
+now if he wants to get your info that badly he would have to hack
+the proxy server comapare the log time of the time u loged to the hacker's 
+site too the logs of your connection to the proxy server.THus is a real
+big job and if pick a good proxy server they will be very secure from 
+attack's So your pritty much safe.
+
+5.How to edit the o's and mozilla info send.
+
+Ok if your using Ie this is how u would do it.
+To see Original Settings
+GOTO HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+User Agent = Mozilla/4.0 (compatible; MSIE 4.01; Windows 95; (Your Orginial Settings))
+
+(Skip this Part here)
+GOTO HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion
+ProductName = Microsoft Windows 95
+Version = Windows 95
+
+
+GOTO HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\User Agent\Post Platform
+(Your Orignial Settings Here) = IEAK(Your Orignial Settings Here) 
+
+Example
+
+GOTO HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\User Agent\Post Platform
+Myth [Unix-Base] = IEAKMyth [Unix-Base] 
+
+
+*Note (this info on how to change the mozilla and version shown was
+given to me from Myth i didn't make it.)
+
+6.Getting a socket proxy.
+
+Ok now socket proxies work like Http proxies the only diff is 
+socket proxies are used with programs like (icq,mirc) And the packets
+are send through sockets not http.Getting a socket proxy is alot harder
+because Socket proxy server's have to be dedicated to a sertain program
+so its very limiting to the amount of user's he will get.
+Http is always used its using the web everyone uses it so http proxies
+are always going to be in need.
+TO find a socket proxy u can search the net typing in (Socket proxy)
+or try for sertain program's names like (Icq proxy).
+Hopefully u will get one
+socket proxies are useful as alot of attacks on user's are done 
+by kids with nukes,spring,ping,smurf,etc etc And thus will anoy a user
+in mirc or from icq both these programs give any user possability to
+get a user's ip/host.
+thats why if u use these u will want a socket proxy.
+Alot of people go why dont u just use ident or jizz or something 
+for mirc and icq.Well the reason u don't as there are expolits out 
+there to crash spoofed hosts/ip for programs like jizz and ident
+a proxy is more stable way and more prevention then a spoofer program.

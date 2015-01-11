@@ -1,0 +1,521 @@
+                         Hitchhiker's World (Issue #6) 
+                     http://www.infosecwriters.com/hhworld/
+
+                        Shellcode: the assembly cocktail
+                                by Samy Bahra
+
+                         Copyright (C) 2003 Kerneled.org
+
+ Due permission must be taken from samy@kerneled.org before mirroring this document elsewhere
+
+ --------------------+----------------------------------------------+--------------------------
+     Shellcode is the key to the successful exploitation of buffer overflows (the most
+     common security vulnerability these days) and other memory-oriented security holes. By
+     many, authoring elegant shellcode is considered an art. You are about to learn why...
+ ----------------------------------------------------------------------------------------------
+
+
+
+ 1- Introduction
+
+  1.1 -What is shellcode?
+    Brought to the simplest terms shellcode is simply machine code. In reality though
+    shellcode is usually written as position independent machine code that has no
+    intructions that consist of NULL bytes or contain NULL byte operands. This is due to
+    the unique circumstances under which shellcode is executed. When exploiting
+    memory-oriented security vulnerabilities attackers tend to overwrite the
+    instruction pointer with a pointer to arbitrary shellcode. Thus, controlling
+    execution flow through the shellcode. Since shellcode is usually written into string
+    data buffers located on the stack/heap, shellcode *has* to be position-independent
+    (meaning you can't write shellcode that accesses values through static
+    addressing, unless you're accessing them from environment variables) and most of the
+    times can't contain any NULL bytes due to the NULL byte being an input delimeter for
+    strings in many programming languages.
+
+  1.2 -What do I need to write shellcode?
+    We will be concentrating on writing shellcode for x86 Linux. The same methods here
+    can be applied to UNIX variants, but keep in mind system calling conventions are
+    quite different. I will be using nasm to write the assembly counterparts of
+    my shellcode. If you do not have this you will need some other Intel-syntax assembler
+    (you can use (g)as if you wish, but you will have to use a tool to convert to AT&T
+    syntax). You will also need to have some sort of debugger at hand or an object code
+    reading tool (such as objdump). In this article I will be using objdump to read
+    all of my shellcode (objdump displays instructions in a very organized manner that
+    is great when writing shellcode). I think that if you expect to get everything out of
+    this paper you would better have atleast a basic knowledge of assembly (the more the
+    better) and C programming knowledge. 
+
+    The examples directory contains some shellcode/assembly examples for you to hack
+    at and play with. To compile an example simple do 'make <file without prefix>'.
+
+
+ 2- Shellcode basics
+
+  2.1 -Your first shellcode
+    The first shellcode we will be writing should hopefully introduce you to the basics of
+    manufacturing shellcode. Our aim is to write shellcode for the extremely simple
+    pause() (man 2 pause) system call (note that I picked pause() for simplicity and not
+    usefulness). To start off our first adventure we will have to write the assembly
+    counterpart of our shellcode. This should be very easy with pause() which contains no
+    arguments of any sort.
+
+    Code (pause.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      mov eax, 29	; put the value 29 into eax (syscall number of pause)
+      int 80h		; enter kernel mode
+   +----------------------------------------------------+
+
+    Shell:
+   +----------------------------------------------------+
+    samy:~/development/shellcode # nasm -felf pause.asm
+    samy:~/development/shellcode # gcc pause.o -o pause -nostartfiles -nostdlib
+    samy:~/development/shellcode # ./pause
+    ^C
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    Everything seems to be working fine. The pause program pauses until
+    a signal is recieved. Now it's our job to extract the machine code of these
+    instructions. I will be using 'objdump' for this. You can use gdb as well but it
+    will simply make this process longer than it should be.
+
+    Extracting machine code:
+   +----------------------------------------------------+
+    samy:~/development/shellcode# objdump -d pause
+
+    pause:  file format elf32-i386
+
+    Disassembly of section .text:
+    08048100 <.text>:
+    8048100:	b8 1d 00 00 00		mov $0x1d,%eax
+    8048105:	cd 80 			int $0x80
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    We now know the machine code equivalence of our assembly intructions. Our shellcode
+    is simply "\xb8\x1d\x00\x00\x00\xcd\x80". Let's get to the most exciting part of
+    writing shellcode, testing it. For this we will be writing a simple C program.
+
+    Shellcode test (test.c):
+   +----------------------------------------------------+
+    const char pause_shell[]="\xb8\x1d\x00\x00\x00\xcd\x80";
+
+    main(){
+      int (*shell)();
+      shell=pause_shell;
+      shell();
+    }
+   +----------------------------------------------------+
+
+    Shell:
+   +----------------------------------------------------+
+    samy:~/development/shellcode# gcc test.c -o test
+    samy:~/development/shellcode# ./test
+    ^C
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    Our shellcode works perfectly! But...there are still a couple of problems in
+    there. Let us fix them shall we?
+
+  2.2 -Removing NULL bytes
+    Like I reiterated a couple of times already, shellcode can't contain any NULL bytes
+    if you expect to use it in a variety of exploits. Fortunately. we only have one
+    instruction containing NULL bytes. This is the mov instruction. We are simply writing
+    a value of 29 (0x1d in hex) to a register. Well, eax is a 32bit register, we only
+    need to write an 8bit (which I'm sure you recognize as one byte) value to eax. To make
+    up for the 24 other bits residing in eax, the assembler will assign NULL byte operands
+    to zero those bytes off. There are dozens of ways to replace NULL intructions/operands.
+    I will be trying to present all these solutions to you in a fashionable matter. Since
+    we're writing a value of 29 to eax we can simply write to al (an 8bit register which
+    resides in eax). This tells the assembler to use the 8bit mov instruction (which
+    requires an 8bit reg/mem source operand and 8bit mem/reg/value operand).
+
+    Model of eax:
+   +----------------------------------------------------+
+              E             A               X
+           --------------------------------------
+           |                  |        AX       |
+           |                  |        |        |
+           |                  |   AH   |   AL   |
+           --------------------------------------
+   +----------------------------------------------------+
+
+    Our new pause() shellcode will have to zero off eax (using xor eax, eax which doesn't
+    contain any NULL byte operands) and then write the value 29 into al.
+
+    New code (pause.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      xor eax, eax	; zero eax
+      mov al, 29	; put the value 29 into eax (syscall number of pause)
+      int 80h		; enter kernel mode
+   +----------------------------------------------------+
+
+    Extracting machine code:
+   +----------------------------------------------------+
+    samy:~/development/shellcode # objdump -d pause
+
+    pause:  file format elf32-i386 
+
+    Disassembly of section .text:
+    08048100 <.text>:
+     8048100:	31 c0		xor %eax,%eax
+     8048102:	b0 1d		mov $0x1d,%al
+     8048104:	cd 80		int $0x80
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    Our shellcode, this time, is one byte shorter (6 bytes) than our last shellcode.
+    Let's just verify that our new shellcode works before we move on to the next section.
+
+    Shellcode test (test.c):
+   +----------------------------------------------------+
+    const char pause_shell[]="\x31\xc0\xb0\x1d\xcd\x80";
+
+    main(){
+      int (* shell)();
+      shell=pause_shell;
+      shell();
+    }
+   +----------------------------------------------------+
+
+    Shell:
+   +----------------------------------------------------+
+    samy:~/development/shellcode# gcc test.c -o test
+    samy:~/development/shellcode# ./test
+    ^C
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    Everything seems to be working smoothly. Our new shellcode is ready for use in your
+    new exploit adventures. I doubt such shellcode will come to any use to you though, so
+    I suggest that you read on if you expect to write any useful shellcode.
+
+  2.3 -Writing position-independent shellcode
+    When accessing static values (specifically strings) found in your shellcode,
+    you must be able to access them without using any sort of mapping. This is because
+    you usually don't know where your shellcode is loaded into memory. The same goes when
+    tying to execute any instructions that have memory address operands (jmp mem, call
+    mem, etc...). Fortunately, we're also able to use relative addressing with the
+    jmp/call family of instructions.
+
+    I will be authoring some write() shellcode examples to teach you the importance
+    of position-independence. First of all I will write the assembly counterpart of my
+    write() shellcode.
+
+    Code (write.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      mov eax, 4		; put the value 4 into eax (syscall number of write)
+      mov ebx, 1		; put the value 1 into ebx (stdout, int fd)
+      mov ecx, message		; put a pointer to message in ecx
+      mov edx, 29		; put the value 29 into edx (size_t len)
+      int 80h			; enter kernel mode
+      mov eax, 1		; put the value 1 into eax (syscall number of exit)
+      mov ebx, 0		; put the value 0 into ebx (int status)
+      int 80h			; enter kernel mode
+
+      message db 'kerneled: are you kerneled?', 7, 10
+   +----------------------------------------------------+
+
+    This code will simply display "kerneled: are you kerneled?" to your current vt. You
+    must realize that my code is currently unoptimized (it's a load of junk written in
+    the simplest of instructions), a NULL byte whorehouse and is position dependent. Let's 
+    solve the first two problems and leave the best for the last. Our shellcode has to 
+    write the number 4 (write system call number) into eax, the number 1 into ebx, a 
+    pointer to our message into ecx and the number of bytes to be output into edx. Then eax 
+    has to hold the value 1 (exit) and ebx is zeroed to make our shellcode return a zero
+    return value. A very simple task...
+
+    Code (write.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      xor eax, eax  	   ; Can also be done with:
+      mov ebx, eax  	   ; xor ebx, ebx
+      mov edx, ebx   	   ; mul ebx ("mul eax, ebx")
+      mov al, 4	   ; put the value 4 into eax (syscall number of write)
+      inc ebx		   ; increment ebx to 1 (stdout, int fd)
+      mov ecx, message	   ; put a pointer to message in ecx (char *buffer)
+      mov dl, 29	   ; put the value 29 into edx (size_t len)
+      int 80h		   ; enter kernel mode
+      mov al, 1	   ; put the value 1 into eax (syscall number of exit)
+      dec ebx		   ; decrement the value in ebx to 0 (int status)
+      int 80h		   ; enter kernel mode
+
+    message db 'kerneled: are you kerneled?', 7, 10
+   +----------------------------------------------------+
+
+    Two problems solved. Now we need to solve the integral position dependence
+    problem. We would be writing a dead pointer in ecx if our shellcode was used in any
+    sort of exploit. Our shellcode will probably reside in an environment variable or
+    somewhere in a program's data buffers, and thus it is very likely (actually, it is for
+    sure) that our message will not be found at the pointer supplied by the assembler when
+    our shellcode is used for exploitation. We need to find a way to find message's memory
+    address at runtime. This is a perfect time to use the call instruction. The first thing
+    that the call instruction does is push the current value of eip into the stack. If we 
+    were to place our data under the call instruction, call will be pushing eip into the 
+    stack, a perfect pointer to our string. In shorter terms we're going to have to make the
+    program jmp to our call section, and then we'll make call "call" another section and
+    push a pointer to our string at runtime into the stack. It only sounds confusing, the
+    following example should clear up my statement.
+
+    Code (write.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      xor ebx, ebx	      ; zero registers
+      mul ebx		      ;
+      mov al, 4	              ; put the value 4 into eax (syscall number of write)
+      inc ebx		      ; increment the value in ebx to 1 (stdout, int fd)
+      jmp short get_string    ; If we don't specify this as an 8bit jump, nasm will do
+                              ; jmp near, which will add a 16bit offset to eip, we only
+    continue:		      ; need one byte
+      pop ecx		      ; pop the pointer on top of the stack to our string into ecx
+      mov dl, 29             ; put the value 29 into edx (size_t len)
+      int 80h  	      ; enter kernel mode
+      mov al, 1              ; put the value 1 into eax (syscall number of exit)
+      dec ebx		      ; decrement the value in ebx to 0 (int status)
+      int 80h	              ; enter kernel mode
+
+    get_string:
+      call continue	   ; jump to the continue section and load bottom string as ret
+      db 'kerneled: are you kerneled?', 7, 10
+   +----------------------------------------------------+
+
+    No NULL bytes, position independence, very optimized, there's nothing to hate
+    here. Our only job now is to extract the actual shellcode itself.
+
+    Shell:
+   +----------------------------------------------------+
+    samy:~/development/shellcode # nasm -felf write.asm
+    samy:~/development/shellcode # gcc write.o -o write -nostartfiles -nostdlib
+    samy:~/development/shellcode # ./write
+    kerneled: are you kerneled?
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    Extracting machine code:
+   +----------------------------------------------------+
+    samy:~/development/shellcode # objdump -d write
+
+    write:	file format elf32-i386
+
+    Disassembly of section .text:
+
+    08048100 <continue-0x9>:
+     8048100:	31 db 		xor %ebx,%ebx
+     8048102:	f7 e3 		mul %ebx,%eax
+     8048104:	b0 04		mov $0x4,%al
+     8048106:	43		inc %ebx
+     8048107:	eb 0a		jmp 8048113 <string> 
+
+    08048109 <continue>:
+     8048109:	59		pop %ecx
+     804810a:	b2 1d		mov $0x1d,%dl
+     804810c:	cd 80		int $0x80
+     804810e:	b0 01		mov $0x1,%al
+     8048110:	4b		dec %ebx
+     8048111:	cd 80		int $0x80
+     08048113 <get_string>:
+     8048113:	e8 f1 ff ff ff		call 8048109 <continue>
+     8048118:	6b 65 72 6e		imul $0x6e,0x72(%ebp),%esp   //   This is
+     804811c:	65			gs                           //   obviously
+     804811d:	6c			insb (%dx),%es:(%edi)        //   our string.
+     804811e:	65 64 3a 20		cmp %fs:%gs:(%eax),%ah       //
+     8048122:	61			popa                         //
+     8048123:	72 65			jb 804818a <_etext+0x55>     //
+     8048125:	20 79 6f		and %bh,0x6f(%ecx)           //
+     8048128:	75 20			jne 804814a <_etext+0x15>    //
+    samy:~/development/shellcode #
+   +----------------------------------------------------+
+
+    The get_string section consists of one call instruction and our actual string.
+
+    Our write shellcode is:
+     "\x31\xdb\xf7\xe3\xb0\x04\x43\xeb\x0a\x59\xb2\x1d\xcd\x80\xb0\x01"
+     "\x4b\xcd\x80\xe8\xf1\xff\xff\xffkerneled: are you kerneled?\a\n";
+
+    A simple test will show that our shellcode works perfectly (just edit
+    test.c). Hopefully by now you have a pretty good idea of basic shellcode concepts.
+
+
+ 3- MultiOS Shellcode
+
+  3.1 -MultiOS Shellcode Concepts
+    One of the biggest problems brought about by shellcode is portability. Most shellcode
+    is highly dependent on specific system architecture conventions (such as system calls)
+    making it very unportable. However, it is still possible to develop portable
+    shellcode, be it operating system or CPU architecture spanning. In this lesson we
+    will be covering operating system spanning shellcode which will allow your shellcode
+    to run on more than a certain class of system architecture.
+
+    Even though different system architectures can be extremely different in many ways,
+    there is still a great many common conventions. It is these conventions that tend to
+    allow you to use linear execution, which basically doesn't require runtime OS
+    checking. However, it is only simple shellcode that can adopt linear execution
+    (technically you can use linear execution for more complex shellcode, however, you
+    have to be sure not to execute system calls that will cause your shellcode to
+    malfunction).
+
+  3.2 -Linear Execution
+    Simple shellcode does not need to implement any sort of runtime OS checking, as all
+    requirements that need to be met before jumping into kernel mode (on a range of OSs)
+    can be done in a single go. If a system call is similar on more than one architecture
+    (system call number, arguments) it is very easy to meet all needs to have your
+    shellcode execute successfully on more than one architecture. This is the case with
+    the above write() shellcode. If we were going to author write() shellcode that
+    runs on both Linux and *BSD architecture we have to make sure that the system call
+    number and it's arguments are set correctly. In this case, the system call number and
+    arguments are the same in both Linux and *BSD, however, system call argument
+    conventions are different. Linux requires that you store the system call arguments in
+    registers, while *BSD requires that you push the arguments on the stack (the common Unix
+    convention). To have our shellcode capable of running on both architectures we have to
+    make sure ALL needs are met for both systems. So, we can simply store the arguments
+    both in the registers AND in the stack, then jump into kernel mode.
+
+    Code (write.asm):
+   +----------------------------------------------------+
+    SEGMENT .text
+      xor ebx, ebx		; zero registers
+      mul ebx			;
+      mov al, 4			; put the value 4 into eax (syscall number of write)
+      inc ebx			; increment the value in ebx to 1
+      jmp short get_string	; jump to get_string to load the pointer of our string onto esp
+
+    continue:
+      pop ecx			; pop the top of the stack (pointer to string) into ecx
+      mov dl, 29		; put the value 29 into edx (size_t len)
+      push edx			; push edx into the stack for BSD
+      push ecx			; push ecx into the stack for BSD
+      push ebx			; push ebx into the stack for BSD
+      push eax			; push eax into the stack for BSD
+      int 80h			; enter kernel mode
+      mov al, 1			; put the value 1 into eax (syscall number of exit)
+      dec ebx			; decrement the value in ebx to 0 (int status)
+      push ebx			; push ebx into the stack for BSD
+      push eax			; push eax into the stack for BSD
+      int 80h			; enter kernel mode
+
+    get_string:
+      call continue		; call the continue section and load eip address on stack
+      db 'kerneled: are you kerneled?', 7, 10
+   +----------------------------------------------------+
+
+    The above assembly code will run fine on both Linux and *BSD architecture. It can also 
+    run on ALL other system architectures that have adopted the same system call number for
+    write() and uses either the stack or registers (anything other than this :P) for system
+    call arguments. What if we were writing the appropriate shellcode for a system call which
+    is very unique across system architectures...? Sure, we can use linear execution for even
+    these types of shellcode (by multiple calls and jumps into kernel mode), but that will 
+    only give birth to very unefficient and even at times, unpredictable, shellcode. So, what
+    should we do then? We would have to implement runtime OS checking.
+
+  3.3 -Runtime system architecture checking shellcode
+    Such a big title for such a simple concept. This is the truth when it comes to writing
+    such shellcode. There are many methods to check the underlying system architecture your
+    shellcode is running on, however, only one is my favorite. Almost all runtime system
+    architecture checking requires our shellcode to spot common system architecture motifs.
+    This can range from the values found in segment registers, to the existance of various
+    system calls, to the way the underlying system allocates memory for a process.
+
+     3.3.1 -Segment register values
+       Almost all operating systems assign segment registers a unique value. This value is
+       usually set before booting into protected mode. By comparing the values of these
+       registers we can make an assumption of the underlying system architecture and jump
+       to the proper segment of our shellcode. The bottom example is a hybrid of linear and
+       unlinear execution. Depending on the values found in our real-mode registers, it will
+       make certain adjustments (string length, operating system name).
+
+       Segment register values
+      +----------------------------------------------------+
+      |         |   CS  |  SS  |  DS  |  ES  |  FS  |  GS  |
+      |----------------------------------------------------+
+      | Linux   |  0x23 | 0x2b | 0x2b | 0x2b | 0x00 | 0x00 |
+      |---------|-------|------|------|------|------|------|
+      | FreeBSD |       |      |      |      | 0x2f | 0x2f |
+      | OpenBSD |       |      |      |      | 0x1f | 0x1f |
+      | NetBSD  |       |      |      |      |      |      |
+      |---------|-------|------|------|------|------|------|
+      | BSDi    |       |      |      |      |      |      |
+      +----------------------------------------------------+
+
+       Code (write.asm)
+      +----------------------------------------------------+
+       SEGMENT .text
+	 xor ebx, ebx		; Zero registers...
+	 mul ebx		;
+	 mov cx, fs		; Put the value in fs into cx
+	 cmp cl, 1fh		; Check if the value in cx is 0x1f
+	 jz short openbsd	; If it is, jump to openbsd
+	 cmp cl, 2fh		; Check if the value in cx is 0x2f
+	 jz short freebsd	; If it is, jump to freebsd
+         cmp cl, al		; Check if the value in cl is 0
+	 jz short linux		; If it is, jump to linux
+
+         idea:                  ; If the segment registers are
+           jmp short no         ; not any of the ones we expect,
+         no:		        ; just hang, we don't know what
+           jmp short idea       ; we're dealing with
+
+	 continue:
+	   mov dl, 8		; put the value 8 into edx (int len)
+	   jmp short end	; let's finish this off, no more preperation needed
+
+	 continueGNU:
+           mov dl, 6		; put the value 6 into edx (int len) and continue down
+
+	 end:
+	   mov al, 4		; put the value 4 into eax (syscall number of write)
+	   inc bl 		; increment the value in ebx into 1 (stdout, int fd)
+	   pop ecx		; pop the value on top of the stack into ecx
+           push edx		; push edx into the stack for BSD
+           push ecx		; push ecx into the stack for BSD
+           push ebx		; push ebx into the stack for BSD
+	   push eax		; push eax into the stack
+	   int 80h		; enter kernel mode
+	   mov al, 1		; move the value 1 into eax (syscall number of exit)
+	   dec ebx		; decrement the value in ebx to 0 (int status)
+	   push ebx		; push ebx into the stack for BSD
+	   push eax		; push eax into the stack for BSD
+	   int 80h		; enter kernel mode
+
+
+         openbsd:
+	   call continue	; call the continue section
+           db 'OpenBSD', 10	; as the return value
+
+	 freebsd:
+           call continue	; call the continue section
+           db 'FreeBSD', 10	; as the return value
+
+         linux:
+	   call continueGNU	; call the continueGNU section
+	   db 'Linux', 10	; as the return value
+       +----------------------------------------------------+
+
+        This brings an end to the major authoring priority in our multiOS shellcode example.
+	All what is left for us now is to extract the hex equivalent of our shellcode. Being
+	the generous and hardworking person that I am, I will allow you to do this hands-on
+	yourself (objdump preferrably).
+
+	Shell:
+       +----------------------------------------------------+
+	samy@geeko:~/development/shellcode> nasm -felf write.asm
+	samy@geeko:~/development/shellcode> gcc write.o -o write -nostartfiles -nostdlib
+	samy@geeko:~/development/shellcode> uname -s
+	Linux
+	samy@geeko:~/development/shellcode> ./write
+	Linux
+	samy@geeko:~/development/shellcode> 
+       +----------------------------------------------------+
+
+      3.3.2 -System call ret value evaluation
+        It is usually very easy to find system calls that are unique to a system architecture.
+        We can call a unique system call and check the return value to determine the
+        underlying system architecture. The list of unique system calls between *BSD, Linux
+        and other UNIX variants are (not really ;P) tiring, which makes this method quite
+        accurate. However, I absolutely do not recommend this method if you are open to
+        other choices (this option is also the slowest way to go and more prone for errors).
+
+

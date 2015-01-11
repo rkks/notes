@@ -1,0 +1,51 @@
+#!/usr/bin/bash
+
+# Sandra Henry-Stocker - v. 1.0
+# David Cashion - v1.1 - Corrected errors and added ipnodes
+# David Cashion - v1.2 - /etc/inet/ipnodes is now a softlink in Solaris 10 U4
+
+# ---- prompt for new hostname, current hostname is default ----
+oldName=`uname -n`
+newName=`ckstr -p "Enter new Hostname [$oldName]" -d $oldName`
+
+# ---- confirm change ----
+ok=`ckyorn -p "Change hostname to $newName?"`
+
+case $ok in
+[Yy]*)
+        echo OK
+        ;;
+[Nn]*)
+        echo exiting without changes
+	exit 1
+        ;;
+esac
+
+# ---- make changes to /etc files ----
+perl -i -p -e "s/$oldName/$newName/" /etc/nodename
+perl -i -p -e "s/$oldName/$newName/" /etc/hostname.*
+perl -i -p -e "s/$oldName/$newName/g" /etc/inet/hosts
+# If it is a softlink, this will change it into a real file, we don't want that
+[ ! -h /etc/hosts ] && perl -i -p -e "s/$oldName/$newName/g" /etc/hosts
+[ ! -h /etc/inet/ipnodes ] && perl -i -p -e "s/$oldName/$newName/g" /etc/inet/ipnodes
+
+# ---- make changes to /etc/net files ----
+for hostsFile in `find /etc/net -name hosts -print`
+do
+    perl -i -p -e "s/$oldName/$newName/g" $hostsFile
+done
+
+# ---- move or create /var/crash directory ----
+if [ -d /var/crash/$oldName ]; then
+    mv /var/crash/$oldName /var/crash/$newName
+else
+    mkdir /var/crash/$newName
+    chmod 700 /var/crash/$newName
+fi
+dumpadm -s /var/crash/$newName
+
+# ---- finally, change hostname ----
+uname -S $newName
+
+# ---- confirm changes ----
+uname -a

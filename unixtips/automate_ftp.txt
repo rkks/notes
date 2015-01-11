@@ -1,0 +1,37 @@
+How do I automate my FTP's?
+
+
+Create a script that does the following:
+
+ftp -n << EOF
+      open my.server.at.my.office
+      binary
+      user userid password
+      get myfile.gif
+      bye
+EOF
+
+
+
+Ok, so that is kinda neat.  But what does the "-n" option do?
+
+From the man pages:
+
+     -n    Does not attempt "auto-login" upon initial connection.
+           If  auto-login  is not disabled, ftp checks the .netrc
+           file  in  the  user's  home  directory  for  an  entry
+           describing  an  account  on the remote machine.  If no
+           entry exists, ftp will prompt for the  login  name  of
+           the  account on the remote machine (the default is the
+           login name on the local machine), and,  if  necessary,
+           prompts  for  a  password and an account with which to
+           login.
+
+
+Remember, if you need to use a .netrc file, it must be in your
+home directory 
+(whatever is listed in /etc/password.  For bin, it is /usr/bin/). 
+ 
+Also, its permissions should be set to disallow read access by
+group and others:
+	chmod 600 .netrc

@@ -1,0 +1,57 @@
+#!/bin/ksh 
+# 
+# Orf Gelbrich 
+# 3-9-2006 
+# Script will find the switch port your server is pluged into / IOS version and switch name 
+# 
+echo "Collecting packets on the network..." 
+snoop -o /tmp/orf.1 & 
+# 
+# every 60 seconds Cisco sends out a packet that contains good information 
+# 
+echo "0 sec.." 
+sleep 15 
+echo "15 sec.." 
+sleep 15 
+echo "30 sec.." 
+sleep 15 
+echo "45 sec.." 
+sleep 15 
+echo "60 sec.." 
+sleep 3 
+echo "63 sec.." 
+# 
+# we will wait for 60+ seconds to make sure we get the special packet 
+# 
+pkill snoop 
+# 
+# the ether packet type 2000 needs to be found 
+# 
+echo "Creating ASCII file..." 
+snoop -vv -i /tmp/orf.1 > /tmp/orf.2 
+# 
+# get the line number the ether packet type 2000 is at 
+# 
+line=`grep -n "ETHER:  Ethertype = 2000 (Unknown)" /tmp/orf.2 | awk '{FS=":"} { print $1 }' | head -1` 
+if [ -z $line ]; then
+	echo "Could not find a CDP packet, exiting."
+	rm /tmp/orf.1 /tmp/orf.2
+	exit 1
+fi
+
+echo "Found the Ethertype = 0x2000 on line = $line..." 
+# 
+# from the line go back 6 and pick out the first line and then the 3rd field = packet number 
+# 
+packetnumber=`cat /tmp/orf.2 | head -${line} | tail -6 | head -1 | awk '{ print $3 }'` 
+echo "Found the Ethertype = 0x2000 in packet = $packetnumber..." 
+# 
+# get the content of the packet which has the switch port the server is plugged into 
+# 
+echo "------------------------------------------------------------------------" 
+echo " Look for  number/number on the right - that is the switch port         " 
+echo "------------------------------------------------------------------------" 
+snoop -i /tmp/orf.1 -p${packetnumber} -x 0 
+echo "------------------------------------------------------------------------" 
+# 
+rm /tmp/orf.1 /tmp/orf.2 && exit 0

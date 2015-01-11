@@ -1,0 +1,52 @@
+SUMMARY:cannot determine current directory
+From: Law Syn Pui 
+Date: Tue Feb 23 1999 - 20:08:04 CST
+
+
+Hi All,
+
+
+Thanks for all the numerous responses to my questions. There are too many
+to mention here. Most of you got it right . The original directory that
+was used to mount the partition did not have the right permissions.
+
+
+I unmounted the filesystem, chmod 755 the mount point, and remounted it and it solves the problem.
+The funny thing is that some operations seem to work, like touch, but others
+complain about incorrect permissions.
+
+
+My backspace and delete problems also goes away because I have already set
+it up in my .profile . Previously it seems that the .profile was not read due
+to permissions problem.
+
+
+Well, thanks everbody.
+
+
+Regards
+Sp LAW
+
+
+My orginal question was:-
+----------------------------------------------------------------------------
+I was trying to set up a new SUN Ultra 60 but I am getting a lot of problems.
+I created a new ksh local account and when I log in I get a message in the
+text window (dtterm)
+
+"Warning: cannot determine current directory"
+
+When I do a pwd I get the same message as below :-
+
+pwd: cannot determine current directory!
+
+
+also I keep getting ^H and ^? when use the delete and Backspace
+in dtterm . Also I cannot get # key when using vi
+
+
+Does anybody knows what is happening ?
+
+Many thanks for your help.
+
+Regards 

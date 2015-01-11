@@ -1,0 +1,15 @@
+How to allow users to chown files (give the file) to someone else.
+
+ From Sunsolve:
+      http://sunsolve.Sun.COM/private-cgi/retrieve.pl?doc=faqs%2F2141&zone_32=chown
+
+If you want to be able to give away files (ie: chown works as non-root), 
+you need to add in the line:
+    set rstchown=0
+in the /etc/system file.
+
+If you can give away files, but you want to disable this feature, you should put:
+    set rstchown=1
+in the /etc/system file.
+
+Now reboot your system to implement these changes.

@@ -1,0 +1,23 @@
+Q. Why do I get the following error message sometimes?
+	Stale NFS file handle
+
+A. This type of error message is seen when a file or directory that was opened by an NFS client is removed, renamed, or replaced. 
+   To fix this problem, the NFS file handles must be renegotiated. Try one of these on the client machine:
+   
+	a) Unmount and remount the file system, may need to use the -O (overlay option) of mount.
+	
+	   From the man pages:
+	           -O    Overlay mount.  Allow  the  file  system  to  be
+	                 mounted  over  an  existing mount  point, making
+	                 the underlying file system inaccessible.   If  a
+	                 mount is attempted on a pre-existing mount point
+	                 without setting this flag, the mount will  fail,
+              		 producing the error "device busy".
+              		 
+	b) Kill or restart the process trying to use the nonexistent files.
+	
+	c) Create another mount point and access the files from the new mount point.
+	
+	d) Run: /etc/init.d/nfs.client stop; /etc/init.d/nfs.client start
+	
+	e) Reboot the client having problems.

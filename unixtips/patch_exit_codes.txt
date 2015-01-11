@@ -1,0 +1,44 @@
+Patch Exit Codes
+----------------
+0       No error
+1       Usage error
+2       Attempt to apply a patch that's already been applied
+3       Effective UID is not root
+4       Attempt to save original files failed
+5       pkgadd failed
+6       Patch is obsoleted
+7       Invalid package directory
+8       Attempting to patch a package that is not installed
+9       Cannot access /usr/sbin/pkgadd (client problem)
+10      Package validation errors
+11      Error adding patch to root template
+12      Patch script terminated due to signal
+13      Symbolic link included in patch
+14      NOT USED
+15      The prepatch script had a return code other than 0.
+16      The postpatch script had a return code other than 0.
+17      Mismatch of the -d option between a previous patch install and the current one.
+18      Not enough space in the file systems that are targets of the patch.
+19      $SOFTINFO/INST_RELEASE file not found
+20      A direct instance patch was required but not found
+21      The required patches have not been installed on the manager
+22      A progressive instance patch was required but not found
+23      A restricted patch is already applied to the package
+24      An incompatible patch is applied
+25      A required patch is not applied
+26      The user specified backout data can't be found
+27      The relative directory supplied can't be found
+28      A pkginfo file is corrupt or missing
+29      Bad patch ID format
+30      Dryrun failure(s)
+31      Path given for -C option is invalid
+32      Must be running Solaris 2.6 or greater
+33      Bad formatted patch file or patch file not found
+34      Incorrect patch spool directory
+35      Later revision already installed
+36      Cannot create safe temporary directory
+37      Illegal backout directory specified
+38      A prepatch, prePatch or a postpatch script could not be executed
+39      A compressed patch was unable to be decompressed
+40      Error downloading a patch
+41      Error verifying signed patch

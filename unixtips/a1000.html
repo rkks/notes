@@ -1,0 +1,52 @@
+<html><head>
+<body text="#000000" bgcolor="#BBB9D2" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+</head>
+
+
+
+<body><center><font size="+4">Sun StorEdge</font>
+<br><font size="+4">A1000 Reset</font></center>
+
+NOTE: This local copy was taken from <a href="http://www.rootprompt.net/a1000.html">http://www.rootprompt.net/a1000.html</a> since it isn't available anymore.
+
+<p><br>
+</p><p>If you have recently installed an A1000 along with all of the needed
+patches and RAID software (i.e. RAID Manager 6.1.1 Update 2) and you can't
+see your RAID modules upon running 'rm6', you may need to reset the RDAC
+cache on your A1000. This document explains how to do that. If you have
+any questions, <a href="mailto:robert@rootprompt.net">email me</a>.
+<br>&nbsp;
+</p><p>To begin with, the following steps are 1 way to reset the A1000 to its
+original state:
+</p><p>For each of the disks, do the following. This is a way to try and find
+a
+<br>clean RDAC cache:
+</p><p>A1000 reset
+<br>SYNOPSIS: Reset configuration in A1000 (original configuration)
+<br>DETAIL DESCRIPTION:
+</p><p>To reset the configuration on an A1000 back to its original state (LUN
+0):
+</p><p>1. Power the A1000 down and power system down
+<br>2. Remove all of the drives but the first one (far left)
+<br>3. Remove the battery unit from the back
+<br>4. Wait at least 60 seconds and put battery back in
+<br>5. Power unit on and bring system up
+<br>6. Start rm6
+<br>&nbsp;&nbsp; --Verify at this point you are at a default config.&nbsp;
+If not go back to step 1 and use a different drive.
+<br>7. Plug drives in one at a time, waiting about 10 seconds between each.
+</p><p><b><font color="#ff0000">--OR--</font></b>
+</p><p>You can save yourself the time and energy of going through each of the
+12 disks by doing the following:
+</p><p>1. Remove all disks from A1000.
+<br>2. Free up c0t1d0 on the server.
+<br>3. Place a disk from the A1000 into c0t1d0 on the server.
+<br>4. Run 'dd if=/dev/zero of=/dev/rdsk/c0t1d0s2 bs=10240'
+<br>5. Place disk in c0t1d0 back in A1000 in the leftmost bay.
+<br>6. reboot -- -r
+<br>7. Start rm6 and make sure you have a default config.
+<br>8. Plug drives in one at a time, waiting about 10 seconds between each.
+</p><p>This will clean up any corrupted RDAC and since there is no RDAC on
+the A1000 leftmost disk (the only disk available), one will be created.
+<br>&nbsp;
+</body></html>

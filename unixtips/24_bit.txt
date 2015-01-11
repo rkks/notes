@@ -1,0 +1,9 @@
+You CAN get 24 bits/pixel by using m64config to switch the video resolution 
+to 800x600. What I did was to do a command-line login, then issue 
+	m64config -res 800x600x72 now -depth 24
+
+This requires that a patch be applied first: 	
+	105362-13 PGX 2.6: M64 Graphics Patch (Solaris 2.6)
+
+
+-Contributed by Tim Lavin

@@ -1,0 +1,66 @@
+@(#) Hidden sniffer howto 06 MAR 2000 Rob Thomas robt@cymru.com
+HOWTO create a hidden sniffer with Solaris
+
+While experimenting with some code, I came up with this trick for
+creating an unseen Solaris sniffer.  It is possible, when using
+snoop(1M), to sniff packets through an unplumb'd interface.  The
+obvious benefit is that the interface can not be detected.  Thus,
+the sniffer remains impervious to detection and attack.
+
+I was not able to use snoop(1M) on an unplumb'd interface until
+the interface had been configured.  I suspect that this action
+loads the necessary module and configures the STREAM.
+
+Unfortunately, I have only been able to use snoop(1M) with an
+unplumb'd interface.  The snort(8) tool does not seem to work.  I
+was able to get tcpdump to work with this trick.
+
+Here are the steps to run the "unseen" sniffer:
+
+ifconfig <INT> plumb
+ifconfig <INT> <IP> netmask <NM> up
+ifconfig <INT> unplumb
+snoop -d <INT>
+
+Where:
+     <INT> = an interface.  I used le0 for the test.
+     <IP> = an IP address, any IP address.  I used 10.10.10.1 for
+            the test.
+     <NM> = a netmask.  I used /30 for the test.
+
+This sniffer then sits silently, gathering all traffic that is
+presented on the wire.  Interestingly enough, the interface does
+not respond to any traffic.  Even broadcasts -- of every type, e.g.
+all 1's, network, subnet -- were ignored.  Nothing I tried would
+elicit a response from this unplumb'd interface.  Thus, it would
+appear that struct ifnet is cleared by the unplumb option to
+ifconfig(1M).
+
+This sniffer has already captured quite a bit of...interesting...
+traffic.  ;-)
+
+Rob Thomas, robt@cymru.com
+http://www.enteract.com/~robt
+
+
+
+*******************************************************
+                       AND
+*******************************************************
+
+
+
+Another tip came from Michael Peters:
+
+http://www.sun.com/bigadmin/content/submitted/stealth_ethernet.html
+
+
+All you have to do to make an invisible interface for snooping is:
+/usr/sbin/ifconfig qfe1 up
+
+No IP is associated or even temporarily needed.
+
+You will have /etc/hostname.qfe1 without an IP address. If the 
+interface is configured using this method, you will not be applying 
+an actual IP address to it. It will become enabled using 
+0.0.0.0 as the IP address.

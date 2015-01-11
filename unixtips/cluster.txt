@@ -1,0 +1,71 @@
+This tool will work for Solaris 2.6, 7 & 8. Not sure about versions <2.6. 
+To implement and use the Sun Cluster Console tool:
+
+1. Transfer the scripts.jar file to your favorite install dir (I like to use
+/var/tmp/download) on your admin server of choice.
+
+2. Extract the jar file:
+# jar -xvf scripts.jar
+(works just like tar command - see man pages for more info)
+
+3. Install the cluster tool packages:
+# cd scripts
+# pkgadd -d .
+Install both SUNWccon and SUNWscsdb packages. The SUNWccon package installs
+the /opt/SUNWcluster directory, while the SUNWscsdb installs the cluster
+names database and 'name to serial port' database. These are actually files
+called /etc/clusters & /etc/serialports respectively. (You can do a "man
+clusters" and "man serialports" after completing step 5).
+
+4. Edit the database files:
+a) If you intend to use the telnet/rlogin feature of the cluster console
+tool ONLY:
+# mv /etc/serialports /etc/serialports.template
+# vi /etc/clusters
+Add an entry with the hostnames you want to telnet/rlogin to. The
+"clustername" in the first field can be any name you want to give it (ie.,
+sunhosts). The hostnames must be space delimited.
+b) If you intend to use the telnet/rlogin AND console features of the tool:
+NOTE: In this scenario you must already have a terminal server installed w/
+it's own hostname & IP and the desired hosts connected to the terminal
+server. If you have previously renamed the serialports file, rename it back
+to it's original filename.
+# vi /etc/clusters
+Edit the clusters file in same manner as described in step 4(a) above.
+# vi /etc/serialports
+Add one line for each host. These will be the same hostnames you specified
+in the /etc/clusters file. For the 2nd field in the /etc/serialports file,
+enter your terminal server hostname- the file identifies it as a 'terminal
+concentrator'. The file entry format is <hostname> <terminal concentrator>
+<serial_port>. The serial port numbers are somewhat arbitrary, just don't
+use a number already in /etc/services or one you know is already in use. I
+started at 5001 as the sample entry suggests.
+
+5. Environment variables:
+Add /opt/SUNWcluster/bin to your PATH.
+Add /opt/SUNWcluster/man to your MANPATH
+The binaries are of course in /opt/SUNWcluster/bin.
+
+6. Invoking the sun cluster console tool:
+Prerequisites-
+- Make sure the above variables are set.
+- Make sure your DISPLAY is set to your local host.
+- Make sure your local access control is disabled (xhost).
+# ctelnet <clustername>
+or
+# crlogin <clustername>
+The cluster console window as well as telnet/rlogin windows for each host
+will be displayed. Place your cursor in the cluster console window. Each
+command you type will then be SIMULTANEOUSLY displayed in each telnet/rlogin
+window. Note: Make sure you keep your cursor in the cluster console window
+at ALL times to maintain this functionality.
+
+If your using a terminal server and want a console prompt for each of the
+respective hosts:
+# cconsole <clustername>
+
+ENJOY! But be very careful. Remember, each command you type is duplicated
+"n" times!!
+
+
+-Contributed by: Tim Lavin

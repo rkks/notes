@@ -1,0 +1,11 @@
+From the newsgroups...if you accidentally did a sys-unconfig before applying the patch.  :)
+
+1. vi /etc/.sysIDtool.state and replace all 1's with 0's.
+2. touch /etc/.UNCONFIGURED
+3. reboot and when the machine comes back up, it should run sysidtool
+   and ask you for the info.
+
+Then, make certain you download the sys-unconfig patch from
+sunsolve.sun.com.  
+
+The patch number is: 109318

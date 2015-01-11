@@ -1,0 +1,8 @@
+On HP-UX 11 and earlier, you cannot use the private IP space
+unless you use the zero subnet fix from:	
+	http://www.sysunconfig.net/unixtips/hp_zero_tip.txt
+
+Not really sure if this is still a problem in HP-UX 12.
+
+
+- Corey Harris

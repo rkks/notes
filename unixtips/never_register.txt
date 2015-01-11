@@ -1,0 +1,22 @@
+To disable the registration reminder after installing Solaris...
+
+	Per user
+	--------
+	Click on "More information"
+	Never Register
+	Never Register	
+	
+	OR
+	
+	touch ~/.solregis/.disable
+
+
+	For the entire system
+	---------------------
+	Add the following line in /etc/default/solregis:
+	DISABLE=1
+
+
+The other alternative is just to remove the packages.  For Solaris 9, these would be:
+	system      SUNWerego            Solaris User Registration Installation ID file
+	system      SUNWsregu            Solaris User Registration

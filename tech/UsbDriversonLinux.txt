@@ -1,0 +1,304 @@
+
+  Developing Linux Device Drivers using Libusb API
+
+Introduction
+We often come across a situation where a USB device which runs perfectly
+on Windows platform does not even get detected on Linux. Lack of support
+for USB devices is one of the reason why some people don't embrace
+Linux. Now there is a new API by name Libusb which helps the developers
+to develop USB device drivers on the fly!
+
+What is Libusb
+Libusb is a high-level language API which conceals low-level kernel
+interactions with the USB modules. It provides a set of function which
+are adequate to develop a device driver for a USB device from the Userspace.
+
+Libusb is not complex
+For any wannabe Linux Kernel programmers developing device driver as a
+Kernel module is a herculean task. Developing kernel modules requires
+fair degree of proficiency in 'C' language and also good idea of kernel
+subsystems, data structures etc. All these are enough to put-off a
+developer from venturing into Device Driver programming.Libusb has been
+designed to address this shortcoming. Simplified interface allows
+developers to develop USB drivers from the userspace . Libusb library
+functions provide high level abstraction to the Kernel structures and
+allows the developers to have access to these structures through the
+USBFS(USBfilesystem).
+
+Its Cross-platform
+Beauty of Libusb lies in its cross platform functionality. Driver
+written for one platform could be easily ported onto another platform
+with little or no changes, currently following operating systems are
+supported by Libusb.
+
+Linux
+FreeBSD
+Darwin
+OS X
+
+This HOWTO focuses on how Libusb can be used on Linux platform. For
+information about other platforms goto
+http://http://libusb.sourceforge.net/.
+
+
+LIBUSB ON LINUX
+Linux is the most popular platform for the Libusb API,the reason being
+growing popularity of Linux as a stable OS. On Linux Libusb makes of the
+USBFS file system. by default USBFS is automatically mounted when the
+system is booted.
+
+What is USBFS
+USBFS is a filesystem specifically designed for USB devices, by default
+this filesystem gets mounted when the system is booted and it can be
+found at /proc/bus/usb/. This filesystem consists of information about
+all the USB devices that are connected to the computer.Libusb makes use
+of this filesystem to interact with the USB devices.
+
+Following C program can be a stepping stone into the world of
+Libusb.This program can be used to gather all the technical/hardware
+details of a USB device connected to the computer ,ensure that some USB
+device is connected into the USB port.
+
+Details like Vendor-Id , Product-Id ,Endpoint addresses of a USB device
+is of paramount importance for a device driver developer.
+
+/* testlibusb.c */
+
+#include
+#include
+
+
+void print_endpoint(struct usb_endpoint_descriptor *endpoint)
+{
+printf(" bEndpointAddress: %02xh\n", endpoint->bEndpointAddress);
+printf(" bmAttributes: %02xh\n", endpoint->bmAttributes);
+printf(" wMaxPacketSize: %d\n", endpoint->wMaxPacketSize);
+printf(" bInterval: %d\n", endpoint->bInterval);
+printf(" bRefresh: %d\n", endpoint->bRefresh);
+printf(" bSynchAddress: %d\n", endpoint->bSynchAddress);
+}
+
+
+void print_altsetting(struct usb_interface_descriptor *interface)
+{
+int i;
+
+printf(" bInterfaceNumber: %d\n", interface->bInterfaceNumber);
+printf(" bAlternateSetting: %d\n", interface->bAlternateSetting);
+printf(" bNumEndpoints: %d\n", interface->bNumEndpoints);
+printf(" bInterfaceClass: %d\n", interface->bInterfaceClass);
+printf(" bInterfaceSubClass: %d\n", interface->bInterfaceSubClass);
+printf(" bInterfaceProtocol: %d\n", interface->bInterfaceProtocol);
+printf(" iInterface: %d\n", interface->iInterface);
+
+for (i = 0; i < interface->bNumEndpoints; i++)
+print_endpoint(&interface->endpoint[i]);
+}
+
+
+void print_interface(struct usb_interface *interface)
+{
+int i;
+
+for (i = 0; i < interface->num_altsetting; i++)
+print_altsetting(&interface->altsetting[i]);
+}
+
+
+void print_configuration(struct usb_config_descriptor *config)
+{
+int i;
+
+printf(" wTotalLength: %d\n", config->wTotalLength);
+printf(" bNumInterfaces: %d\n", config->bNumInterfaces);
+printf(" bConfigurationValue: %d\n", config->bConfigurationValue);
+printf(" iConfiguration: %d\n", config->iConfiguration);
+printf(" bmAttributes: %02xh\n", config->bmAttributes);
+printf(" MaxPower: %d\n", config->MaxPower);
+
+for (i = 0; i < config->bNumInterfaces; i++)
+print_interface(&config->interface[i]);
+}
+
+
+int main(void)
+{
+struct usb_bus *bus;
+struct usb_device *dev;
+
+usb_init();
+usb_find_busses();
+usb_find_devices();
+
+printf("bus/device idVendor/idProduct\n");
+
+for (bus = usb_busses; bus; bus = bus->next) {
+for (dev = bus->devices; dev; dev = dev->next) {
+int ret, i;
+char string[256];
+usb_dev_handle *udev;
+
+printf("%s/%s %04X/%04X\n", bus->dirname, dev->filename,
+dev->descriptor.idVendor, dev->descriptor.idProduct);
+
+udev = usb_open(dev);
+if (udev) {
+if (dev->descriptor.iManufacturer) {
+ret = usb_get_string_simple(udev, dev->descriptor.iManufacturer, string,
+sizeof(string));
+if (ret > 0)
+printf("- Manufacturer : %s\n", string);
+else
+printf("- Unable to fetch manufacturer string\n");
+}
+
+if (dev->descriptor.iProduct) {
+ret = usb_get_string_simple(udev, dev->descriptor.iProduct, string,
+sizeof(string));
+if (ret > 0)
+printf("- Product : %s\n", string);
+else
+printf("- Unable to fetch product string\n");
+}
+
+if (dev->descriptor.iSerialNumber) {
+ret = usb_get_string_simple(udev, dev->descriptor.iSerialNumber, string,
+sizeof(string));
+if (ret > 0)
+printf("- Serial Number: %s\n", string);
+else
+printf("- Unable to fetch serial number string\n");
+}
+
+usb_close (udev);
+}
+
+if (!dev->config) {
+printf(" Couldn't retrieve descriptors\n");
+continue;
+}
+
+for (i = 0; i < dev->descriptor.bNumConfigurations; i++)
+print_configuration(&dev->config[i]);
+}
+}
+
+return 0;
+}
+
+
+The above program should be compiled as
+
+(root$)gcc -o usbdevice_details testlibusb.c -I/usr/local/include -L.
+-lnsl -lm -lc -L/usr/local/lib -lusb
+
+(root$)./usbdevice_details (enter)
+
+
+Following is the output of the above command ,its the listing of a USB
+pen drive connected to my system.
+
+The first line displays the bus-name/device-name & device-id/product-id
+and rest of the listing is self-descriptive.
+
+
+001/004 0EA0/2168
+- Manufacturer : USB
+- Product : Flash Disk
+- Serial Number: 4CE45C4E403EE53D
+wTotalLength: 39
+bNumInterfaces: 1
+bConfigurationValue: 1
+iConfiguration: 0
+bmAttributes: 80h
+MaxPower: 100
+bInterfaceNumber: 0
+bAlternateSetting: 0
+bNumEndpoints: 3
+bInterfaceClass: 8
+bInterfaceSubClass: 6
+bInterfaceProtocol: 80
+iInterface: 0
+bEndpointAddress: 81h
+bmAttributes: 02h
+wMaxPacketSize: 64
+bInterval: 0
+bRefresh: 0
+bSynchAddress: 0
+bEndpointAddress: 02h
+bmAttributes: 02h
+wMaxPacketSize: 64
+bInterval: 0
+bRefresh: 0
+bSynchAddress: 0
+bEndpointAddress: 83h
+bmAttributes: 03h
+wMaxPacketSize: 2
+bInterval: 1
+bRefresh: 0
+bSynchAddress: 0
+
+
+Before executing the above program download the current version of
+Libusb library from, http://http://libusb.sourceforge.net/. The above
+program can also be found under the tests directory of Libusb directory
+(after u install it)
+
+
+Now I will explain in brief some of the functions and attributes dealt
+in the above program.
+
+usb_init() - Used to initialize Libusb and establish connection with
+kernel structures .
+usb_find_busses() - Looks for all the USB busses on the computer.
+usb_find_devices() - Looks for all the USB devices connected to the
+computer.
+usb_open(dev) - Opens the device 'dev' which is given as argument to
+this function.
+usb_get_string_simple() - Used to extract the string descriptor of the
+device taken argument.
+
+Important attributes of USB devices useful in device driver coding
+
+Configuration and Endpoints are one of the two important descriptors of
+any USB device. These descriptors are defined using the �struct
+usb_config_descriptor� and �struct_usb_endpoint_descriptor� respectively .
+
+dev->descriptor.idVendor � Reveals the Vendor-Id of the USB device
+connected to the system.
+
+dev->descriptor.idProduct - Reveals the Product-Id of the USB device
+connected to the system.
+
+dev->descriptor.iManufacturer - Reveals the name of the Manufacturer USB
+device connected to the system.
+
+EndpointAddress:Combination of endpoint address and endpoint direction
+on a USB device.
+
+InterfaceNumber : One of the several interfaces that is allocated to the
+connected USB device.
+
+AlternateSetting:This is part of the a single interface allocated to the
+USB device.
+
+
+Prerequisites for Libusb programming
+Linux system with Kernel 2.4 above series.
+Proficiency in C language.
+Good understanding of USB device internals.
+Idea about USBFS.
+
+
+
+Hope this HOWTO has enlightened you about Libusb API and I expect this
+HOWTO will give you a head start in your device driver programming
+endeavor .This HOWTO is just an introduction to Libusb ,for complete
+documentation please goto http://http://libusb.sourceforge.net/
+
+About Myself
+My name is Vikram C , I'm a linux freak and currently working as Linux
+developer in the city of Hyderabad India.You can reach me at
+vikram_147@hotmail.com <mailto:vikram_147@hotmail.com> /
+vikram@asrttechnologies.com <mailto:vikram@asrttechnologies.com>
+

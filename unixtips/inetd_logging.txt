@@ -1,0 +1,22 @@
+Q.  How can I setup the server so we log all telnet and ftp connections?
+
+A.  Since these are run from inetd, you need to add the '-t' switch to inetd startup.
+
+In the file:
+	/etc/init.d/inetsvc
+
+Change:
+	/usr/sbin/inetd -s &
+to:
+	/usr/sbin/inetd -s -t &
+
+
+From the man page:
+
+     -t    Instructs inetd to trace the incoming connections  for
+           all  of its TCP services.  It does this by logging the
+           client's IP address and TCP port  number,  along  with
+           the  name  of the service, using the syslog(3C) facil-
+           ity. UDP services can not be traced. When  tracing  is
+           enabled,  inetd  uses  the syslog facility code 
+	   ``daemon'' and ``notice'' priority level

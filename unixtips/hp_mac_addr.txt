@@ -1,0 +1,9 @@
+How to Find Your HP's MAC Address
+
+If you want to know the MAC (ethernet address) of 
+your lan card on an HP-UX machine, type:
+
+	lanscan
+
+and this will give you the MAC addresses of all the lan 
+cards installed in the machine.

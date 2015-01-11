@@ -1,0 +1,29 @@
+How to remove the DACstore from an A1000 disk that has been in another A1000 array?
+
+There are a couple of ways, as always, check with Sun for their supported method.
+
+For those that like to live life dangerously, choose one of the following:
+a) Go into format, select your disk, choose analyze, then purge 
+(now sit back for a VERY LONG TIME.  This should wipe the disk of any 
+information (and the DACstore as well).
+
+b) (from http://www.rootprompt.net/a1000.html)
+        Run the following on the disk (after removing it from the array and
+        placing it in c0t1 on the server, or another server):
+                dd if=/dev/zero of=/dev/rdsk/c0t1d0s2 bs=10240
+
+c) Go into rm6, maintenance, select the raid module, manual recovery, drives
+Now select the questionable drive, choose fail, and then revive it.  
+This will spin the disk down, mark it as failed, then bring it back to life.  
+In the meantime, rm6 has written the DACstore to the drive, overwriting the one it had on it.
+
+
+Why is this *SO* important?
+
+Since the DACstore (Config info) is located on 3 RANDOM disks in the A1000, 
+you need a quorum to keep the A1000 happy (TRUST ME, you don't want it ever
+unhappy).  If you go and add some new disks that have a different DACstore 
+info on them, the quorum will go kersplat and you have a mess.  
+
+
+The gist of the story is, if you can help it, DON'T move disks from one A1000 to another.

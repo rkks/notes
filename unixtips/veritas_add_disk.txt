@@ -1,0 +1,99 @@
+Method #1
+=========
+We're going to add disks to a system (Solaris 2.5.1, VM2.3)
+currently having 2 arrays, each a bootable mirror of the
+other. Would the below cunning plan work, I wonder?
+
+1)  Break mirror, stop array (2). The system keeps running on array (1).
+		I would've been sorry if it hadn't!
+
+2)  Add disks to array (2).
+
+3)  Re-start array (2).
+
+4)  Run disks and drvconfig to "bring in" new disks in array (2).
+
+In fact ran drvconfig, disks, devlinks in that order. After this,
+the GUI could see the disks (selecting the SSA icon, new blue non-
+initialised drives), but the disks would not initialise! An error:
+
+"vxvm:vxdisk ERROR Device c3t3d3s2:Not in the configuration"
+
+was displayed. Cursing and scratching of head ensued.
+
+All the file entries were present. Format could see the disks, and
+they'd been sliced a la VM. A call to truss:
+
+truss -o truss.out -rall -wall -f -a /etc/vx/bin/vxdisksetup -i c3t3d3
+
+showed the thing was giving up when /usr/sbin/vxdisk define c3t3d3s2
+ran, but that some VM utilities (/usr/lib/vxvm/bin/vxprtvtoc, for
+instance) could see the disk, and a couple of calls to vxpartadd had
+sliced the disk (example truss O/P):
+
+18560: execve("/usr/lib/vxvm/bin/vxpartadd",0x0007A2C0,0x0007A560) argc=9
+18560:  argv: /sbin/sh - /usr/lib/vxvm/bin/vxpartadd
+18560:   /dev/rdsk/c3t3d3s2 4 0xe 0x201 1520 4152640
+
+A call was submitted to Sun. The supported method is to boot -r aaargh!
+The bloke said he'd go away and think about it.
+
+Head. Scratch scratch.
+
+The thing must have a "database" of known devices. What processes are
+running? Vxconfigd? Hmmm... a quick shufty at the man page (gasp!)
+shows:
+
+     -k         If a vxconfigd process is running  already,  then
+               kill it before any other startup processing.  This
+               is useful for recovering  from  a  hung  vxconfigd
+               process.  Killing the old vxconfigd and starting a
+               new one should not cause any problems  for  volume
+               or  plex  devices  that are being used by applica-
+               tions or that contain mounted file systems.
+
+This was duly done, and fixed the problem! After, it was realised
+that various options had been omitted, so the vxconfigd was re-started
+with -x syslog -x log -x log file=/var/adm/vxvm.log -x timestamp -m boot.
+
+In retrospect, enable might've been better than boot, but the above was OK.
+
+The Sun chappie was phoned and told what the answer was.
+
+5)  Re-mirror, set up new filesystem on new disks in array (2).
+
+6)  Break mirror, stop array (1). The system keeps running on array (2).
+
+7)  Add disks to array (1).
+
+8)  Re-start array (1).
+
+9)  Run disks and drvconfig to "bring in" new disks in array (1).
+
+		drvconfig, disks, devlinks, *re-start vxconfigd*.
+
+10) Re-mirror array (2) onto array (1).
+
+All without downtime, disk failures excepted. Any thoughts on this, or better ways?
+
+Well, it all worked out in the end! No downtime! No reboot! Hope this is of some use.
+
+Richard Yates.
+-----------------------------------------------------------------------------
+
+Method #2
+=========
+The really 'cool' thing to do is to not kill and restart the daemon at this
+point, but to issue the command:
+
+  # drvconfig
+  # disks
+   (Then, if format can see all of the new disks...)
+
+  # vxdctl enable
+
+This will cause a rescan of disks to load the new disks in to the VxVM's
+master database in the kernel.  The enable also performs some other cool
+tasks, the vxdctl manpage has the rest of the story if you're interested.
+
+Tony Martin

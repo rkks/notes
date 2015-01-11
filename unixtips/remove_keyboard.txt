@@ -1,0 +1,10 @@
+Solaris 2.5.1: How can I unplug a keyboard from a running machine?
+
+
+To change it from the command line before you pull the keyboard out, type the following as root:
+
+	kbd -a disable
+
+When you've reconnected the keyboard to the host, type:
+
+	kbd -a enable

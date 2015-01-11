@@ -1,0 +1,4 @@
+To turn off replies to broadcast pings
+--------------------------------------
+ndd -set /dev/ip ip_respond_to_echo_broadcast 0
+ndd -set /dev/ip ip_icmp_err_interval 99999

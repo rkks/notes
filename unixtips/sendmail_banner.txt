@@ -1,0 +1,11 @@
+How to change the banner of the sendmail daemon
+-----------------------------------------------
+
+For Solaris 2.6, edit the value of SmtpGreetingMessage in:
+	 /etc/sendmail.cf
+
+For Solaris 7, the file is:
+	/etc/mail/sendmail.cf
+
+To something like this:
+	O SmtpGreetingMessage=

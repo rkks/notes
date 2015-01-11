@@ -1,0 +1,166 @@
+The following steps, on setting up Anonymous FTP on a Solaris machine,
+are copied from the 2.5 ftpd man page. It has been tested on 2.3, 2.4
+AND 2.5.  Please note that if you use the ftpd setup script from the
+2.3 or 2.4 man page there is an error  use this script instead.
+
+First, add the following entry to the /etc/passwd file. In this case,
+/export/ftp was chosen to be the anonymous ftp area, and the shell is
+the non-existent file /nosuchshell. This prevents users from logging
+in as the ftp user. Any of these variables can be changed at your
+discretion:
+
+ftp:x:30000:30000:Anonymous FTP:/export/ftp:/nosuchshell
+
+Second, add the following entry to /etc/shadow:
+
+ftp:NP:6445::::::
+
+Finally, cut and paste the following script, and run it on the machine
+that you are setting up as an anonymous FTP server:
+
+
+
+The following is  a  shell  script  that  will  set  up  the
+anonymous ftp  area.   It presumes that ftp accounts is set
+up locally, as is suggested above.
+This is a tested script from the Solaris 2.5 ftpd man page.
+It has been tested on 2.3, 2.4, AND 2.5.
+
+
+------- Start script on the next line --------------------------
+#!/bin/sh
+# script to setup anonymous ftp area
+#
+# handle the optional command line argument
+case $# in
+
+  # the default location for the anon ftp comes from the passwd file
+  0) ftphome="`grep '^ftp:' /etc/passwd | cut -d: -f6`"
+     ;;
+
+  1) if [ "$1" = "start" ]; then
+	ftphome="`grep '^ftp:' /etc/passwd | cut -d: -f6`"
+     else
+	ftphome=$1
+     fi
+     ;;
+
+  *) echo "Usage: $0 [anon-ftp-root]"
+     exit 1
+     ;;
+esac
+
+if [ -z "${ftphome}" ]; then
+  echo "$0: ftphome must be non-null"
+  exit 2
+fi
+
+# This script assumes that ftphome is neither / nor /usr so ...
+if [ "${ftphome}" = "/" -o "${ftphome}" = "/usr" ]; then
+  echo "$0: ftphome must not be / or /usr"
+  exit 2
+fi
+
+# If ftphome does not exist but parent does, create ftphome
+if [ ! -d ${ftphome} ]; then
+   # lack of -p below is intentional
+   mkdir ${ftphome}
+fi
+echo Setting up anonymous ftp area ${ftphome}
+
+# Ensure that the /usr/bin directory exists
+if [ ! -d ${ftphome}/usr/bin ]; then
+   mkdir -p ${ftphome}/usr/bin
+fi
+
+cp /usr/bin/ls ${ftphome}/usr/bin
+chmod 111 ${ftphome}/usr/bin/ls
+
+# Now set the ownership and modes to match the man page
+chown root ${ftphome}/usr/bin
+chmod 555 ${ftphome}/usr/bin
+
+# this might not be the right thing to do
+# but we need the bin -> usr/bin link
+if [ -r ${ftphome}/bin ]; then
+   mv -f ${ftphome}/bin ${ftphome}/Obin
+fi
+ln -s usr/bin ${ftphome}
+
+# Ensure that the /usr/lib and /etc directories exist
+if [ ! -d ${ftphome}/usr/lib ]; then
+   mkdir -p ${ftphome}/usr/lib
+fi
+if [ ! -d ${ftphome}/etc ]; then
+   mkdir -p ${ftphome}/etc
+fi
+
+#Most of the following are needed for basic operation, except
+#for libnsl.so, nss_nis.so, libsocket.so, and straddr.so which are
+#needed to resolve NIS names.
+
+cp /usr/lib/ld.so /usr/lib/ld.so.1 ${ftphome}/usr/lib
+
+for lib in libc libdl libintl libw libnsl libsocket        nss_nis
+nss_nisplus nss_dns nss_files
+do
+  cp /usr/lib/${lib}.so.1 ${ftphome}/usr/lib
+  rm -f ${ftphome}/usr/lib/${lib}.so
+  ln -s ./${lib}.so.1 ${ftphome}/usr/lib/${lib}.so
+done
+
+cp /usr/lib/straddr.so.2 ${ftphome}/usr/lib
+rm -f ${ftphome}/usr/lib/straddr.so
+ln -s ./straddr.so.2 ${ftphome}/usr/lib/straddr.so
+
+cp /etc/passwd /etc/group /etc/netconfig ${ftphome}/etc
+
+# Copy timezone database
+mkdir -p ${ftphome}/usr/share/lib/zoneinfo
+(cd ${ftphome}/usr/share/lib/zoneinfo
+ (cd /usr/share/lib/zoneinfo; find . -print | cpio -o) | cpio -imdu
+ find . -print | xargs chmod 555
+ find . -print | xargs chown root
+)
+
+chmod 555 ${ftphome}/usr/lib/*
+chmod 444 ${ftphome}/etc/*
+
+# Now set the ownership and modes
+chown root ${ftphome}/usr/lib ${ftphome}/etc
+chmod 555 ${ftphome}/usr/lib ${ftphome}/etc
+
+# Ensure that the /dev directory exists
+if [ ! -d ${ftphome}/dev ]; then
+   mkdir -p ${ftphome}/dev
+fi
+
+# make device nodes. ticotsord and udp are necessary for
+# 'ls' to resolve NIS names.
+
+for device in zero tcp udp ticotsord
+do
+  line=`ls -lL /dev/${device} | sed -e 's/,//'`
+  major=`echo $line | awk '{print $5}'`
+  minor=`echo $line | awk '{print $6}'`
+  rm -f ${ftphome}/dev/${device}
+  mknod ${ftphome}/dev/${device} c ${major} ${minor}
+done
+
+chmod 666 ${ftphome}/dev/*
+
+## Now set the ownership and modes
+chown root ${ftphome}/dev
+chmod 555 ${ftphome}/dev
+
+if [ ! -d ${ftphome}/pub ]; then
+  mkdir -p ${ftphome}/pub
+fi
+chown ftp ${ftphome}/pub
+chmod 777 ${ftphome}/pub
+
+# ------------End of Solaris 2.x anonymous ftp script ----------
+
+NOTE:  This script creates ~ftp/pub with 777 (world-write) permissions. 
+       If you prefer more secure permissions, execute a new chmod 
+       on ~ftp/pub after running this script.

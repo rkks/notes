@@ -1,0 +1,23 @@
+#!/usr/bin/perl -w
+# calculate network address from IP and netmask
+
+printf("Enter IP address> ");
+$IPADDR = <STDIN>;
+printf("Enter netmask> ");
+$NETMASK = <STDIN>;
+
+@maskbyte = split /\./, $NETMASK;
+@ipbyte = split /\./, $IPADDR;
+
+for ($i=0; $i < 4; $i++) {
+    $b1 = $maskbyte[$i]+0;
+    $b2 = $ipbyte[$i]+0;
+    $NetByte = $b1 & $b2;
+    if ($i != 0) {
+        $NetAddr = $NetAddr . "." . $NetByte;
+    } else {
+        $NetAddr = $NetByte;
+    }
+}
+
+print "$NetAddr\n";

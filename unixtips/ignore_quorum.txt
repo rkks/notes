@@ -1,0 +1,38 @@
+From the newsgroups, how to disable the quorum rule in Solaris 8, DiskSuite version 4.2.1...
+========================================================================
+
+On Fri, Jun 28, 2002 at 11:10:04AM -0400, John Cronin wrote:
+> One hint for DiskSuite: Add this line to /etc/system if you are using
+> DiskSuite 4.2.1 on Solaris 8:
+> 
+> 	set md:mirrored_root_flag=1
+> 
+> This will let your system boot up even if one system disk died and
+> took half the DiskSuite metadatabases with it.  This feature is
+> apparently undocumented - I find no mention of it searching Google,
+
+It does appear to be undocumented, but it's been around for some time.
+
+The one reference I could find of it was :
+-------
+This is something new in DiskSuite 4.2.1. The idea is to allow a system
+with only 2 disks in a mirror to boot normally if one half of the mirror
+is corrupt.
+
+Under DiskSuite 4.1 you always need (1/2*N+1) metastate databases
+available for DiskSuite to start (this is the Quorum Rule). Under
+DiskSuite 4.2.1 (supported only on Solaris 8) it will start with just
+1/2*N databases if you introduce the mirrored_root_flag into
+/etc/system. This is not supported on any earlier version though.
+-------
+
+Scott
+  
+  
+========================================================================
+
+
+I did run across a suggestion from another poster:
+
+*** Remember to set your "boot-device" to point to both disks or this is all for nothing!
+

@@ -1,0 +1,6 @@
+If you tell grep to search through more than one file (/dev/null as well), it will print:
+filename: matching line
+
+Give it a try!
+
+find . -name \* -exec grep -i pattern {} /dev/null \;

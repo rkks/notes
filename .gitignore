@@ -1,0 +1,96 @@
+# Prune all except text files
+# tar files
+*.7z
+*.bz2
+*.cpio
+*.gz
+*.jar
+*.rar
+*.tar
+*.tgz
+*.zip
+*.dmg
+*.img
+
+# obj files
+*.9
+*.O
+*.a
+*.bin
+*.bin2
+*.com
+*.exe
+*.dll
+*.class
+*.i
+*.o
+*.obj
+*.o.*
+*.ko
+*.so
+*.out
+*.map
+*.ld
+*.lds
+*.elf
+
+# devel backlog
+*.keep
+*.orig
+*.rej
+*.save
+*.swp
+*.log
+*~
+
+# binary files
+*.dvi
+*.eps
+*.gif
+*.jpeg
+*.jpg
+*.png
+*.ps
+*.sgml
+*.gcov
+
+# version control
+.bzr
+.bzrtags
+.git
+.hg
+.hgrags
+.svn
+BitKeeper
+CVS
+RCS
+SCCS
+
+# tagging
+cscope.*
+TAGS
+tags
+
+# linux stuff
+*.aux
+*.grep
+*.grp
+*.moc
+*.mod
+*.mod.c
+*.symtypes
+*.symvers
+*.tab.c
+*.tab.h
+*.tmpl
+*.updt
+*.ver
+*_MODULES
+*_gray256.c
+*_vga16.c
+_darcs
+
+# terminal multiplexer
+*.pid
+.netrwhist
+.DS_Store

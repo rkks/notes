@@ -1,0 +1,13 @@
+NOTE:
+
+There is a problem with 105181-33!!! Do not install it if possible.
+
+
+Do not run boot -r (or touch reconfigure) if you have kernel patch
+105181-33 on Solaris 2.6 servers, or all device trees and files can be wiped
+out! 
+
+
+The following must be added to /etc/system to fix this bug:
+
+		set kobj_map_space_len=0x400000

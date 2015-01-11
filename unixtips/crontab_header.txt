@@ -1,0 +1,14 @@
+Many times admins forget the field order of the crontab file 
+and alway reference the man pages over-and-over.
+
+Make your life easy. Just put the field definitions in your crontab file 
+and comment (#) the lines out so the crontab file ignores it.
+
+# minute (0-59),
+# |      hour (0-23),
+# |      |       day of the month (1-31),
+# |      |       |       month of the year (1-12),
+# |      |       |       |       day of the week (0-6 with 0=Sunday).
+# |      |       |       |       |       commands
+3       2       *       *       0,6     /some/command/to/run
+3       2       *       *       1-5     /another/command/to/run

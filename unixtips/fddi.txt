@@ -1,0 +1,13 @@
+From the SunFDDI SBus Adapter 5.0 User's Guide:
+
+red -   Either the driver is loaded and the interface is NOT
+        configured or the driver has not been loaded.
+
+amber - Interface configured.  No valid line state to an active FDDI
+        network exists.
+
+green - Connection established to an active FDDI network.
+
+blinking green - In a dual-ring environment: Invalid connection
+        In a dual-homing environment: Normal. The connection is in
+        standby mode.

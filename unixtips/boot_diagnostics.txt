@@ -1,0 +1,6 @@
+Ever wonder what Solaris is doing before the banner and OK prompt is
+displayed? You must have console to do this, simply type "v" for
+verbose.
+
+Solaris will output its diagnostic report to the console rather than
+hiding it. This does not increase boot time.

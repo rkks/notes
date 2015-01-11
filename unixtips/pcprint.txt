@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# pcprint  Print data on local-terminal printer (or on the printer connected to a PC).
+#
+# Syntax:  pcprint [ -noformfeed | -noff | -noleadff ] filename ...
+#
+#       -noformfeed - does not send a form feed either before or after any file
+#       -noff       - same as noformfeed
+#       -noleadff   - does not send a form feed before a file, but does send
+#                     a form feed at the end (to eject the last page, just in
+#                     case it didn't end on a page boundary).
+#       you should specify at most one of these options.
+
+# Remind the user to put their printer online.
+echo "Turn on your printer..." >/dev/tty; sleep 3
+
+USAGE="Usage: pcprint [ -noformfeed | -noff | -noleadff ] file ..."
+CTRL_L_B4=`echo X | tr X '\014'`   # formfeed (Control-L) character before file
+CTRL_L_AFTER=`echo X | tr X '\014'`     # formfeed character after last file
+
+# Formfeed can be disabled by passing "-noformfeed" as the first argument
+if [ $# -ge 1 ]; then
+    case "$1" in 
+        -noformfeed | -noff) CTRL_L_AFTER=""
+                             CTRL_L_B4=""
+                             shift;;
+        -noleadff)   CTRL_L_B4=""
+                     shift;;
+        *)      :;;
+    esac
+fi
+
+#  Make sure they didn't specify more than one option
+if [ $# -ge 1 -a "`echo \'$1\' | cut -c2`" = "-" ]; then
+  echo "You cannot specify more than one option" >&2
+  echo "$USAGE" >&2
+  exit 1
+fi
+
+# Constants:
+ESCAPE=`echo X | tr X '\033'`   # Store escape character
+PrintOn="${ESCAPE}[5i"          # Hard code if don't have tput
+PrintOff="${ESCAPE}[4i"         # ditto (these are for vt100 terminal)
+Tmpfile=/tmp/`basename $0`$$    # File containing text to print
+
+# Set trap to erase temp file and announce signal receipt:
+trap 'rm -f $Tmpfile 2>/dev/null; exit' 0
+trap 'echo "Interrupted by signal" >&2; exit' 1 2 3 15  
+
+# Figure out how to do echo without newline
+if [ -z "`echo 'hello\c' | sed 's/[^c]//g'`" ]; then 
+    N='';  C='\c'
+else 
+    N='-n';  C=''
+fi
+
+# Process command-line argument(s):
+case $# in
+
+    # if there are no arguments then check whether stdin has been redirected
+    # if not then exit, otherwise read from stdin
+    0)  [ -t 0 ] && echo "$USAGE">&2 && exit 1
+        (echo $N "$CTRL_L_B4$C" ; cat - ) > $Tmpfile ;;    # Input is from pipe
+
+    # Files were specified on the command line, so process each file if it
+    # is readable.
+    *)  for File in $* ; do
+            if [ ! -r $File ]; then
+                echo "Cannot read \"$File\"" >&2
+            else
+                (echo $N "$CTRL_L_B4$C" ; cat $File) >> $Tmpfile
+            fi
+        done ;;
+esac
+
+#  Exit if there are no files to print:
+if [ ! -s $Tmpfile ]; then
+    echo "Exiting, no readable files were located" >&2 ; exit 2
+fi
+
+# Get local-terminal printer-control codes if not already defined:
+[ ! "$PrintOn" ] && PrintOn=`tput mc5`          # Get printer-on and 
+[ ! "$PrintOff" ] && PrintOff=`tput mc4`        # printer-off capability
+
+# Make sure the printer-on and printer-off capabilities exist:
+if [ ! "$PrintOn" -o ! "$PrintOff" ]; then
+    echo "Your terminal \"$TERM\" can't control your local printer" >&2
+    exit 3 
+fi
+
+# Output printer-on code, files, formfeed, printer-off code:
+# This order (along with the "control-L" that we put on the first line of
+# each file) is important to prevent the output from being skewed, and to 
+# ensure the last page is ejected from the printer
+echo $N "$PrintOn$C"; cat $Tmpfile; echo $N "$CTRL_L_AFTER$C"; echo $N "$PrintOff$C"

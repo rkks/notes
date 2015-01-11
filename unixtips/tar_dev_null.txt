@@ -1,0 +1,35 @@
+If you are trying to create some tar files with exclude/include files 
+and don't want to create a temporary tar file each time?
+
+Use /dev/null as the destination.
+
+For example:
+
+/etc/inet# tar cvfX /dev/null /list_of_files_to_exclude *
+a datemsk.ndpd 1K
+a hosts 1K
+a ike excluded
+a inetd.conf 7K
+a ipnodes 1K
+a ipsecinit.sample 3K
+a mipagent.conf.fa-sample 7K
+a mipagent.conf.ha-sample 6K
+a mipagent.conf-sample 7K
+a netmasks 1K
+a networks 1K
+a ntp.client 1K
+a ntp.server 3K
+a protocols 2K
+a secret/ 0K
+a secret/ike.privatekeys/ 0K
+a secret/ike.preshared 1K
+a secret/ipseckeys.sample 1K
+a services 5K
+a slp.conf.example 6K
+a sock2path 1K
+
+(where the file /list_of_files_to_exclude contains the word ike)
+
+
+You can see what it is/isn't doing without all those extra files 
+laying around from testing different exclude lists.

@@ -1,0 +1,30 @@
+Tar tips
+--------
+If moving files from one machine to another using NFS mounted FS's,
+it is better to do the reads over the network and the writes locally.
+
+
+To move whole directory structures from the current directory to a 
+target directory or filesystem:
+	tar cpf - . | (cd todir && tar xvpf -)
+	
+
+From the tar man page:
+     p         Restore the named files to their  original  modes,
+               and  ACLs  if  applicable,  ignoring  the  present
+               umask(1). This is the default behavior if  invoked
+               as  super-user  with  the x function letter speci-
+               fied. If super-user, SETUID and sticky information
+               are  also  extracted,  and files are restored with
+               their original owners and permissions, rather than
+               owned by root. When this function modifier is used
+               with the c function, ACLs are created in the  tar-
+               file  along  with  other  information. Errors will
+               occur when a tarfile with  ACLs  is  extracted  by
+               previous versions of tar .
+               
+               
+               
+               
+               
+Improved suggestion made by:  Paul Ripke               

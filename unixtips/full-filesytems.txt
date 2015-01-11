@@ -1,0 +1,6 @@
+To figure out which filesystems are over 90% full, let awk help you out:
+
+df -k | sed 1d | awk '$5>90 {print}'
+
+
+We use sed to remove the first line (header) as it shows up each time otherwise.

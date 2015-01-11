@@ -1,0 +1,25 @@
+Q. How do I figure out what the CD-ROM is on this Tru64 UNIX server?
+
+A. As root, type the following:
+	file /dev/rrz*c | egrep "RRD|CRD|CD-"
+
+   The results will look something like this:
+
+/dev/rrz5c:     character special (8/5122) SCSI #0 RRD46 disk #40 (SCSI ID #5) (SCSI LUN #0) offline
+
+
+
+Q. Ok, so how do I mount it now?
+A. For Tru64 4.0:
+	mkdir /cdrom
+   UFS
+	mount -r /dev/rz5c /cdrom (or whatever your device is)
+   ISO 9660 
+	mount -t cdfs -o noversion /dev/rz5c /cdrom
+   Rock Ridge Interchange Protocol
+	mount -t cdfs -o rrip /dev/rz5c /cdrom
+
+A. For Tru64 5.0:
+	mkdir /cdrom
+   ISO 9660 
+	mount -t cdfs -o noversion /dev/disk/cdrom0c /cdrom

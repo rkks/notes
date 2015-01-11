@@ -1,0 +1,83 @@
+What are the differences between trunking and interface group?
+
+
+Interface Group:
+===============
+
+An "interface group" is a collection of source addresses that share a
+common subnet (also know as prefix). With the addition of this new
+feature to Solaris 2.6, systems can have multiple physical interfaces 
+on the same subnet.
+
+With the addition of interface groups, the problem of inbound packets
+arriving through multiple interfaces and outbound packets leaving
+through one single interface has been addressed.
+
+IP uses an interface group to rotate source address selection when the
+source address is unspecified. In the case of multiple physical
+interfaces in the same group, IP scatters traffic across different IP
+addresses on a per-IP-destination basis.
+
+Interface group provides load balancing but does not provide
+automatic failover.
+
+Other aspects of interface groups are:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Interface group works at the IP layer.
+
+Interface group works across different type of NIC's and network
+drivers.
+
+Interface group support is part of the OS with Solaris 2.6 and above.
+The same can be enabled by setting the ndd parameter
+ip_enable_groups_ifs to 1.
+
+The use of an interface group requires that the network interface cards 
+have their own MAC addresses.
+
+Interface group allows for multiple interfaces on a system to have IP
+addresses belonging to the same subnet (but not the same IP address).
+
+An interface group can be formed with different network interface types.
+Interface types can be a mix of hme, le, qfe, etc.
+
+
+
+
+Trunking:
+========
+
+Sun Trunking enables you to aggregate the collective bandwidth of the
+links on Sun QuadFastEthernet cards and Sun GigabitEthernet cards.  Sun
+Trunking  software provides the ability to aggregate up to eight 10/100
+Mbps FastEthernet ports into a single virtual link.
+
+Other aspects of trunking are: 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Trunking works at the MAC Layer.
+
+Trunking enables load sharing across network interfaces.
+
+Trunking requires a special software/driver (Sun Trunking 1.x)
+
+Trunking requires special/specific NIC hardware (QFE, GE) in addition to
+a Sun Trunking compatible switch.
+
+Trunking enables multiple interfaces (up to 8) to carry the same IP
+address.
+
+Trunking between multiple interfaces requires the same NIC hardware type
+and device driver.
+
+Load balancing takes place based on the configured trunking
+policy. The four supported trunking policies used in the Trunking
+software are MAC (default), round robin (used mainly for server
+back-to-back connections), IP destination address and IP source
+address/IP destination address.
+
+In the event of a link failure, Sun Trunking software automatically
+redistributes the load across the remaining links.
+
+Solaris 8 10/00 Update and onwards provides network adapter failure 
+detection and outbound network packet load spreading. These are available 
+with the base Solaris IP stack. This feature is called IP Network Multipathing.

@@ -1,0 +1,142 @@
+How to safely and reliably do a disk-to-disk copy...
+Ref: Sun INFODOC ID# 16311
+
+I did the prep work for the attached scripts using the infodoc as a
+guide. Inherited a system that was setup w/o ODS yet I needed to
+establish some OS disk redundancy. Script called disk2disk.ksh is called
+by oscopy.ksh. A wrapper script is run from root cron. The script has
+been running successfully since 7/17/00.
+
+
+
+
+Here is the oscopy.ksh script
+-----------------------------
+#!/bin/ksh
+################################################################
+# Scriptname: oscopy.ksh
+# Date: 07/03/2000
+# Author: Tim Lavin
+# Description: This script shuts down oracle, does a
+#              (disk-to disk copy) from the existing OS disk
+#              c0t0d0 to the 2nd internal disk c0t1d0,
+#              then brings oracle back up.
+# Inputs: Calls /usr/local/bin/disk2disk.ksh which does the
+#         actual disk copy via ufsdump/ufsrestore commands.
+# Outputs: root crontab executes /usr/local/bin/oscopy_wrapper
+#          which calls this script and writes to the logfile
+#          /usr/local/bin/log/oscopy.ksh.$$. This script also
+#          emails and pages the author if it aborts and the 
+#          dba oncall if oracle does not come back up after
+#          the disk copy is complete.
+################################################################
+
+# Shutdown oracle...
+echo
+echo "Shutting down Oracle now..."
+echo
+/bin/sh /etc/rc1.d/K53oracle stop
+echo
+echo "Waiting to be sure Oracle is down before starting oscopy..."
+echo
+sleep 300
+
+# If oracle is down, start disk copy, otherwise send abort message...
+CHECK_ORACLE=`ps -ef|grep ora_pmon|grep -v grep`
+if [ -z "$CHECK_ORACLE" ] ; then
+  /usr/local/bin/disk2disk.ksh
+   else
+    echo
+    echo "Oracle is not down... oscopy script aborting."
+    echo
+    echo "oscopy script aborted on `uname -n`." > /tmp/warn.out
+    echo "Plz chk latest /usr/local/bin/log/oscopy.ksh.$$ file." >> /tmp/warn.out
+    mailx -s "WARNING:" administrator@company.com < /tmp/warn.out
+    /usr/local/bin/notify < /tmp/warn.out
+    echo
+    echo "oscopy abort message sent!"
+    echo
+    exit
+fi
+
+# Wait until diskcopy is complete before bringing oracle back up...
+DD_DONE=`ps -ef|grep ufsdump|grep -v grep`
+if [ -z "$DD_DONE" ] ; then 
+  echo
+  echo "Copying /mnt/etc/vfstab.c0t1d0 to /mnt/etc/vfstab..."
+  echo
+  cd /mnt/etc
+  cp vfstab.c0t1d0 vfstab
+  echo
+  echo "Contents of /mnt/etc/vfstab:"
+  echo
+  cat /mnt/etc/vfstab
+  echo
+  cd /
+  umount /mnt
+  umount /var1
+  echo
+  echo "partitions on disk c0t1d0 have been unmounted."
+  echo
+  echo "**************************************************"
+  echo "Starting oracle now... calling oracle boot script."
+  echo "**************************************************"
+  echo
+  /bin/sh /etc/rc2.d/S96oracle start
+fi
+
+# If oracle is not up by now, send warning... 
+ORACLE_UP=`ps -ef|grep ora_pmon|grep -v grep`
+if [ -z "$ORACLE_UP" ] ; then
+  echo "Oracle did not come up after OS disk copy" > /tmp/warn1.out
+  echo "on Siebel server `uname -n`!" >> /tmp/warn1.out
+  mailx -s "WARNING:" pager@company.net < /tmp/warn1.out
+  /usr/local/bin/notify < /tmp/warn.out
+  echo
+  echo "Oracle warning message sent!"
+   else
+    echo
+    echo "SUCCESS... Oracle is UP!"
+    echo
+    rm -f /tmp/warn*.out
+    echo "cleanup of temporary files complete."
+    echo
+    echo "oscopy.ksh done." | tee /tmp/warn2.out
+    echo
+fi
+
+
+
+Here is the disk2disk.ksh script
+--------------------------------
+#!/bin/ksh
+#
+# Mount the c0t1d0 partitions so we can do the ufsdump...
+cd /
+mount /dev/dsk/c0t1d0s0 /mnt
+mount /dev/dsk/c0t1d0s5 /var1
+echo
+echo "c0t1d0 partitions are mounted"
+echo
+# Begin the ufsdump sequence...
+echo
+echo "Starting copy of disk c0t0d0 to c0t1d0 at `date`."
+echo
+echo "Doing root partition first... mount point used is /mnt"
+echo
+cd /
+ufsdump 0f - /dev/rdsk/c0t0d0s0 | (cd /mnt ; ufsrestore xf -)
+echo
+echo "...root partition done."
+echo
+echo "Doing var partition... mount point used is /var1"
+echo
+ufsdump 0f - /dev/rdsk/c0t0d0s5 | (cd /var1 ; ufsrestore xf -)
+echo
+echo "...var partition done."
+echo
+echo "Disk copy complete at `date`."
+echo
+
+
+-Contributed by Tim Lavin

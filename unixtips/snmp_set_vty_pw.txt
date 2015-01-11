@@ -1,0 +1,36 @@
+Can I change the vty or enable password with the SNMP RW string?
+
+Question 
+--------
+I accidentally removed a password on a remote router and I can't access it anymore. 
+I receive the follow error:  
+	"Password required, but none set." 
+Since I have the SNMP ReadWrite (RW) community string, can I change it?
+
+
+Answer
+------
+Yes, you can change the configuration with the SNMP RW community string.  
+Use the following command:
+NOTE:  The following should be typed on one long line.  
+       The '\' is not actually part of the string
+
+snmpset -t 10 -r 5 -c communityname hostname .1.3.6.1.4.1.9.2.1.53.150.150.150.150 \
+        octetstring configfile.txt
+
+Where
+-----
+150.150.150.150 is the address of the Trivial File Transfer Protocol (TFTP) server 
+
+hostname is the hostname of the router (or its IP address)
+
+configfile.txt is the file containing the configuration commands that you wish to  
+implement (this file must be in a directory reachable by TFTP to the TFTP server)
+
+
+
+Example of configfile.txt
+-------------------------
+no enable secret
+enable secret newpassword
+end

@@ -1,0 +1,66 @@
+How to Setup Solstice DiskSuite / Solaris Volume Manager
+
+Common to both options below:
+1.	Create identical partitioning on the second disk
+		dd if=/dev/rdsk/c0t0d0s2 of=/dev/rdsk/c0t1d0s2 count=16
+2.	Setup the state databases with 3 backups per slice on each disk
+		metadb -a -f -c 3 c0t0d0s7 c0t1d0s7
+
+For all slices except root
+--------------------------	
+Description	Mirror Name		Device Name
+1st mirror	d4			c0t0d0s4
+2nd mirror	d5			c0t1d0s4
+Metamirror	d3			/dev/md/dsk/d3
+
+1.	Create submirrors for the mirrors
+		a) metainit -f d4 1 1 c0t0d0s4
+		b) metainit d3 -m d4
+		c) metainit d5 1 1 c0t1d0s4
+2.	Make a backup of the /etc/vfstab file before editing it
+3.	Make the following change in the /etc/vfstab file
+		/dev/md/dsk/d3	/dev/md/rdsk/d3	/usr	ufs   1	 no   -
+4.	Reboot
+5.	Attach the submirror to the metamirror
+		metattach d3 d5 	(NOTE:  There will be lots of disk I/O)
+
+For the root slice only
+-----------------------
+Description	Mirror Name		Device Name
+1st mirror	d1			c0t0d0s0
+2nd mirror	d2			c0t1d0s0
+Metamirror	d0			/dev/md/dsk/d0
+
+1.	Create submirrors for the mirrors
+		a) metainit -f d1 1 1 c0t0d0s0
+		b) metainit d0 -m d1
+		c) metainit d2 1 1 c0t1d0s0
+2.	Make a backup of the /etc/vfstab file
+3.	Let the metaroot command make the /etc/vfstab and /etc/system changes for you
+		metaroot d0
+4.	Run lockfs to prevent problems
+		lockfs -fa
+5.	Shutdown the server
+		/usr/sbin/shutdown -y -g0 -i0 
+6. 	From the boot prompt, run 
+		show-disks
+7.	Pick your mirrored disk from the list and then setup an alias like so
+		nvalias mirror ^y   (that is a <control>-y to paste the device path)
+8.	Change your boot-device to first try the normal disk alias, then use your mirror disk
+		setenv boot-device disk mirror
+9.	Reset/reboot the server
+		reset-all
+10.	Attach the submirror to the metamirror
+		metattach d0 d2 	(NOTE:  There will be lots of disk I/O)
+11.	Do an ls and copy the info down as this is the alternate boot path
+		ls -l /dev/rdsk/c0t1d0s0
+
+
+If you only have two mirrored root disks (DiskSuite 4.2.1, Solaris 8), put this setting in your /etc/system:
+	set md:mirrored_root_flag=1
+
+For more information, go check out this handy tip:
+	http://www.sysunconfig.net/unixtips/ignore_quorum.txt
+
+
+-Contributed by David Cashion

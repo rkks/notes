@@ -1,0 +1,78 @@
+Checking Oracle with the tnsping Command
+By Sandra Henry-Stocker
+
+Two weeks ago, this column described the commands for setting up an 
+Oracle user environment. By capturing such things as the Oracle home 
+directory and Oracle instance into a file, you can easily adopt an 
+environment that makes using sqlplus and issuing SQL commands easy. 
+Just knowing a small number of SQL commands allows you to troubleshoot 
+a database connection and determine whether a database server is 
+running and managing data correctly.
+
+An important file that you might also want to get to know is the 
+tnsnames.ora file. On a client, this file describes the various 
+databases with which the client may interact; on a database server, it 
+describes 
+the databases or "instances" that the server supports.
+
+The tnsnames.ora file, which you should find in the directory defined 
+by $ORACLE_HOME/network/admin, will have look something like this:
+
+    DB01=
+      (DESCRIPTION=
+        (ADDRESS_LIST=
+          (ADDRESS=
+            (PROTOCOL = TCP)
+            (Host = 123.45.67.89)
+            (Port = 1521)
+          )
+        )
+        (CONNECT_DATA = (SID = DB01)
+        )
+      )
+
+The parentheses should balance (i.e., an equal number of open and close 
+parentheses) but the way the parameters are broken across lines is a 
+matter of style. The parameters that you will be most interested in are:
+
+    * Host ? The IP address or fully qualified domain name of the 
+      Database server;
+    * Port ? The port where the Oracle server should be listening for 
+      database requests;
+    * SID ? The name of the Oracle instance.
+
+The tnsping command can then be used to indicate whether a listener is 
+active on behalf of a database. Once you've set up your Oracle 
+environment (as described in the earlier column), you can issue a "ping 
+<instance>" command. If there are no problems, then you should receive 
+a response that says "OK" followed by the time required for the 
+response.
+
+    % ping DB01 
+    Attempting to contact(ADDRESS=(COMMUNITY=DB01) (PROTOCOL=TCP) 
+     (Host=123.45.67.89) (Port=1521)) 
+    OK (30 msec) 
+
+tnsping is especially helpful when you are unsure whether you are 
+connecting properly to a database. The netstat command may only show 
+you an ESTABLISHED connection:
+
+    boson% netstat -anP tcp | grep 1521
+    10.4.3.111:35793   10.4.3.5:1521   8760  0  8760  0  ESTABLISHED
+
+The tnsping command, however, might indicate that the database is not 
+listening or that it cannot resolve the tns service, indicating that 
+it's time to check your tnsnames.ora file to ensure you are specifying 
+the correct information or talk to your Oracle database administrator 
+(DBA) to determine if there are any problems on the server.
+
+To learn more about Oracle administration, you might want to check out 
+the slideshow available at: 
+	http://dclug.tux.org/bytes_1998_10_oracle/sld001.htm
+
+Though this slideshow addresses Oracle Database administration on Linux, it 
+applies, more or less, to Oracle on any Unix system.
+
+If you work with systems that support or make use of Oracle, then 
+you'll likely benefit from knowing enough about database administration 
+to determine whether your databases are functioning properly.

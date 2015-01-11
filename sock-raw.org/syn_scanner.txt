@@ -1,0 +1,1349 @@
+*****************************************
+*       Coding a Syn Scanner            *
+*            by ithilgore               *
+*       ithilgore.ryu.L@gmail.com       *
+*       version 1.2 - March 2007        *
+*****************************************
+
+
+0x0. Index
+0x1. Prologue
+0x2. Syn Scanning
+0x3. Tcp/ip header analysis
+0x4. Raw Sockets
+0x5. Libpcap/Sniffing Session
+0x6. The SYN port scanner(source)
+0x7. Epilogue
+0x8. References
+
+
+--------------
+0x1. Prologue
+--------------
+
+In the current article we are going to analyse the process of programming a Port Scanner which uses stealthier methods to 
+scan its victim. In fact we shall see how a SYN scanner is made. It is not the result that counts so much, since there are 
+already some high-quality tools in the open source community that support such a function ( see Nmap ). However, we are more
+interested in the process of making such a tool, a process which includes many different interesting matters of the security
+sector. What are these things in a few words?
+
+--Raw Sockets
+--Libpcap/Sniffing
+--Tcp/ip header analysis
+--The Syn Scanning itself
+
+This guide's purpose, as you will realize, is not to just plainly give the source code of the SYN Scanner ( this in fact by
+itself doesn't have any actual meaning since, as we have already mentioned there are such tools with an open source in public )
+but to give some guidelines for someone who wants to go deeper into the Network Programming (in Unix) through the programming
+and analysis of the creation of this particular tool.This means that with this guide, you will constantly have to refer to 
+man pages,RFCs etc as well as to execute other tools such as tcpdump.
+
+For someone to be able to understand the flow of this guide he will have to:
+a) have a good understanding of the C language
+b) have already delved into the basics of network programming ( see http://beej.us/guide/bgnet/ )
+c) know some basic things about networks
+d) have a box installed with a unix-flavored OS ( root priviledges required ) so as to be able to experiment with the 
+code.
+e) have a second box ( either as a virtual machine or real ) available (this is not required though)
+f) have enough free time as some concepts are quite difficult to understand in the first place
+
+Note down that the code has been successfully tested on a Slackware 11 box with kernel 2.4.33.3
+
+
+------------------
+0x2. SYN Scanning
+------------------
+
+
+The SYN scanning is based on a simple method called half-open connection. As we already know, when two computers communicate
+with each other through the TCP, the below procedure is followed:
+
+a) client ----------SYN J-------------->  server
+b) client <--------SYN K / ACK J+1------  server
+c) client --------ACK K+1 ------------->  server
+
+The above is called 3-way handshake as it goes through 3 stages of handshake:
+a) In the beginning, the client sends a TCP packet to the servers's port with an initial sequence (usually random).
+b) During the second stage, if the server accepts connections on this particular port, he will send as an answer a TCP 
+packet with a sequence ACK equal to SYN+1 (we suppose the client's sequence is SYN) as well as a new SYN sequence of his own.
+c) In the end, the client will answer with an ACK incremented by 1 in relation to the SYN the server sent during the b 
+part.
+
+-->In case the server's port is closed, the server sends a RST packet in the b stage and terminates the handshake.
+
+The above way is the classical way of a common port scanner, that scans through the ports that interest the attacker trying to 
+open to each of them a full connection through the simple 3-way handshake. What a nice way for the victim's firewall or IDS to log 
+the attack...
+
+A better solution is given by the half-open connection:
+
+a) client ----------SYN J-------------->  server
+b) client <--------SYN K / ACK J+1------  server
+c) client ----------RST --------------->  server
+
+
+Which is the only difference? As you have already observed the last step during which the client who already knows that the
+server has sent a positive answer, instead of opening the connection fully ( the usual state: Connection Established ), sends
+a RST packet terminating the connection prematurely.
+
+What is the benefit? A smaller chance to alarm any security mechanism of the victim as the connection is never opened fully.
+This is in fact the stealth capability that the SYN scanner comes to use.
+Details for how it is done, below.
+
+
+----------------------------
+0x3. TCP/IP header analysis
+----------------------------
+
+It is time to see more closely what exactly takes place behind the curtains. At this stage it would be a good chance to scan 
+through the RFCs 791 ( Internet Protocol ) and 793 ( Transmission Protocol ) as their knowledge will come in handy later.
+
+The TCP header's format is shown below. In fact, the important information that every TCP packet must have is untill the 
+Urgent Pointer, which means 20 bytes in size.
+
+
+    0                   1                   2                   3   
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          Source Port          |       Destination Port        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                        Sequence Number                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Acknowledgment Number                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Data |           |U|A|P|R|S|F|                               |
+   | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
+   |       |           |G|K|H|T|N|N|                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |           Checksum            |         Urgent Pointer        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Options                    |    Padding    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                             data                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Let's see more analytically each field of the header:
+
+------                  -----           ------------
+FIELD                   SIZE            DESCRIPTION
+------                  -----           ------------
+
+Source Port:            (16bits)        The client's Port number
+Destination Port:       (16bits)        The server's (destination) Port number
+Sequence Number:        (32bits)        The sequence number that is used for enumerating TCP packets
+                                        (see 3-way handshake)
+Acknowledgment Number:  (32bits)        The answer number to the previous SYN. It stands that ACK = previous_SYN + 1 
+Data Offset:            (4 bits)        The number that defines the header's size.WARNING!-> it is counted by multiples of
+                                        32bits/4bytes. This means that when the TCP packet has nï options data_offset = 5
+                                        
+Reserved:               (6 bits)        Just reserved, these bits are all 0
+
+Flags:                  (6 bits)        Each flag defines a special state.(1 bit each -on/off)
+        URG:                            Urgent: for fast routing	   			    	
+        ACK:                            Ácknowledgment: for the 2nd and 3rd stage of the 3way TCP handshake 
+        PSH:                            Push: the system doesn't buffer the segment into the ÉP stack
+        RST:                            Reset: for immediate termination of a connection
+        SYN:                            Synchronization: for a new connection and TCP handshake
+        FIN:                            Final: for the normal termination of a connection ( see TCP termination)
+
+Window:                 (16bits)        The maximum quantity of data that the client will receive
+Checksum:               (16bits)        The packet's checksum, which we shall analyze later
+Urgent Pointer:         (16bits)        It is used in combination with the urgent flag
+
+These are in a few words the TCP header's fields with which we shall be occupied below when we create our own datagram.
+We do not analyse each of them in depth since this is not our purpose.Instead of that we shall point out some of them
+later as they will be of vital importance to our SYN scanner.For more information you are encouraged to see the corresponding
+RFCs.
+
+But now let's see in a code level how such a TCP header would be like.
+
+/* TCP header */
+typedef u_int tcp_seq;
+
+struct sniff_tcp {
+        u_short th_sport;               /* source port */
+        u_short th_dport;               /* destination port */
+        tcp_seq th_seq;                 /* sequence number */
+        tcp_seq th_ack;                 /* acknowledgement number */
+        u_char  th_offx2;               /* data offset, rsvd */
+#define TH_OFF(th)      (((th)->th_offx2 &amp; 0xf0) >> 4)
+        u_char  th_flags;
+        #define TH_FIN  0x01
+        #define TH_SYN  0x02
+        #define TH_RST  0x04
+        #define TH_PUSH 0x08
+        #define TH_ACK  0x10
+        #define TH_URG  0x20
+        #define TH_ECE  0x40
+        #define TH_CWR  0x80
+        #define TH_FLAGS        (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
+        u_short th_win;                 /* window */
+        u_short th_sum;                 /* checksum */
+        u_short th_urp;                 /* urgent pointer */
+};
+
+
+As we see there is a 1 to 1 correlation between the struct's fields and the TCP header's fields.
+We should point out that the above struct is not the classic BSD-flavored but a style proposed by Tim Carstens 
+-> http://www.tcpdump.org/pcap.htm ( we shall refer to pcap later if this link moved your curiosity )
+
+A little more patience to see the IP header and then we shall look into a live example with tcpdump!
+
+The IP header then:
+
+    0                   1                   2                   3   
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |Version|  IHL  |Type of Service|          Total Length         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         Identification        |Flags|      Fragment Offset    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Time to Live |    Protocol   |         Header Checksum       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Source Address                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Destination Address                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Options                    |    Padding    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+------                  -----           ------------
+FIELD                   SIZE            DESCRIPTION
+------                  -----           ------------
+
+Version:                (4 bits)        The header's version.We are discussing IPv4 so it is 4.		
+IHL:                    (4 bits)        Header length: in 32bit words!! Thus the min_value = 5 (just before Options)
+Type of Service:        (8 bits)        It is used for priorities in certain services of some networks
+Total Length:           (8 bits)        Total datagram length (in bytes), that includes the ÔCP header. 
+                                        It shows us where the payload begins.
+Identification:         (8 bits)        A unique value of the sender in case there is need to reassembly a fragmented packet.
+Flags:                  (3 bits)        bit 0: reserved 0  , bit 1:DF (don't fragment) , bit 2:MF(more fragments) sequence: 
+                                        b0,b1,b2 
+Fragment Offset:        (13bits)        It is used to reassembly fragmented packets.
+Time to Live:           (8 bits)        How many hops(routers) the packet can pass before it is discarded. max_value = 255
+Protocol:               (8 bits)        /etc/protocols for info , tcp = 6 , udp = 17, icmp = 1
+Header Checksum:        (16bits)        The checksum of the whole datagram. Later about that
+Source Address:         (32bits)        The sender's IP
+Destination Address:    (32bits)        The receiver's IP
+
+
+Using the same logic as in the tpc header, we write the struct of the ip header:
+
+/* IP header */
+struct sniff_ip {
+        u_char  ip_vhl;                 /* version << 4 | header length >> 2 */
+        u_char  ip_tos;                 /* type of service */
+        u_short ip_len;                 /* total length */
+        u_short ip_id;                  /* identification */
+        u_short ip_off;                 /* fragment offset field */
+        #define IP_RF 0x8000            /* reserved fragment flag */
+        #define IP_DF 0x4000            /* dont fragment flag */
+        #define IP_MF 0x2000            /* more fragments flag */
+        #define IP_OFFMASK 0x1fff       /* mask for fragmenting bits */
+        u_char  ip_ttl;                 /* time to live */
+        u_char  ip_p;                   /* protocol */
+        u_short ip_sum;                 /* checksum */
+        struct  in_addr ip_src,ip_dst;  /* source and dest address */
+};
+#define IP_HL(ip)               (((ip)->ip_vhl) &amp; 0x0f)
+#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
+
+
+The 2 above headers refer to the TCP/IP, however we must not forget that the on the data link layer we've got some NICs that
+are "in the way". NICs huh? But of course we couldn't omit to mention the ethernet and unique MAC addresses that every network
+interface has. For this reason, we are going to examine one more (little) header that will be enscapsulated into the packet 
+afterwards. This specific header will not bother us later, but it is good to know about it. Thus we have:
+
+
+/* ethernet headers are always exactly 14 bytes */
+#define SIZE_ETHERNET 14
+
+/* Ethernet addresses are 6 bytes */
+#define ETHER_ADDR_LEN	6
+
+/* Ethernet header */
+struct sniff_ethernet {
+        u_char  ether_dhost[ETHER_ADDR_LEN];    /* destination host address */
+        u_char  ether_shost[ETHER_ADDR_LEN];    /* source host address */
+        u_short ether_type;                     /* IP? ARP? RARP? etc */
+};
+
+Things here are quite simple: 
+
+------                  -----           ------------
+FIELD                   SIZE            DESCRIPTION
+------                  -----           ------------
+
+ether_dhost             (6bytes)        Destination's MAC address
+ether_shost             (6bytes)        Sender's H ÌÁC address
+ether_type              (2bytes)        The protocol that is directly "above" ethernet (here we've got IP)
+
+The best way for someone to understand the above concepts is a real example.
+
+So we open 2 terminals and in the first we write:
+
+root@hyena:/home/# tcpdump -i eth0 -l -n -x -vv	   ( where eth0 is the name of your own NIC )
+
+while in the other terminal we telnet into a host for which we know their port 80 is open ( or some other port )
+Our router's web interface would be a good example.
+
+ithilgore@hyena:~$ telnet 10.0.0.2 80
+Trying 10.0.0.2...
+Connected to 10.0.0.2.
+
+Tcpdump's output will be something like this:
+
+tcpdump: listening on eth0, link-type EN10MB (Ethernet), capture size 96 bytes
+
+19:46:00.774299 IP (tos 0x10, ttl  64, id 17418, offset 0, flags [DF], proto: TCP (6), length: 60) 
+10.0.0.4.39507 > 10.0.0.2.80: S, cksum 0x8691 (correct), 1121958480:1121958480(0) win 5840 <mss 1460,
+sackOK,timestamp 7536218 0,nop,wscale 0>
+        0x0000:  4510 003c 440a 4000 4006 e29c 0a00 0004
+        0x0010:  0a00 0002 9a53 0050 42df ba50 0000 0000
+        0x0020:  a002 16d0 8691 0000 0204 05b4 0402 080a
+        0x0030:  0072 fe5a 0000 0000 0103 0300
+
+19:46:00.775223 IP (tos 0x0, ttl  64, id 14712, offset 0, flags [none], proto: TCP (6), length: 60) 
+10.0.0.2.80 > 10.0.0.4.39507: S, cksum 0xb576 (correct), 448057277:448057277(0) ack 1121958481 win 8192 
+<mss 1460,nop,wscale 0,nop,nop,timestamp 188518 7536218>
+        0x0000:  4500 003c 3978 0000 4006 2d3f 0a00 0002
+        0x0010:  0a00 0004 0050 9a53 1ab4 cfbd 42df ba51
+        0x0020:  a012 2000 b576 0000 0204 05b4 0103 0300
+        0x0030:  0101 080a 0002 e066 0072 fe5a
+
+19:46:00.775264 IP (tos 0x10, ttl  64, id 17419, offset 0, flags [DF], proto: TCP (6), length: 52) 
+10.0.0.4.39507 > 10.0.0.2.80: ., cksum 0xea69 (correct), 1:1(0) ack 1 win 5840 <nop,nop,timestamp 7536219 188518>
+        0x0000:  4510 0034 440b 4000 4006 e2a3 0a00 0004
+        0x0010:  0a00 0002 9a53 0050 42df ba51 1ab4 cfbe
+        0x0020:  8010 16d0 ea69 0000 0101 080a 0072 fe5b
+        0x0030:  0002 e066
+
+
+3 packets ... rings a bell? As you will have already guessed this is the 3way TCP handshake.
+Let's take one to one the values of the packets to find a correspondence with the headers that we saw above.
+
+1st packet: ( it begins with the IP header )
+
+0x0000:  4510 003c 440a 4000 4006 e29c 0a00 0004
+
+4510:           4 = version ,  5 = header length  , 10 = type of service ,
+003c:           003c = total length ( 0x3c = 60d ) thus we know where the payload begins
+440a:           440a = identification  
+4000:           4006 = 010 | 0  0000 0000 0110 where the 3 MSB is the flag field ( so we have DF flag which we see in
+                tcpdump ) - the rest 13 bit are the fragment offset field 
+4006:           40 = time to live ( 64d ) , 06 = protocol number ( we said that TCP is 6d )
+e29c:           the header checksum
+0a00:           The first part of the Source IP address ( 10.0 )
+0004:           The second and last part of the Source IP address ( 0.4 ) so 10.0.0.4 
+
+
+0x0010:  0a00 0002 9a53 0050 42df ba50 0000 0000
+
+0a00:           First part of the Destination IP address ( 10.0 )
+0002:           Second part Destination IP address ( 0.2 ) so 10.0.0.2
+-----------------end of IP header/ beginning TCP header--------------------------
+9a53:           Source Port ( 0x9a53 = 39507d )	
+0050:           Destination Port ( 0x0050 = 80d )  
+42df:           First part of sequence number ( we send SYN )
+ba50:           Second part of seq number , so: seq = 0x42df ba50 = 1121958480d 
+0000:           First part of ACK
+0000:           Second part of ACK: we don't have an ACK as in the first packet we just initiate ôï connection 
+
+
+0x0020:  a002 16d0 8691 0000 0204 05b4 0402 080a
+
+a002:           a = data offset (here because of telnet we've got some options so 0xa = 10d != 5d = min_value(no options/data)),
+                002 = 0000 00 | 00 0010  the 6 MSB are the reserved 0, the rest are flags where we have the 2nd LSB ON 
+                (SYN flag)
+16d0:           window size 
+8691:           datagram checksum ( keep that in mind ) 
+0000:           urgent pointer , ( it doesn't exist in our case ) 
+---------------from here on follow options and data that we do not interest us---
+0204:           <>
+05b4:           <>
+0402:           <>
+080a:           <>
+
+Analysing the above we see an analogy with the headers that we studied before.
+
+Let's see some more things about the 2 next packets to verify the 3way handshake:
+
+2nd packet:
+
+        0x0000:  4500 003c 3978 0000 4006 2d3f 0a00 0002
+        0x0010:  0a00 0004 0050 9a53 1ab4 cfbd 42df ba51
+        0x0020:  a012 2000 b576 0000 0204 05b4 0103 0300
+        0x0030:  0101 080a 0002 e066 0072 fe5a
+
+
+Here the values are nearly the same. Where one should focus is on the 42df ba51
+Maybe it looks like something we saw before? It is the previous Syn Sequence + 1 and resides in the field
+of the Acknowledgment Number of the TCP header. So we verified that ACK = previousSYN + 1.
+Before that let's keep in our memory ( or on the clipboard for those who can't :P ) the number 1ab4 cfbd
+which corresponds to the Sequence Number of the current packet.
+
+Now let's go and see the 3rd packet and specifically the seq and ack values
+
+
+3rd packet:
+
+        0x0000:  4510 0034 440b 4000 4006 e2a3 0a00 0004
+        0x0010:  0a00 0002 9a53 0050 42df ba51 1ab4 cfbe
+        0x0020:  8010 16d0 ea69 0000 0101 080a 0072 fe5b
+        0x0030:  0002 e066
+
+Here we have Sequence Number = 42df ba51 = previous_ACK (not the essence) and also ACK = 1ab4 cfbe = previoysSYN + 1 
+Maybe we should remind the graph? 
+
+a) client ----------SYN J-------------->  server
+b) client <--------SYN K / ACK J+1------  server
+c) client --------ACK K+1 ------------->  server
+	
+
+This about the TCP/IP packet analysis. Don't hesitate to re-read the points that you didn't understand and experiment
+with other examples on tcpdump. ( reading in parallel it's man pages )
+
+
+-----------------
+0x4. Raw Sockets
+-----------------
+
+To be able to construct a SYN scanner we will need to explicitly send our own packet with a SYN flag ON and then see if 
+the answer we get is ACK or RST.
+How do we construct our own datagram? Enter Raw Sockets.
+
+Raw Sockets are nothing more than the capability of constructing our own Network Datagram ( ICMP ,TCP,IP,IGMP )
+We know that TCP corresponds to the Transport Layer of the OSI model while IP belongs to the Network Layer both of which
+are normally managed by the kernel of the operating system.
+When an application needs to open a new connection with a server, then the usual way to do this is the sockets interface 
+which allows us in a limited extent to set the conditions and parameters under which this connection will take place.
+
+In a figure:
+
+		OSI			TCP
+
+Layer 7: Application layer      -application-                           | 	
+Layer 6: Presentation layer     -application-                         <-|  user process
+Layer 5: Session layer          -application-                   __________________________ sockets interface / raw sockets--|
+Layer 4: Transport layer        <--------->  TCP/UDP                    |                                           <-------|
+Layer 3: Network layer          <--------->  IPv4/IPv6                <-| kernel			
+Layer 2: Data Link layer        <--------->  BPF/DLPI/drivers           |  
+Layer 1: Physical layer         hardware
+
+Raw sockets in contrast to the plain interface give us the potential to define ourselves exactly what the datagram we shall
+send will be like.
+
+We define a raw socket as:
+
+int     sockfd;
+sockfd = socket(AF_INET, SOCK_RAW, protocol);
+
+where protocol is one of the constants from the <netinet/in.h> header
+
+It is also important to set the socket option of IP_HDRINCL which allows us to define the IP header however we like.
+
+const int on;
+if ( setsockopt ( sockfd , IPPROTO_IP , IP_HDRINCL , &amp;on , sizeof(on)) < 0 ) 
+	error
+
+It should be noted down that for the creation of a raw socket we need root priviledges.
+
+From the moment we know the headers' formats that we saw in section 0x3, it is relevantly easy to create the datagram
+we want:
+
+	int sockfd,i;
+	struct sockaddr_in sin;
+	char datagram[4096];  // buffer for datagrams
+	struct sniff_ip *iph = (struct sniff_ip *) datagram;
+	struct sniff_tcp *tcph = (struct sniff_tcp *) (datagram + sizeof (struct sniff_ip));
+
+	sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_TCP) ; 
+		
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons (i);
+		
+	memset (datagram, 0, 4096);                             /* zero out the buffer */
+	iph->ip_vhl = 0x45;                                     /* version=4,header_length=5 (no data) */
+	iph->ip_tos = 0;                                        /* type of service not needed */
+	iph->ip_len = sizeof (struct sniff_ip) + sizeof (struct tcphdr);       /* no payload */
+	iph->ip_id = htonl (54321);                             /*simple id*/
+	iph->ip_off = 0;                                        /*no fragmentation*/
+	iph->ip_ttl = 255;                                      /*Time to Live -> set maximum value*/
+	iph->ip_p = IPPROTO_TCP;                                /* 6 as a value - see "/etc/protocols" */
+	iph->ip_src.s_addr = ipP->sin_addr.s_addr;              /*local device IP */
+	iph->ip_dst.s_addr = sin.sin_addr.s_addr;               /*destination address*/
+	iph->ip_sum = 0;                                        /*no need to fill ip checksum- kernel does that*/
+	tcph->th_sport = htons (1234);                          /* arbitrary port */
+	tcph->th_dport = htons (i);                             /* scanned destination port */
+	tcph->th_seq = random ();                               /* the random SYN sequence */
+	tcph->th_ack = 0;                                       /* No ACK needed */
+	tcph->th_offx2 = 0x50;                                  /* 50h (5 offset) ( 8 0s reserverd )*/
+	tcph->th_flags = TH_SYN;                                /* initial connection request FLAG*/
+	tcph->th_win =  (65535);                                /* maximum allowed window size*/
+	tcph->th_sum = 0;                                       /* will compute later */
+	tcph->th_urp = 0;                                       /* no urgent pointer */
+
+
+	{		
+		int one = 1;
+		const int *val = &amp;one;
+		if (setsockopt (sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
+			printf ("Warning: Cannot set HDRINCL for port %d\n",i);
+	}
+		
+Now that our datagram is ready, the only thing that is left is to send it:
+
+	if (sendto (sockfd ,datagram, iph->ip_len , 0, (struct sockaddr *) &amp;sin, sizeof (sin)) < 0) {	
+		printf ("Error sending datagram for port %d\n",i);
+	}
+
+We used here a simple i variable for the victim's port. Putting all the above inside a loop we can send SYN packets
+to any port we are interested in.
+
+There is still something missing though... because we left one important value undefined and without it our packet will
+be DROPed by an receiver!! For those who haven't understood yet, we are talking about the TCP checksum field.
+
+The algorithm is described in analysis in RFC 1071 but in a few words it goes as follows:
+
+We make 16bit words from the bytes that will be checksumed and we calculate their sum in a 1's complement form.
+That is what the function below implements:
+
+
+uint16_t checksum_comp ( uint16_t *addr , int len ) {   /*      compute TCP header checksum               */ 
+                                                        /*      with the usual algorithm a bit changed    */
+                                                        /*      for byte ordering problem resolving       */
+                                                        /*      RFC 1071 for more info                    */
+      /* Compute Internet Checksum for "count" bytes
+       *         beginning at location "addr".
+       */
+	register long sum = 0;
+	int count = len;
+	uint16_t temp;
+
+	while( count > 1 )  {
+ 
+		temp = htons(*addr++);	// in this line:added -> htons
+		sum += temp;
+		count -= 2;
+	}
+
+           /*  Add left-over byte, if any */
+	if( count > 0 )
+		sum += * (unsigned char *) addr;
+
+           /*  Fold 32-bit sum to 16 bits */
+	while (sum>>16)
+		sum = (sum &amp; 0xffff) + (sum >> 16);
+	
+       uint16_t checksum = ~sum;
+       return checksum;
+}
+
+
+What is not so clearly documented is that the TCP checksum mustn't be calculated only on the tcp header but it MUST be 
+calculated along with a pseudo-header that contains the following info:
+
+struct pseudo_hdr {
+	u_int32_t src;          /* 32bit source ip address*/
+	u_int32_t dst;          /* 32bit destination ip address */	
+	u_char mbz;             /* 8 reserved bits (all 0) 	*/
+	u_char proto;           /* protocol field of ip header */
+	u_int16_t len;          /* tcp length (both header and data */
+};
+
+Thus we will have to write: 
+
+	struct pseudo_hdr *phdr = (struct pseudo_hdr *) ( datagram +
+		       	sizeof(struct sniff_ip) + sizeof(struct sniff_tcp) ) ;
+
+	phdr->src = iph->ip_src.s_addr;
+	phdr->dst = iph->ip_dst.s_addr;
+	phdr->mbz = 0;
+	phdr->proto = IPPROTO_TCP;
+	phdr->len = ntohs (0x14);							
+
+	tcph->th_sum = htons ( checksum_comp ( (unsigned short *) tcph , 
+					sizeof(struct pseudo_hdr)+sizeof(struct sniff_tcp)));
+
+
+Attention is needed in fields that will need to be converted to network byte order (big endian) from host byte order
+(little endian or big endian depending on the box) calling the respective functions htonl or htons as well as their opposites
+ntohs or ntohl. Sometimes it may be necessary to experiment, like the writer when he calculated the checksum manually.
+
+Here is a good point to use the values that tcpdump had given us in the previous section for the tcp checksum field and to
+verify it manually by calculating the 1's sums of the bytes of the tcp + pseudo headers.
+
+
+---------------------------------
+0x5. libpcap /sniffing session
+---------------------------------
+
+
+Given that we have sent the SYN packets, we will need to examine the victim's reply to record which ports it has open.
+The question is if we can use an equal logic like the one we use in plain sockets. The answer is no.
+
+The kernel does never pass TCP ( and UDP ) packets to a raw socket. This is not entirely true for every kernel
+since Linux implements raw sockets in another way and we could sniff a TCP reply without having to use something
+else. However a call for portability denotes that we are not going to use this unportable way.
+This means that we are not going to read the victim's answer with such a traditional way like the sockets API.
+We will need access to the datalink layer itself!
+
+The 3 most common methods to do something like this in a Unix environment are:
+a) BPF (berkley packet filter)
+b) DLPI (SVR4 Datalink Provider Interface)
+c) SOCK_PACKET interface óôï Linux
+
+The bad thing about these methods is that they are platform-dependent and thus reduce portability.
+Here libpcap gives the solution - the packet capture library.
+Now is the right time to visit the link that we have mentioned before as a credit to Tim Carstens:
+http://www.tcpdump.org/pcap.htm
+Tcpdump itself has been written with this library, proof of the possibilities that it provides us.
+
+For someone to be able to continue smoothly here on, he will need to take a good look at the man pages of the library
+(online version here -> www.tcpdump.org/pcap3_man.html) and especially at the functions:
+
+int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
+char *pcap_lookupdev(char *errbuf)
+int pcap_lookupnet(const char *device, bpf_u_int32 *netp, bpf_u_int32 *maskp, char *errbuf)
+int pcap_compile(pcap_t *p, struct bpf_program *fp, char *str, int optimize, bpf_u_int32 netmask)
+int pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_t *pcap_open_live(const char *device, int snaplen, int promisc, int to_ms, char *errbuf)
+int pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+int pcap_loop(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+void pcap_breakloop(pcap_t *)
+
+The first thing we need to do is find which devices are available in our own box and use one of them for sniffing in the 
+datalink layer. Maybe you have already realized which function is appropriate for this job:
+
+	pcap_if_t *alldev;
+
+	if ((pcap_findalldevs (&amp;alldev, errbuf)) == -1) {
+		printf ( "%s\n" , errbuf );
+		exit(-1);
+	}
+	
+After we find one device and an available IP that represents it ( the default case is usually one IP per device ), we can
+begin the sniffing session calling
+
+        pcap_t *pcap_open_live(const char *device, int snaplen, int promisc, int to_ms, char *errbuf)
+
+which returns a pointer to a pcap session id that is defined as pcap_t.
+The function's parameters can even be guessed from their names:
+
+char *device: the device we found with pcap_findalldevs() and we are going to use in the session
+int snaplen: the maximum size of bytes for every packet that we will sniff - 65535 is more than enough
+int promisc: 1 or 0 , promiscuous or not , hate mail from net admin or not etc
+int to_ms: read timeout in ms for the platforms that support it - it doesn't interest us
+char *errbuf: the buffer that holds all libpcap errors
+
+After we open the session, we are going to apply filtering.
+The biggest convenience that the library provides us with are the filters, that are described analytically by the tcpdump manpages
+(online version here-> http://www.tcpdump.org/tcpdump_man.html ). We filter the network traffic to the specific information that
+we are interested in and analyse each packet for the fields that interest us. In our case we need to see only the victim's reply.
+Consequently our filter will be of the form:
+
+  src host ip
+
+where ip is the address of the victim. We go on with the filter's compilation:
+
+        int pcap_compile(pcap_t *p, struct bpf_program *fp, char *str, int optimize, bpf_u_int32 netmask)
+
+pcap_t *p: our session
+struct bpf_program *fp: the struct into which the compiled filter will be saved
+char *str: the filter expression , thus src host ip
+The rest 2 options, we shall not need ( int optimize , bpf_u_int32 netmask ) - 0 both
+
+The last step for our sniff engine is the application of the filter:
+
+        int pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+
+as for the 2 options, you can understand yourselves what they are, if you have read the above well enough.
+
+Now that our engine is ready the only thing that needs to be done is to power it on.
+Essentially this is done with one of these:
+
+	int pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)   Þ 
+	int pcap_loop(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
+
+You can refer to the man pages to see the subtle difference between the two but this is not so important for the scanner.
+The pcap_handler is the function that we have defined to process each packet that is captured by the engine. Maybe we forgot
+our purpose? What we need to examine is if the victim has sent a reply with the SYN and ACK flags ON:
+
+	if ( ( (tcp->th_flags &amp; 0x02) == TH_SYN) &amp;&amp; ( tcp->th_flags &amp; 0x10 ) == TH_ACK )) {
+		//PORT OPEN !!!
+	}
+
+In the opposite case the victim replies with a RST, so we can say with nearly absolute certainty that the port is closed.
+There is always the possibility that the packets will be DROPed for 0xE2A reasons (1002d) during the course either from the host
+itself or from a firewall or other gateway, so in that case we define the port's state as unknown/filtered. We have taken
+precautions though, with an internal timeout through a SIGALRM that is triggered by an alarm() and a signal handler to be able
+to escape the immobility that our central pcap_dispatch necessarily has ( it needs to work in blocking mode ) and to go on
+with the scanning of the rest of the ports.
+
+The 3rd step of the SYN scanning is needed though, isn't it? Shouldn't we also send a RST to the receiver if he replies us 
+positively? It seems that the kernel itself (not so oddly) helps us in this situation by automatically sending a RST packet to 
+the victim in that case. Attention though, since this might be different from operating system to operating system and it might be
+needed to send our own explicitly. In that case, what you need only do is to complete with your own code the explicit sending of 
+the TCP datagram with RST on. If you have understood and studied all the above, it may not seem so difficult now.
+
+Another piece of our scanner has just been finished. It is time to put it all together.
+Combining then all the above we make our SYN scanner.
+
+
+----------------------------------
+0x6. The SYN port scanner (source)
+----------------------------------
+
+/****************************************************************************/
+/*   Creeper - a simple Syn Scanner					    */
+/*   minimalistic port scanner for educational purposes 		    */ 	
+/*   Copyright (C) 2007 ithilgore - ithilgore.ryu.L@gmail.com               */
+/*                                                                          */
+/*   This program is free software: you can redistribute it and/or modify   */
+/*   it under the terms of the GNU General Public License as published by   */
+/*   the Free Software Foundation, either version 3 of the License, or      */
+/*   (at your option) any later version.                                    */
+/*                                                                          */
+/*   This program is distributed in the hope that it will be useful,        */
+/*   but WITHOUT ANY WARRANTY; without even the implied warranty of         */
+/*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          */
+/*   GNU General Public License for more details.                           */
+/*                                                                          */
+/*   You should have received a copy of the GNU General Public License      */
+/*   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/*									    */
+/****************************************************************************/
+
+/****************************************************************************/
+/*            Creeper                                                       */
+/*           version 1.2                                                    */
+/*          by ithilgore                                                    */
+/*       ithilgore.ryu.L@gmail.com                                          */
+/*                                                                          */
+/* compile with: gcc creeper.c -lpcap -o creeper                            */
+/* some compilers may also need -fpack-struct                               */
+/*                                                                          */
+/* Use of this code is for educational purposes only. I am not responsible  */
+/* for any illegal or criminal activities performed with this tool or       */
+/* any modifications of it.                                                 */
+/* This tool is free and open software. This means you can do anything you  */
+/* like with it with your own responsibility and with no warranty from me.  */
+/* to the source.							    */
+/* 									    */			
+/* This tool has been tested so far and works sucessfully in:               */
+/* ----Slackware 11 with kernel 2.2.4.33                                    */
+/* ----Arch Linux (Core Dump) kernel 2.6.23                                 */
+/****************************************************************************/
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <pcap.h>
+#include <signal.h>
+
+#define BUFSIZE 65535 //maximum size of any datagram(16 bits the size of identifier)
+#define TRUE 1
+#define FALSE 0
+#define default_low  1
+#define default_high 1024
+
+
+/* change the timeout at will
+ * it defines how long the scanner will wait for
+ * an answer from the scanned host
+ * careful though - testing shows < 4 is bad
+ * it is just another factor between speed and accuracy
+ */
+#define DEFAULT_S_TIMEOUT 5
+
+
+/* default snap length (maximum bytes per packet to capture) */
+#define SNAP_LEN 1518
+
+/* ethernet headers are always exactly 14 bytes */
+#define SIZE_ETHERNET 14
+
+/* Ethernet addresses are 6 bytes */
+#define ETHER_ADDR_LEN 6
+
+/* USING TCPDUMP-like header structs */
+
+/* Ethernet header */
+struct sniff_ethernet {
+        u_char  ether_dhost[ETHER_ADDR_LEN];    /* destination host address */
+        u_char  ether_shost[ETHER_ADDR_LEN];    /* source host address */
+        u_short ether_type;                     /* IP? ARP? RARP? etc */
+};
+
+/* IP header */
+struct sniff_ip {
+        u_char  ip_vhl;                 /* version << 4 | header length >> 2 */
+        u_char  ip_tos;                 /* type of service */
+        u_short ip_len;                 /* total length */
+        u_short ip_id;                  /* identification */
+        u_short ip_off;                 /* fragment offset field */
+        #define IP_RF 0x8000            /* reserved fragment flag */
+        #define IP_DF 0x4000            /* dont fragment flag */
+        #define IP_MF 0x2000            /* more fragments flag */
+        #define IP_OFFMASK 0x1fff       /* mask for fragmenting bits */
+        u_char  ip_ttl;                 /* time to live */
+        u_char  ip_p;                   /* protocol */
+        u_short ip_sum;                 /* checksum */
+        struct  in_addr ip_src,ip_dst;  /* source and dest address */
+};
+#define IP_HL(ip)               (((ip)->ip_vhl) &amp; 0x0f)
+#define IP_V(ip)                (((ip)->ip_vhl) >> 4)
+
+/* TCP header */
+typedef u_int tcp_seq;
+
+struct sniff_tcp {
+        u_short th_sport;               /* source port */
+        u_short th_dport;               /* destination port */
+        tcp_seq th_seq;                 /* sequence number */
+        tcp_seq th_ack;                 /* acknowledgement number */
+        u_char  th_offx2;               /* data offset, rsvd */
+#define TH_OFF(th)      (((th)->th_offx2 &amp; 0xf0) >> 4)
+        u_char  th_flags;
+        #define TH_FIN  0x01
+        #define TH_SYN  0x02
+        #define TH_RST  0x04
+        #define TH_PUSH 0x08
+        #define TH_ACK  0x10
+        #define TH_URG  0x20
+        #define TH_ECE  0x40
+        #define TH_CWR  0x80
+        #define TH_FLAGS        (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
+        u_short th_win;                 /* window */
+        u_short th_sum;                 /* checksum */
+        u_short th_urp;                 /* urgent pointer */
+};
+
+/* pseudo header used for tcp checksuming
+ * a not so well documented fact ... in public
+*/
+
+struct pseudo_hdr {
+	u_int32_t src;
+	u_int32_t dst;
+	u_char mbz;
+	u_char proto;
+	u_int16_t len;
+};
+
+/* Global Variables */
+int verbose_mode;
+int stealth_mode;        /* Syn Scanning */
+int s_timeout;           /* timeout seconds for Syn Scanning */
+long int low_port = default_low;
+long int high_port = default_high;
+char *ipArg = NULL;
+pcap_t *session;
+
+
+/* Function Prototypes */
+
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+void print_usage(const char *argv);
+int check_Port(long *lport, long *hport, char *optar);
+uint16_t checksum_comp(uint16_t *addr, int len);
+pcap_t* EnginePreparing(char *vicIP, struct sockaddr_in **ipP, pcap_t *session);
+struct hostent* host_resolve(void);
+void Syn_Scanning(void);
+void Connect_Scanning(void);
+void sigfunc(int);
+
+/* Function Prototypes end*/
+
+/********************************MAIN PROGRAM********************************/
+
+
+
+int main(int argc, char *argv[]) {
+
+	if ( argc == 1 ) {
+		print_usage( argv[0] );
+		exit(0);
+	}
+
+	int opt;
+	while ( (opt = getopt(argc , argv , "h:vp:S") ) != -1 ) {
+		switch (opt)
+		{
+			case 'h':
+				ipArg = optarg;
+				break;
+			case 'v':
+				verbose_mode = TRUE;
+				break;
+			case 'p':
+				check_Port (&amp;low_port, &amp;high_port, optarg);
+				break;
+			case 'S':
+				stealth_mode = TRUE;
+				break;
+			case '?':
+				fprintf (stderr, "option inconsistency : -%c \n"
+					"see usage(no arguments)\n", optopt);
+				exit(EXIT_FAILURE);
+		}
+	}
+
+	if (ipArg == NULL){
+		fprintf(stderr, "No host given-see usage(no arguments)\n" );
+		exit(EXIT_FAILURE);
+	}
+
+	if (!stealth_mode) {
+		Connect_Scanning();
+	}
+	else {
+		if (getuid() &amp;&amp; geteuid()) {
+			fprintf(stderr, "Need to be root to initiate Syn Scanning\n");
+			exit(EXIT_FAILURE);
+		}
+		Syn_Scanning();
+	}
+	exit(EXIT_SUCCESS);
+	
+}
+
+
+void print_usage(const char *argv) {
+	fprintf(stdout,
+	"Port Scanner by ithilgore\n"
+	"usage: %s -h Host [OPTIONS]\n"
+	"Host -> IP or Name\n"
+	"OPTIONS include:\n"
+	"-v : verbose mode\n"
+	"-p : port range (eg. -p23 , -p0-1024)\n"
+	"-S : stealth mode on ( syn scanning )\n"
+	"more options to be included\n\n"
+	, argv);
+}
+
+
+
+
+int check_Port (long *lport, long *hport, char *optar) { 
+
+	char *s1 = optar ;       //point to the char after 'p'
+	errno = 0;
+	*lport = strtol(s1, (char **)NULL, 10);
+ 
+	if (errno != 0) {
+		perror ("Port number problem \n");
+		exit(0);
+	}
+
+	if (!(s1 = index(s1, '-'))) { //if no port range specified (no other '-' found)
+		*hport = *lport;
+		return 0;
+	} else {
+		*hport = strtol(++s1, NULL, 10) ;
+		if (errno != 0) {
+			perror("Port number problem \n");
+			exit(0);
+		}
+		if (low_port > high_port) {
+			fprintf(stdout, "low_port is higher than high_port: swapping...\n");
+			*lport ^= *hport;
+			*hport ^= *lport;
+			*lport ^= *hport;
+		}
+	}
+
+}
+
+
+struct hostent* host_resolve(void) {
+	struct hostent *hostname;
+	extern char * ipArg;
+
+	if (!(hostname = gethostbyname(ipArg))) {
+		fprintf (stderr, "Host name resolution failed for %s \n"
+			"Try using the nslookup prog to find the IP address\n", ipArg);
+		exit(EXIT_FAILURE);
+	}
+
+	if (verbose_mode) {
+		fprintf(stdout, "Host Resolution results:\n"
+				"Name: %s\n"
+				"Aliases:", hostname->h_name);
+		char **alias = hostname->h_aliases;
+		while(*alias) {
+			fprintf(stdout, "%s ", *alias);
+			alias++;
+		}	
+		char **addrs = hostname->h_addr_list;
+		fprintf(stdout, "\nIP address/es:\n");
+		while(*addrs) {
+			fprintf(stdout, " %s ", inet_ntoa(*(struct in_addr *)*addrs));
+			addrs++;
+		}
+		printf("\n");
+	}
+	return hostname;
+
+}
+
+
+void Connect_Scanning(void) {
+
+	int sockfd;
+	char temp_addr[7];
+
+	struct sockaddr_in sockaddr;
+	struct servent *serv;
+	struct hostent * hostname;
+	hostname = (struct hostent *)host_resolve();
+
+	char **addr = hostname->h_addr_list;
+
+	/* transfer of dotted-decimal IP of first IP from resolving */
+
+	strcpy (temp_addr, inet_ntoa(*(struct in_addr *)*addr));
+
+	fprintf(stdout, "Initiating Connect() Scan against %s [%ld ports] \n",
+			temp_addr,
+			(high_port-low_port+1));
+
+	int i = 0;
+	for (i = low_port; i <= high_port; i++) {
+
+		if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+			perror("Socket error");
+			exit(EXIT_FAILURE);
+		}
+		sockaddr.sin_family = AF_INET;
+		sockaddr.sin_port = htons(i);
+		inet_pton(AF_INET, temp_addr, &amp;sockaddr.sin_addr);
+
+		if (!connect(sockfd, (struct sockaddr*)&amp; sockaddr, sizeof(sockaddr))) {
+			serv = getservbyport(htons(i), "tcp");
+			fprintf(stdout, "TCP port %d open , possible service: %s\n", i, serv->s_name);
+		}
+
+		close(sockfd);
+	}
+	fprintf(stdout, "Connect Scanning completed\n");
+}
+
+
+void sigfunc(int signum) {       /* signal handler */
+
+	pcap_breakloop(session);
+
+}
+
+
+void Syn_Scanning(void) {
+
+	s_timeout = DEFAULT_S_TIMEOUT;   /* global var for timeout */
+	int sockfd;
+	int timeout = 0;                 /* check if timeout with return from dispatch */
+	char temp_addr[16];
+
+	struct sockaddr_in sin;
+	struct servent *serv;
+	struct hostent *hostname;
+	struct sockaddr_in *ipP;        /* local ip storage */
+
+	hostname = (struct hostent *)host_resolve();
+
+	char **addr = hostname->h_addr_list;
+	strncpy(temp_addr, inet_ntoa(*(struct in_addr *)*addr), 16);
+
+	char datagram[4096];  // buffer for datagrams
+	struct sniff_ip *iph = (struct sniff_ip *)datagram;
+	/* tcp header begins right after the end of the ip header */ 
+	/* can it work in reverse ? Of course not */
+	struct sniff_tcp *tcph = (struct sniff_tcp *)(datagram + sizeof(struct sniff_ip));
+
+	struct sigaction act;
+	act.sa_handler = sigfunc;
+	sigemptyset(&amp;act.sa_mask);
+	act.sa_flags = 0;               /* read man of libpcap -> SA_RESTART MUST BE OFF */
+
+	/* Prepare the Sniffing Engine */
+	session = (pcap_t *)EnginePreparing(temp_addr, &amp;ipP, session);
+
+
+	fprintf(stdout, "Initiating Syn Scanning against %s [%ld ports] \n", temp_addr, (high_port-low_port+1));
+	int i = 0;
+	for (i = low_port; i <= high_port; i++) {
+
+		if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP)) < 0) {
+			perror("sock:");
+			exit(EXIT_FAILURE);
+		}
+		
+		sin.sin_family = AF_INET;
+
+		inet_pton(AF_INET, temp_addr, &amp;sin.sin_addr);
+
+		memset(datagram, 0, 4096);                  /* zero out the buffer */
+		iph->ip_vhl = 0x45;                          /* version=4,header_length=5 (no data) */
+		iph->ip_tos = 0;                             /* type of service -not needed */
+		iph->ip_len = sizeof (struct sniff_ip) + sizeof (struct sniff_tcp);    /* no payload */
+		iph->ip_id = htonl(54321);                   /* simple id */
+		iph->ip_off = 0;                             /* no fragmentation */
+		iph->ip_ttl = 255;                           /* time to live - set max value */
+		iph->ip_p = IPPROTO_TCP;                     /* 6 as a value - see /etc/protocols/ */
+		iph->ip_src.s_addr = ipP->sin_addr.s_addr;   /*local device IP */
+		iph->ip_dst.s_addr = sin.sin_addr.s_addr;    /* dest addr */
+		iph->ip_sum = 				     /* no need for ip sum actually */
+		checksum_comp( (unsigned short *)iph,
+				sizeof(struct sniff_ip));
+
+		tcph->th_sport = htons(1234);                /* arbitrary port */
+		tcph->th_dport = htons(i);                   /* scanned dest port */
+		tcph->th_seq = random();                     /* the random SYN sequence */
+		tcph->th_ack = 0;                            /* no ACK needed */
+		tcph->th_offx2 = 0x50;                       /* 50h (5 offset) ( 8 0s reserverd )*/
+		tcph->th_flags = TH_SYN;                     /* initial connection request */
+		tcph->th_win = (65535);                      /* maximum allowed window size */
+		tcph->th_sum = 0;                            /* will compute later */
+		tcph->th_urp = 0;                            /* no urgent pointer */
+
+		/* pseudo header for tcp checksum */
+		struct pseudo_hdr *phdr = (struct pseudo_hdr *) (datagram +
+				sizeof(struct sniff_ip) + sizeof(struct sniff_tcp));
+		phdr->src = iph->ip_src.s_addr;
+		phdr->dst = iph->ip_dst.s_addr;
+		phdr->mbz = 0;
+		phdr->proto = IPPROTO_TCP;
+		phdr->len = ntohs(0x14);       /* in bytes the tcp segment length */
+		/*- WhyTF is it network byte saved by default ????*/
+
+
+		tcph->th_sum = htons(checksum_comp((unsigned short *)tcph,
+					sizeof(struct pseudo_hdr)+
+					sizeof(struct sniff_tcp)));
+
+		int one = 1;
+		const int *val = &amp;one;
+		if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
+			fprintf(stderr, "Warning: Cannot set HDRINCL for port %d\n",i);
+		
+
+		if (sendto(sockfd, datagram, iph->ip_len, 0, (struct sockaddr *)&amp;sin, sizeof(sin)) < 0) {
+			fprintf(stderr, "Error sending datagram for port %d\n", i);
+			break;
+		}
+
+		sigaction (SIGALRM, &amp;act, 0);
+		alarm(s_timeout);
+
+		// give port as argument to callback function
+		timeout = pcap_dispatch(session, -1, got_packet, (u_char *)i);
+		alarm(0);             /* trigger off alarm for this loop */
+
+		if (verbose_mode &amp;&amp; timeout == -2) {
+			fprintf(stdout, "timeout for port %d\n", i);
+		}
+
+	}
+
+	fprintf(stdout, "SYN Scanning completed\n");
+}
+
+
+uint16_t checksum_comp (uint16_t *addr, int len) {   /*  compute TCP header checksum */
+	/*  with the usual algorithm a bit changed */
+	/*  for byte ordering problem resolving */
+	/*  see RFC 1071 for more info */
+	/* Compute Internet Checksum for "count" bytes
+	 *         beginning at location "addr".
+	 */
+	register long sum = 0;
+	int count = len;
+	uint16_t temp;
+
+	while (count > 1)  {
+		temp = htons(*addr++);   // in this line:added -> htons
+		sum += temp;
+		count -= 2;
+	}
+
+	/*  Add left-over byte, if any */
+	if(count > 0)
+		sum += *(unsigned char *)addr;
+
+	/*  Fold 32-bit sum to 16 bits */
+	while (sum >> 16)
+		sum = (sum &amp; 0xffff) + (sum >> 16);
+
+	uint16_t checksum = ~sum;
+	return checksum;
+}
+
+
+
+pcap_t* EnginePreparing (char * vicIP, struct sockaddr_in **ipP, pcap_t *session) {
+
+	char *dev;
+	char errbuf[PCAP_ERRBUF_SIZE];
+	bpf_u_int32 devip, netmask;
+	struct pcap_pkthdr header;
+	struct bpf_program filter;		/* compiled filter */
+	char filter_exp[30] = "src host ";      /* we filter the traffic to the victim */
+	pcap_if_t *alldev;
+
+	/* yes some numbers are HARDCODED as they should be */
+	/* guess why and then try exploiting it */
+
+	strncpy((char *)filter_exp+9, vicIP, 16);
+	fprintf(stdout, "filter exp: %s \n ", filter_exp);
+
+	if ((pcap_findalldevs(&amp;alldev, errbuf)) == -1) {
+		fprintf (stderr, "%s\n", errbuf);
+		exit(EXIT_FAILURE);
+	}
+
+	struct pcap_addr *address = alldev->addresses;
+	address = address->next;                /*first address is U(F)O*/
+	struct sockaddr_in * ip;
+
+	while (address) {
+		if (address->addr) {
+			ip = (struct sockaddr_in *) address->addr;
+			fprintf (stdout, "Local IP: %s \n", inet_ntoa(ip->sin_addr));
+		}
+		address = address->next;
+	}
+
+	*ipP = (struct sockaddr_in *)alldev->addresses->next->addr;  /* local ip to be used in the raw datagram */
+	/* choose the first you find -there was some problem when choosing the last
+	 * ip since the last found might be 0.0.0.0 and thus chaos would occur */
+	dev = alldev->name;
+
+	/*if ( (dev = pcap_lookupdev(errbuf)) == NULL) {
+	  printf ( "%s\n" , errbuf ) ;
+	  printf ( "Using default eth0 \n");
+	  dev = "eth0" ;
+	  }*/
+
+	if (verbose_mode) {
+		fprintf (stdout, "Using local IP: %s \n", inet_ntoa((*ipP)->sin_addr));
+		fprintf(stdout, "Using local Device: %s\n", dev);
+	}
+
+	if ((session = pcap_open_live (dev, BUFSIZE, 0, 0, errbuf)) == NULL) {
+		fprintf (stderr, "Could not open device %s: error: %s \n ", dev, errbuf);
+		exit (EXIT_FAILURE);
+	}
+
+
+	if (pcap_compile(session, &amp;filter, filter_exp, 0, 0) == -1) {
+		fprintf (stderr, "Couldn't parse filter %s: %s \n ", filter_exp, pcap_geterr(session));
+		exit (EXIT_FAILURE);
+	}
+
+	if (pcap_setfilter(session, &amp;filter) == -1) {
+		fprintf (stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(session));
+		exit (EXIT_FAILURE);
+	}
+
+	return session;
+}
+
+
+
+
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+
+	const struct sniff_tcp *tcp;
+	const struct sniff_ip *ip;
+	const struct sniff_ethernet *ether;
+	struct servent *serv;
+
+	int size_ip;
+	int size_tcp;
+
+	ether = (struct sniff_ethernet*) (packet);
+	ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
+
+	size_ip = IP_HL(ip)*4;
+	if (size_ip < 20) {
+		fprintf (stderr, "Invalid IP header length: %u bytes \n", size_ip);
+		return;
+	}
+
+	if (ip->ip_p != IPPROTO_TCP) {
+		fprintf (stderr, "Returned Packet is not TCP protocol \n");
+		return;
+	}
+
+	tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
+	size_tcp = TH_OFF(tcp)*4;
+	if (size_tcp < 20) {
+		fprintf (stderr, " * Invalid TCP header length: %u bytes\n", size_tcp);
+		return;
+	}
+
+
+	/* the actual SYN scanning (heh) : we examine if the SYN flag is on at the receiving packet(port open) */
+
+	if (((tcp->th_flags &amp; 0x02) == TH_SYN) &amp;&amp; (tcp->th_flags &amp; 0x10) == TH_ACK) {
+		serv = getservbyport ( htons((int)args), "tcp" );
+		fprintf (stdout, "TCP port %d open , possible service: %s\n", args, serv->s_name);
+		// RST is sent by kernel automatically
+	}
+	else if ((tcp->th_flags &amp; 0x04 ) == TH_RST &amp;&amp; verbose_mode) {
+		//fprintf (stdout, "TCP port %d closed\n", args ); too much info on screen
+
+	}
+	else if (verbose_mode) {
+		//fprintf (stdout, "Port %d state unknown/filtered \n", args);
+	}
+}
+
+
+
+
+--------------
+0x7. Epilogue
+--------------
+
+If you have managed so far and studied the source coude, then well done. I hope that you have learned something through all
+this guide and that it aroused your interest for the sector of network programming and security applications/tools on which
+is based. Like I mention in the source 's introduction I will value any feedback and I encourage you to make your own changes
+and improvements on the code, as I believe that as a whole it just sets the base for a custom security scanner.
+Possible expansions for the tool:
+1) IP spoofing capabilities
+2) Real time port randomization 
+3) Alternate probing and IP expiry tactics
+
+For any ( serious ) contact about the project mail me here ->  ithilgore.ryu.L@gmail.com
+
+
+----------------
+0x8. References
+----------------
+
+
+-UNIX Network Programming Volume 1, Third Edition: The Sockets Networking API
+
+-http://mixter.void.ru/rawip.html   (raw sockets tutorial)
+
+-http://www.netfor2.com/checksum.html  (IP checksum introduction)
+
+-http://www.tcpipguide.com/free/t_TCPChecksumCalculationandtheTCPPseudoHeader.htm  (TCP checksum and pseudo header)
+
+RFCs
+  -http://www.ietf.org/rfc/rfc0791.txt  (IP)
+  -http://www.ietf.org/rfc/rfc0793.txt  (TCP)
+  -http://www.ietf.org/rfc/rfc1071.txt  (Checksum)
+
+-http://www.tcpdump.org (libpcap + tcpdump)
+
+
+--EOF--

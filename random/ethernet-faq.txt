@@ -1,0 +1,803 @@
+Path: senator-bedfellow.mit.edu!dreaderd!not-for-mail
+Message-ID: <LANs/ethernet-faq_1082200966@rtfm.mit.edu>
+Supersedes: <LANs/ethernet-faq_1079601013@rtfm.mit.edu>
+Expires: 31 May 2004 11:22:46 GMT
+X-Last-Updated: 1999/07/09
+Organization: none
+From: James@NetworkUptime.com (James Messer)
+Newsgroups: comp.dcom.lans.ethernet,comp.answers,news.answers
+Subject: comp.dcom.lans.ethernet FAQ
+Approved: news-answers-request@MIT.EDU
+Followup-To: comp.dcom.lans.ethernet
+Originator: faqserv@penguin-lust.MIT.EDU
+Date: 17 Apr 2004 11:28:18 GMT
+Lines: 786
+NNTP-Posting-Host: penguin-lust.mit.edu
+X-Trace: 1082201298 senator-bedfellow.mit.edu 569 18.181.0.29
+Xref: senator-bedfellow.mit.edu comp.dcom.lans.ethernet:78390 comp.answers:56879 news.answers:269971
+
+Archive-name: LANs/ethernet-faq
+Posting-Frequency: monthly
+Last-modified: 1999/07/09
+Version: 990709
+URL: http://www.NetworkUptime.com/faqs/ethernet
+Copyright: (c) 1999 James Messer
+Maintainer: James Messer <James@NetworkUptime.com>
+
+             comp.dcom.lans.ethernet Frequently Asked Questions
+             --------------------------------------------------
+
+       This document is provided as is without any express or implied
+  warranties. While every effort has been taken to ensure the accuracy of
+      the information contained in this article, the authors assume no
+ responsibility for errors or omissions, or for damages resulting from the
+   use of the information contained herein. The contents of this article
+     reflect my opinions only and not necessarily those of my employer.
+
+FAQ Table of Contents
+---------------------
+
+1.0 FAQ Administration
+
+ [1.1] What is this FAQ?
+ [1.2] Who maintains this FAQ?
+ [1.3] Where can this FAQ be found?
+ [1.4] Who provides information to the FAQ?
+ [1.5] Can I use this FAQ on my web page?
+ [1.6] Copyright Information
+
+2.0 Introduction to Ethernet
+
+ [2.1] What is Ethernet?
+ [2.2] What is the history of Ethernet?
+ [2.3] What is CSMA/CD?
+ [2.4] What is the Open Systems Interconnect (OSI) model?
+ [2.5] Where are the IEEE specifications?
+
+3.0 Ethernet Physical Layer
+
+ [3.1] What are the different physical Ethernet network types?
+ [3.2] What does baseband and broadband mean?
+ [3.3] What is the difference between a bus topology and a star topology?
+ [3.4] What physical Ethernet topologies are no longer popular?
+ [3.5] What are the most common physical Ethernet networks used today?
+ [3.6] What digital signal encoding is used in an Ethernet network?
+ [3.7] What types of cabling are used for Ethernet?
+ [3.8] What pin assignments are used in twisted-pair Ethernet cabling?
+ [3.9] Can two Ethernet stations be directly attached with 10BASE-T?
+[3.10] How many stations are supported by a single Ethernet network?
+[3.11] What is propagation delay?
+[3.12] What is an interframe gap?
+
+4.0 Ethernet Data Link Layer
+
+ [4.1] What are the different Ethernet frame formats?
+ [4.2] What is transparent bridging?
+ [4.3] What is the spanning tree protocol?
+ [4.4] What is Ethernet switching?
+
+5.0 Ethernet Errors and Troubleshooting
+
+ [5.1] What is a collision, and how many collisions are bad?
+ [5.2] What is Signal Quality Error (SQE)?
+ [5.3] What is jam?
+ [5.4] What is a late collision, and why is it bad?
+ [5.5] What is a runt?
+ [5.6] What is jabber?
+ [5.7] What is a CRC/Alignment error?
+ [5.8] What non-commercial software is available to monitor an Ethernet
+       network?
+
+6.0 Other Information
+
+ [6.1] What Ethernet-related books are available?
+ [6.2] What certifications are available regarding Ethernet networks?
+
+
+1.0 FAQ Administration
+
+ [1.1] What is this FAQ?
+
+       This FAQ will attempt to explain and decipher the intricacies of
+       Ethernet networking and answer some of the most common questions
+       relating to Ethernet networks. Although it contains technical
+       information, this FAQ is best used as an introduction to Ethernet
+       networking. See section [6.1] for Ethernet book and publication
+       information.
+
+ [1.2] Who maintains this FAQ?
+
+       This FAQ is maintained by James Messer <James@NetworkUptime.com>.
+       Questions, comments, corrections, and contributions are encouraged!
+
+ [1.3] Where can this FAQ be found?
+
+       This FAQ will be posted to the comp.dcom.lans.ethernet newsgroup
+       on the first of each month. An official archive of the FAQ can be
+       found at:
+
+       ftp://rtfm.mit.edu/pub/faqs/LANs/ethernet-faq
+
+       The HTTP version of this FAQ can be found at:
+
+       http://www.NetworkUptime.com/faqs/ethernet
+
+ [1.4] Who provides information to the FAQ?
+
+       In many cases, the FAQ questions and answers are summarized from the
+       comp.dcom.lans.ethernet newsgroup. Much of this information is also
+       obtained from the IEEE standards (http://www.ieee.com) and related
+       technical documents.
+
+       Send any corrections or FAQ additions to James@NetworkUptime.com.
+       Our thanks to all who have provided information to this FAQ! Your
+       contributions are crucial for keeping this FAQ updated and
+       technically correct.
+
+       Since the comp.dcom.lans.ethernet newsgroup has not had an
+       'official' FAQ for a few years, this FAQ is in the early stages of
+       being rebuilt. There are certainly other questions that need to be
+       added to the FAQ, questions that need to be answered, and there are
+       probably inaccuracies with the answers that already exist in the
+       FAQ. If you have any suggestions or corrections for the FAQ, please
+       do not hesitate to e-mail James@NetworkUptime.com with additions or
+       corrections.
+
+ [1.5] Can I use this FAQ on my web page?
+
+       Since this FAQ changes constantly, a copy of the FAQ on your web
+       page would be out of date in a very short time. Please don't do
+       this! A more appropriate method would be to set a hyperlink to the
+       URL found in the secondary header of this FAQ. Please send an e-mail
+       to James@NetworkUptime.com if you plan on adding a link to this FAQ
+       to your web page. I reserve the right to restrict the use of this
+       FAQ.
+
+ [1.6] Copyright Information
+
+       Copyright (c) 1999 by James Messer, all rights reserved.
+
+       This FAQ may be posted to any USENET newsgroup, on-line service, or
+       BBS as long as it is posted in its entirety, includes this copyright
+       statement, and includes written permission from
+       James@NetworkUptime.com.
+
+
+2.0 Introduction to Ethernet
+
+ [2.1] What is Ethernet?
+
+       Ethernet is the IEEE 802.3 series standard, based on the
+       CSMA/CD access method that provides two or more stations to share a
+       common cabling system. This access method, Carrier Sense Multiple
+       Access with Collision Detection, is the basis for Ethernet systems
+       which range from speeds of 1 Mb/s through 1000 Mb/s.
+
+       The design goals for Ethernet were to create a simply defined
+       topology that made efficient use of shared resources, was easy to
+       reconfigure and maintain, provided compatibility across many
+       manufacturers and systems, while keeping the cost low.
+
+ [2.2] What is the history of Ethernet?
+
+       The original Ethernet specification began in the early 1970's by
+       Xerox PARC, and was eventually improved upon by Digital Equipment
+       Corporation, Intel, and Xerox (DIX) in 1980 with the release of
+       Ethernet Version 1. By 1982, the specification was updated and
+       Ethernet Version 2 was released.
+
+       In 1983, Novell created their own proprietary Ethernet frame type
+       prior to the release of the IEEE 802.3 specification (See Section
+       [4.1]). By 1985, the IEEE 802.3 specification was completed and
+       provided a specification for Ethernet connectivity over thick coax
+       and thin coax. In 1990, the specification was updated to include
+       Ethernet over twisted pair copper wiring with 10Base-T. The current
+       IEEE 802.3 specification includes thick coax, thin coax, twisted
+       pair cabling and fiber, with speeds of 10 Mb/s, 100 Mb/s, and 1000
+       Mb/s.
+
+ [2.3] What is CSMA/CD?
+
+       Carrier Sense Multiple Access with Collision Detection is the basis
+       for the Ethernet standard, and this provides specific rules for
+       allowing stations to communicate over the same transmission medium.
+       There are a number of steps involved in communicating with CSMA/CD.
+
+       Stations must listen for a carrier on the wire. If no carrier is
+       detected, stations can begin transmitting. While transmitting, the
+       station continues to listen on the wire to ensure successful
+       communications. If two stations attempt to transmit information at
+       the same time, the transmissions overlap and cause a collision.
+
+       If a collision occurs, the transmitting station recognizes the
+       interference on the network and transmits a bit sequence called
+       jam. The jam helps to ensure that the other transmitting station
+       recognizes that a collision has occurred. After a random delay, the
+       stations attempt to retransmit the information and the process
+       begins again.
+
+ [2.4] What is the Open Systems Interconnect (OSI) Model?
+
+       ** Please contribute! See Section [1.4] **
+      
+ [2.5] Where are the IEEE specifications?
+     
+       The IEEE specifications can be purchased from the IEEE at:
+
+       http://standards.ieee.org/catalog/IEEE802.3.html
+
+       Information on all IEEE standards can be found at:
+
+       http://www.ieee.com
+
+
+3.0 Ethernet Physical Layer
+
+ [3.1] What are the different physical Ethernet network types?
+
+       Some of the physical Ethernet types as defined in the 802.3
+       specification are:
+
+       10BASE5 - 10BASE5 is the original design of the traditional
+                 Ethernet backbone, designed to be left in place
+                 permanently or for extended periods.
+
+       10BASE2 - 10BASE2 is the original design for a departmental or
+                 workgroup sized Ethernet environment. It is designed to be
+                 simple, inexpensive, and flexible as people and stations
+                 move.
+
+       10BROAD36 - 10BROAD36 is a seldom used Ethernet specification which
+                   uses a physical medium similar to cable television, with
+                   CATV-type cables, taps, connectors, and amplifiers.
+
+       1BASE5 - 1BASE5 is a specification of Ethernet that runs at 1 Mb/s
+                over twisted pair wiring. This physical topology uses
+                centralized hubs to connect the network devices.
+
+       10BASE-T - 10BASET provides Ethernet services over twisted pair
+                  copper wire.
+
+       FOIRL - Fiber Optic Inter-Repeater Link - This specification of the
+               802.3 standard defines a standard means of connecting
+               Ethernet repeaters via optical fiber.
+
+       10BASE-F - 10BASE-F is a set of optical fiber medium specifications
+                  which define connectivity between devices.
+
+       100BASE-T - 100BASE-T is a series of specifications that provides
+                   100 megabit speeds over copper or fiber. These
+                   topologies are often referred to as Fast Ethernet.
+
+       Gigabit Ethernet - Gigabit Ethernet provides speeds of 1000 Mb/s
+                          over copper and fiber.
+
+ [3.2] What does baseband and broadband mean?
+
+       A baseband network has a single channel that is used for
+       communication between stations. Ethernet specifications which use
+       BASE in the name refer to baseband networks.
+
+       A broadband network is much like cable television, where different
+       services communicate across different frequencies on the same cable.
+       Broadband communications would allow a Ethernet network to share the
+       same physical cable as voice or video services. 10BROAD36 is an
+       example of broadband networking.
+
+ [3.3] What is the difference between a bus topology and a star topology?
+
+       A bus topology is a networking architecture that is linear, usually
+       by using one or more pieces of cable to form a single line, or bus.
+       The signals sent by one station extend the length of this cable to
+       be heard by other stations.
+
+       A star topology is an architecture that includes a central device or
+       hub to connect all stations together. Signals sent by a station must
+       pass through (and are usually regenerated) by these central hubs.
+       Since the hub sits in the center and all other stations are linked
+       through the hub, the architecture resembles a star.
+
+ [3.4] What physical Ethernet topologies are no longer popular?
+
+       There are a number of physical networking components specified in
+       the IEEE 802.3 specification, but many of those early physical
+       networking components are not used in most modern Ethernet networks.
+       However, there may be instances where an existing legacy network
+       still exists which uses these older components. Since these older
+       pieces of equipment are still part of the 802.3 specification, there
+       are no technical reasons why an Ethernet network would not operate
+       properly with these components. The two most popular older Ethernet
+       technologies are 10BASE5 and 10BASE2.
+
+
+       10BASE5
+       -------
+
+       10BASE5 is the original Ethernet backbone, and is occasionally
+       referred to as thicknet or thick Ethernet because of the thick 50
+       ohm coax that was used as the physical medium. 10BASE5 is a bus
+       topology that uses transceiver cables to attach stations to the
+       central 10BASE5 cable.
+
+       Maximum segment length: 500 meters
+       Maximum number of segments connected with repeaters: 5 (2500 meters)
+       Maximum attachments per segment: 100
+       Minimum separation between attachments: 2.5 meters
+
+
+       10BASE2
+       -------
+       10BASE2 is designed as a smaller and less expensive alternative to
+       10BASE5, and is sometimes referred to as Thinnet or Thin Ethernet
+       because of the much smaller cables. 10BASE2 is also a bus topology,
+       but each of the workstations use a 'T' BNC connector to connect
+       workstations to the central bus.
+
+       Maximum segment length: 200 meters
+       Maximum number of segments connected with repeaters: 5 (1000 meters)
+       Maximum attachments per segment: 30
+       Minimum separation between attachments: .5 meters
+       
+ [3.5] What are the most common physical Ethernet networks used today?
+
+       Most modern Ethernet networks use twisted pair copper cabling or
+       fiber to attach devices to the network. The 10BASE-T, 100BASE-T, and
+       Gigabit Ethernet topologies are well suited for the modern cabling
+       and fiber infrastructures.
+       
+ [3.6] What digital signal encoding is used in an Ethernet network?
+
+       ** Please contribute! See Section [1.4] **
+
+ [3.7] What types of cabling are used for Ethernet?
+
+       ** Please contribute! See Section [1.4] **
+
+ [3.8] What pin assignments are used in twisted-pair Ethernet cabling?
+
+       Twisted-pair Ethernet (10BASE-T, 100BASE-T, or 1000BASE-T) uses an
+       RJ-45 connector, which is an eight-pin modular connector.
+
+       Contact 1   Transmit +
+       Contact 2   Transmit -
+       Contact 3   Receive +
+       Contact 4   Not Used
+       Contact 5   Not Used
+       Contact 6   Receive -
+       Contact 7   Not Used
+       Contact 8   Not Used
+
+       When looking at an RJ-45 wall jack (female), contact 1 is on the
+       left and contact 8 is to the right. When looking at the RJ-45
+       connector on the end of a cable (male) with the tab on the bottom
+       and the contacts on the top, contact 8 is on the left and contact 1
+       is to the right.
+
+ [3.9] Can two Ethernet stations be directly attached with 10BASE-T?
+
+       Two Ethernet stations can be directly attached to each other, but
+       the cabling will be wired differently than a normal 10BASE-T
+       Ethernet network connection. The 802.3 specification refers to this
+       direct connection between two stations as a crossover function.
+
+       The crossover function is accomplished by simply wiring the receive
+       pins to the transmit pins:
+
+       Contact 1 - Contact 3
+       Contact 2 - Contact 6
+       Contact 3 - Contact 1
+       Contact 6 - Contact 2
+
+ [3.10] How many stations are supported by a single Ethernet network?
+
+        ** Please contribute! See Section [1.4] **
+
+ [3.11] What is propagation delay?
+
+        The propagation speed of a medium refers to the speed that the data
+        travels through that medium. Propagation delays differ between
+        mediums, which affect the maximum possible length of the Ethernet
+        topology running on that medium.
+
+        In the following table, c refers to the speed of light in a vacuum,
+        or 300,000 kilometers per second.
+
+        Medium        Propagation Speed
+        ------        -----------------
+        Thick Coax    .77c (231,000 km/sec)
+        Thin Coax     .65c (195,000 km/sec)
+        Twisted Pair  .59c (177,000 km/sec)
+        Fiber         .66c (198,000 km/sec)
+        AUI Cable     .65c (195,000 km/sec)
+
+        From these values, the size of a bit on 10BaseT can be calculated.
+        10BaseT is twisted pair, which has a propagation delay of 177,000
+        km/sec. 177,000 km/sec divided by 10 million bits per second is
+        17.7 meters, or the size of a single bit on a 10BaseT network.
+
+        The maximum propagation delay through the network can be calculated
+        by dividing the maximum length by the speed. For 10Base2 thin coax
+        network, this is 185 meters divided by 195,000 km/sec, or 950
+        nanoseconds. If the actual propagation delay from one end of the
+        network to the other is greater than 950 nanoseconds, late
+        collisions may occur. See section [5.4] for more information on
+        late collisions.
+
+ [3.12] What is an interframe gap?
+
+        The inteframe gap is the amount of time that is specified between
+        frames transmitted from a workstation. The designers of the
+        Ethernet specification arbitrarily chose 96 bit times to occur
+        between frames from a transmitting station.
+
+        This delay is designed to provide the workstations on the Ethernet
+        network with some 'breathing time' between frames to perform normal
+        Ethernet housekeeping functions on the network interface card.
+
+
+4.0 Ethernet Data Link Layer
+
+ [4.1] What are the different Ethernet frame formats?
+
+       Ethernet Version 2 and IEEE 802.3 Frame Formats
+       -----------------------------------------------
+
+       The Ethernet Version 2 frame format was designed before the IEEE
+       specifications, but is almost identical to the 802.3 frame type.
+       With the Ethernet Version 2 frame type, a two-byte Type field
+       follows the source station's six-byte MAC address. In the 802.3
+       frame type, this two-byte field after the source address is a length
+       field specifying the number of bytes in the LLC and data fields. If
+       these two bytes are greater than 05DC hex (1500 decimal), the frame
+       is a Version 2 frame. Since all type fields are greater than 1500
+       decimal (the maximum Ethernet frame size), both frame types can
+       easily coexist on the same network. Some network protocol analyzers
+       call a Version 2 frame an Ethertype frame because of this two-byte
+       Type field.
+
+       This is an Ethernet Version 2 frame:
+
+       +--------------+
+       |              | The preamble consists of 62 bits of alternating
+       |   Preamble   | ones and zeros that allows the Ethernet card to
+       |   7 bytes    | synchronize with the beginning of a frame.
+       |              |
+       +--------------+ The Start Frame Delimiter is the sequence
+       | SFD - 1 byte | 10101011, and indicates the start of a frame.
+       +--------------+
+       |              | The destination address is a six byte Media Access
+       | Destination  | Control (MAC) address, usually burned into the
+       |   6 bytes    | ROM of the Ethernet card.
+       +--------------+
+       |              | The source address is a six byte MAC address, and
+       |   Source     | can signify a physical station or a broadcast.
+       |   6 bytes    |
+       +--------------+
+       |     Type     | The Type field (see explanation above).
+       |    2 bytes   |
+       +--------------+
+       |              |  Any higher layer information is placed in the
+       |    Data      |  data field, which could contain protocol
+       |              |  information or user data.
+       ~              ~
+       ~              ~
+       |  46 to 1500  |
+       |    bytes     |
+       |              |
+       +--------------+
+       |     FCS      |  The Frame Check Sequence is a cyclic redundancy
+       |   4 bytes    |  check used by the sending and receiving stations
+       +--------------+  to verify a successful transmission. The FCS is
+                         based on the contents of the destination address,
+                         source address, type, and data.
+
+       The 802.2 Logical Link Control (LLC) Information
+       ------------------------------------------------
+
+       The IEEE 802.3 Ethernet specification was intended to be used with
+       the 802.2 Logical Link Control (LLC) specification. The LLC
+       information envelops the data of the frame, and the 802.3 headers
+       envelop this 802.2 LLC protocol data unit (PDU).
+
+       This is the frame structure for an 802.3 Ethernet frame that
+       contains the 802.2 LLC information:
+
+       +----------------+
+       |                |
+       |    Preamble    |
+       |    7 bytes     |
+       |                |
+       +----------------+
+       |  SFD - 1 byte  |
+       +----------------+
+       |                |
+       |  Destination   |
+       |    6 bytes     |
+       +----------------+
+       |                |
+       |     Source     |
+       |    6 bytes     |
+       +----------------+
+       |  Frame Length  |
+       |    2 bytes     |
+       +----------------+
+       |  DSAP - 1 byte |  The Destination and Source Service Access Point
+       +----------------+  fields determine the protocol used for the upper
+       |  SSAP - 1 byte |  protocol type of the frame.
+       +----------------+
+       |Control - 1 byte|  The Control field is used for administration by
+       +----------------+  certain protocols.
+       |      Data      |
+       |                |
+       ~                ~
+       ~                ~
+       |   46 to 1500   |
+       |     bytes      |
+       |                |
+       +----------------+
+       |      FCS       |
+       |    4 bytes     |
+       +----------------+
+
+
+       The 802.2 Sub-Network Access Protocol (SNAP)
+       --------------------------------------------
+       After the 802.2 frame type was defined, many people felt that a
+       single byte for DSAP and SSAP would not be sufficient to handle the
+       growth of protocols into the future. A single byte DSAP or SSAP can
+       only specify 256 separate protocols, and many of those were
+       predefined from the beginning of the 802.2 specification.
+
+       To provide future growth, the Sub-Network Access Protocol (SNAP) was
+       created as an extension to the 802.2 specification. To differentiate
+       this protocol from the original 802.2 specification, 802.2 SNAP uses
+       the DSAP and SSAP of 0xAA.
+
+       This is an 802.2 SNAP frame encapsulated in an 802.3 frame:
+
+       +----------------+
+       |                |
+       |    Preamble    |
+       |    7 bytes     |
+       |                |
+       +----------------+
+       |  SFD - 1 byte  |
+       +----------------+
+       |                |
+       |  Destination   |
+       |    6 bytes     |
+       +----------------+
+       |                |
+       |     Source     |
+       |    6 bytes     |
+       +----------------+
+       |  Frame Length  |
+       |    2 bytes     |
+       +----------------+
+       |  DSAP - 1 byte |
+       +----------------+
+       |  SSAP - 1 byte |
+       +----------------+
+       |Control - 1 byte|
+       +----------------+ The Organizationally Unique ID (OUI) is assigned
+       | OUI - 3 bytes  | to unique vendors to help differentiate protocols
+       |                | from different manufacturers.
+       +----------------+
+       | Type - 2 bytes | The two-byte protocol type defines a specific
+       +----------------+ protocol in the SNAP. This also maintains a
+       |                | compatibility with Ethernet v2.
+       |      Data      |
+       |                |
+       ~                ~
+       ~                ~
+       |   46 to 1500   |
+       |     bytes      |
+       |                |
+       +----------------+
+       |      FCS       |
+       |    4 bytes     |
+       +----------------+
+
+
+       Novell 802.3 'Raw' Frame Format
+       -------------------------------
+
+       Before the final 802.2 LLC specifications were finalized, Novell
+       implemented IPX/SPX over Ethernet. For this reason, Novell
+       originally utilized 802.3 Ethernet without using 802.2 LLC. Because
+       of this lack of LLC header, this frame type was nicknamed 802.3
+       'raw'. Since Novell created this proprietary frame type for their
+       own use, no other manufacturer uses this frame type.
+
+       To implement their 'raw' frame type, Novell used the first two bytes
+       of the 802.3 data field as 0xFFFF. Since the DSAP and SSAP values of
+       0xFF do not exist, it becomes easy to differentiate between the
+       802.3 and 802.3 'raw' frame types.
+
+ [4.2] What is transparent bridging?
+
+       Transparent bridging is a method to connect two similar network
+       segments to each other at the datalink layer. It is done in a way
+       that is transparent to end stations, hence end-stations do not
+       participate in the bridging algorithm.
+
+       Transparent bridges are sometimes called learning bridges.
+       When they are turned on and receive data packets from a network
+       segment they:
+
+       1) learn the relation between MAC address and segment/port, and
+       2) forward the packet to all (!) other segments/ports.
+
+       The first step in this process is essential to the "learning" aspect
+       of the bridge. After some time the bridge has learned that a
+       particular MAC address, say MACa, is on a particular segment/port,
+       say PORT1. When it receives a packet destined for the MAC address
+       MACa (from any port not being PORT1) it will no longer forward the
+       packet to all ports (step 2). It knows that MACa is associated with
+       PORT1 and will only forward the packet to PORT1.
+
+ [4.3] What is the spanning tree protocol?
+
+       Spanning tree is a protocol defined in IEEE 802.1q to prevent
+       bridges from creating network loops. Using the spanning tree
+       protocol, bridges communicate to each other and disable certain
+       ports/segments to prevent looping of packets.
+
+       Many implementations of the spanning tree protocol are configured so
+       an alternate path is available to network traffic, should the
+       original path become disabled.
+
+ [4.4] What is Ethernet switching?
+
+       From a functional point of view, switching is exactly the same as
+       bridging. However switches use specially designed hardware called
+       Application Specific Integrated Circuits (ASICs) to perform the
+       bridging and packet-forwarding functionality (as supposed to
+       implementations using a central CPU and special software).
+       Consequently, switches are much faster than bridges.
+
+       Ethernet switches also offer additional capabilities such as virtual
+       LANs (VLANs) and full duplex connectivity.
+
+   
+5.0 Ethernet Errors and Troubleshooting
+
+
+ [5.1] What is a collision, and how many collisions are bad?
+
+       Ethernet networking uses collisions as one of the contention access
+       methods. When the network carrier is not active, any station can
+       send information. If two stations attempt to send information at the
+       same time, the signals overlap with each other, creating a
+       collision.
+
+       Collisions are not errors! Many people misinterpret a flashing
+       collision light or a collision counter as a network problem!
+       Although the term 'collision' may bring to mind a terrible crash, be
+       assured that a collision is a normal part of Ethernet networking.
+
+       The total number of collisions that occur on a network may be
+       related to traffic patterns or utilization. Because of this
+       variability of collisions, it is not applicable to define a 'good'
+       or 'bad' level of collisions. In most cases, detailed analysis of
+       collisions alone yields very little qualitative network health
+       information.
+
+ [5.2] What is the Signal Quality Error (SQE) Test?
+
+       The SQE Test is used to test for the collision present circuit
+       between a transceiver and a network interface card (NIC). After data
+       is successfully transmitted, the Ethernet transceiver asserts the
+       SQE signal on the collision presence circuit of the NIC. The NIC
+       sees this test signal as a verification that the transceiver will
+       inform the NIC when a collision occurs.
+
+       In most modern Ethernet networks, the SQE test is not used or
+       applicable. Most NICs now have an integrated transceiver and
+       therefore have a hard-wired AUI, so a test for the collision
+       presence circuit is unnecessary.
+
+ [5.3] What is jam?
+
+       When a collision is recognized by a transmitting station, a bit
+       sequence called jam is transmitted. This jam is 32 bits long, which
+       is long enough to traverse the entire collision domain so that all
+       transmitting stations can detect the collision.
+
+       Interestingly enough, the actual format of jam is unspecified in
+       the 802.3 specifications. Most manufacturers have used alternating
+       1s and 0s as jam, which is displayed as 0x5 (0101) or 0xA (1010)
+       depending on when the jam is captured in the data stream.
+
+       In many Fast Ethernet implementations, the jam has been seen as
+       other arbitrary values, such as 1101000 (0xD0) or 10000110 (0x43).
+       The reasoning for this particular jam pattern isn't very obvious. If
+       anyone has more information on this jam sequence, please email
+       James@NetworkUptime.com.
+
+ [5.4] What is a late collision, and why is it bad?
+
+       A collision is considered late if the jam occurs after 512
+       bit-times, or 64 bytes. Collisions that occur after the first 64
+       bytes of a frame may be indicative of a network design problem (the
+       network is so large the jam cannot traverse the entire length in 32
+       bit-times), or a hardware or Ethernet firmware issue.
+
+       When collisions do not propagate the network quickly enough, a
+       collision could occur between two stations without the stations
+       aware that the packets collided. In this situation, the frames are
+       simply lost, and the upper-layer protocols must begin a
+       retransmission process to retransmit the information. These
+       retransmissions can cause large delays, especially at the
+       application layer.
+
+ [5.5] What is a runt?
+
+       In Ethernet networks, any frame shorter than the minimum 64 bytes
+       but with a valid CRC is considered a runt. Other frame-length errors
+       in Ethernet are long frames, which are longer than 1518 bytes yet
+       have a valid CRC.
+
+ [5.6] What is jabber?
+
+       Jabber is described most often as a frame greater than the maximum
+       of 1518 bytes with a bad CRC. A jabbering NIC is often indicative of
+       a hardware problem with a NIC or transceiver.
+
+ [5.7] What is a CRC/Alignment error?
+
+       When a station sends a frame, it appends a Cyclical Redundancy
+       Check to the end of the frame. This CRC has been generated from an
+       algorithm and is based on the data in the frame. If the frame is
+       altered between the source and destination, the receiving station
+       will recognize that the CRC does not match the actual contents of
+       the packet.
+
+       All frames should end on an 8-bit boundary, but problems on the
+       network could cause the number of bits to deviate from the multiple
+       of 8.
+
+       Both CRC errors and alignment errors are grouped together as the
+       single CRC/Alignment error counter.
+
+
+ [5.8] What non-commercial software is available to monitor an Ethernet
+       network?
+
+       A list of commercial, shareware, and freeware software is available
+       at:
+
+       http://www.NetworkUptime.com/tools
+
+
+6.0 Other Information
+
+ [6.1] What Ethernet-related books are available?
+
+       The Certified Network Expert (CNX) consortium described in section
+       [7.2] has an excellent list of Ethernet books. This list is
+       designed for the network professional who is studying for the CNX
+       certification, and is a very comprehensive list of technical
+       publications. This CNX reading list can be found at:
+
+       http://www.cnx.org/reading.htm
+
+       An updated CNX study library can also be found on NetworkUptime.com:
+
+       http://www.NetworkUptime.com/cnx/
+
+
+ [6.2] What certifications are available regarding Ethernet networks?
+
+       An Ethernet-specific certification is available through the
+       Certified Network eXpert (CNX) program. This certification is
+       Ethernet topology specific, and does not emphasize any network
+       operating system. Visit http://www.cnx.org for more information on
+       the CNX exam. Sylvan Prometric administers the CNX exam, and their
+       web page is http://www.sylvanprometric.com. NetworkUptime.com also
+       keeps a CNX resources page at http://www.NetworkUptime.com/cnx.
+
+
+                 --- End of comp.dcom.lans.ethernet FAQ ---
+
+

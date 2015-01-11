@@ -1,0 +1,9 @@
+Problem: 
+RAID Manager (v6.22 only) incorrectly calculates the capacity of a RAID 5, 10 disk LUN. 
+The calculated value that it displays is 1 MB greater than the actual maximum capacity, 
+therefore it returns:
+	"Auto configure failed" or "Wrong number of drives entered for the RAID level given"
+
+Workaround: 
+Manually change the capacity under the "options" gui and lower the value by 1 MB, then click the 
+"Create" button. 

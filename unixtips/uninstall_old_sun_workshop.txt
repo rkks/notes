@@ -1,0 +1,1339 @@
+#!/bin/sh 
+# Version 1.3
+# Removes old versions of Sun Workshop Compilers
+
+BASEDIR=/opt
+BASEDIR1=
+
+/bin/echo "mail=\ninstance=unique\npartial=nocheck\nrunlevel=nocheck\
+	\nidepend=nocheck\nrdepend=nocheck\nspace=nocheck\nsetuid=nocheck\
+	\nconflict=nocheck\naction=nocheck\nbasedir=${BASEDIR}\n" > /tmp/AdMiN
+
+new_admin()
+{
+/bin/echo "mail=\ninstance=unique\npartial=nocheck\nrunlevel=nocheck\
+	\nidepend=nocheck\nrdepend=nocheck\nspace=nocheck\nsetuid=nocheck\
+	\nconflict=nocheck\naction=nocheck\nbasedir=${1}\n" > /tmp/AdMiN
+}
+
+patch_rm()
+{
+	/bin/echo "Backing out patch ${1}" >> /tmp/uninstall_workshop.$$
+	./${1}/backoutpatch -f ${1}
+}
+
+product_rm()
+{
+	/bin/echo "\n" `pkginfo -l ${1} | grep NAME` >> /tmp/uninstall_workshop.$$
+	/bin/echo "Removing package ${1} ...\t\c"
+	/bin/echo "Removing package ${1} ...\t\c" >> /tmp/uninstall_workshop.$$
+	BASEDIR1="`pkginfo -l $1 | grep BASEDIR | awk '{print $2}'`"
+        if [ ${BASEDIR} != ${BASEDIR1} ]
+        then
+                new_admin $BASEDIR1
+        fi
+	ret=0
+	pkgrm -n -a /tmp/AdMiN $1 >> /tmp/uninstall_workshop.$$ 2>&1 
+	ret=$?
+	case $ret in
+		0) /bin/echo " Removed." ;;
+		*) /bin/echo " Failed: Check /tmp/uninstall_workshop.$$ for more information." ;;
+	esac
+}
+
+packages_all()
+{
+        product_rm $1
+}
+
+packages_30()
+{
+    case $1 in
+        SPROabada* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+                if [ "${VER}" = "15.3.3" ]
+                then product_rm $1
+                fi
+                if [ "${VER}" = "15.2.6" ]
+                then product_rm $1
+                fi ;;
+	SPROabcc* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "33.2.3" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "33.1.6" ]
+		then product_rm $1 
+		fi ;;
+	SPROabcpl* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "32.2.4" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "32.1.7" ]
+		then product_rm $1 
+		fi ;;
+	SPROabf77* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "34.2.3" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "34.1.6" ]
+		then product_rm $1 
+		fi ;;
+	SPROabf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "37.1.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabins* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "46.4.6" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "46.2.5" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "46.1.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabmp* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "53.1.3" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "53.2.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabpas* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "35.2.3" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "35.1.7" ]
+		then product_rm $1 
+		fi ;;
+	SPROabrm* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "44.2.3" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "44.1.11" ]
+		then product_rm $1 
+		fi ;;
+	SPROabsw* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "36.2.5" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "36.1.5" ]
+		then product_rm $1 
+		fi ;;
+	SPROabtw* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "13.4.4" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "13.2.5" ]
+		then product_rm $1 
+		fi ;;
+	SPROada* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "2.1.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPRObrows* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcc* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROchkpt* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "1.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "1.0.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROcodmg* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "1.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "1.0.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROcpl* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdbgr* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROesh* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf77* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROflmrg* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "2.1.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROftool* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROgada* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "2.1.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROild* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlang | SPROlang.* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlang2* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlib77* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlklnt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROltool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmktl* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpas | SPROpas.* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpasxv* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROperf* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROpmake* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "1.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "1.0.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROpr* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbfsf* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsw | SPROsw.* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROswada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROswmgr* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtha* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtlbin* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtoolh* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROutool* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "3.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvertl* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "1.0.1" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "1.0.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROvisu* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+packages_31()
+{
+    case $1 in
+	SPROabada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "15.4.3" ]
+		then product_rm $1
+		fi ;;
+	SPROabcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "33.3.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "32.3.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "34.3.9" ]
+		then product_rm $1 
+		fi ;;
+	SPROabf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "37.3.5" ]
+		then product_rm $1 
+		fi ;;
+	SPROabins* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "46.5.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabmp* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "53.2.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "35.3.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabrm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "44.3.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabsw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "36.3.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROabtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "13.5.8" ]
+		then product_rm $1 
+		fi ;;
+	SPROabvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "82.1.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPRObrows* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcodmg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdbgr* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROdhel* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROebo* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROflmrg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROfrzpt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROftool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROgada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROild* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROlang* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlib77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlklnt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROltool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmktl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmpada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcom* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrmp* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrsw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrxm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "19.13" ]
+		then product_rm $1 
+		fi ;;
+	SPROpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROperf* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpmake* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROpr* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbfsf* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROsw | SPROsw.* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROswada* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROswmgr* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROtha* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtlbin* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtoolh* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROutool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvertl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROvisu* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "19.13" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+packages_40()
+{
+    case $1 in
+	SPROabcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "33.4.6" ]
+		then product_rm $1
+		fi ;;
+	SPROabcom* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "44.4.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "32.4.7" ]
+		then product_rm $1 
+		fi ;;
+	SPROabftn* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "34.4.18" ]
+		then product_rm $1 
+		fi ;;
+	SPROabins* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "46.8.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "35.4.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "118.1.12" ]
+		then product_rm $1 
+		fi ;;
+	SPROabtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "13.6.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "82.3.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROabws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "36.4.3" ]
+		then product_rm $1 
+		fi ;;
+	SPROcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROcodmg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcontw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROdbx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdemo* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdmake* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROesrt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf77 | SPROf77.* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROf77xv* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROf90 | SPROf90.* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROf90br* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROflmrg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROfrzpt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROftool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROglyph* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhlptw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtbas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtbin* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtcom* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtftn* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtins* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhttw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhtws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROild* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlang* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlib77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlibma* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlibms* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlklnt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROltool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmktl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcom* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrdbx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrmp* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpan* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrsbe* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrxm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "20.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpas* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROpr* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROradsp* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbe* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbfsf* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsunms* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROtha* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROtlbin* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROtlbn7* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROutool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROuws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvertl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvidtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvidws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvisu* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROxm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "20.0" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+packages_50()
+{
+    case $1 in
+	SPROcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcodmg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROcmpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdbx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROdmake* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROesrt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROfl90x* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROflmrg* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROfrzpt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROftool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROglyph* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROhlptw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROhlpws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROgc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROild* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlang* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROl77x* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROl90x* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlib77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlib90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlibma* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlibms* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROlklnt* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROlgc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROltool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROm9x* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmktl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcom* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrcpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrdbx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf77* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrf90* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrgc* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrmp* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.2" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpan* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrsbe* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrstd* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrtw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrvis* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROmrxm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "20.4" ]
+		then product_rm $1 
+		fi ;;
+	SPROpl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpr* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROpws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbfsf* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROscl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsmpx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsmsx* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsbe* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROsunms* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtl7x* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtlbn7* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROtll7* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROutool* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROuws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvertl* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.1" ]
+		then product_rm $1 
+		fi ;;
+	SPROvisu* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROvws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROws* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SPROxm* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "20.4" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+sys_packages_all()
+{
+    case $1 in
+        SUNWdthep* ) product_rm $1 ;;
+        SUNWlicsw* ) product_rm $1 ;;
+        SUNWlit* ) product_rm $1 ;;
+        SUNWOabde* ) product_rm $1 ;;
+        SUNWOcorD* ) product_rm $1 ;;
+        SUNWOcrba* ) product_rm $1 ;;
+        SUNWOdbxd* ) product_rm $1 ;;
+        SUNWOidlD* ) product_rm $1 ;;
+        SUNWOifrD* ) product_rm $1 ;;
+        SUNWOinsD* ) product_rm $1 ;;
+        SUNWOinsD* ) product_rm $1 ;;
+        SUNWOjdev* ) product_rm $1 ;;
+        SUNWOodfD* ) product_rm $1 ;;
+        SUNWOodfM* ) product_rm $1 ;;
+        SUNWOsams* ) product_rm $1 ;;
+    esac
+}
+
+sys_packages_30()
+{
+    case $1 in
+	SUNWlicsw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlit* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+sys_packages_31()
+{
+    case $1 in
+	SUNWlicsw* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "4.1" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlit* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "3.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWmfrun* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2.3,REV=5.3" ]
+		then product_rm $1 
+		fi ;;
+	SUNWmfrun* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.2.3,REV=10.95.06.27" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+sys_packages_40()
+{
+    case $1 in
+	SUNWdthep* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1,REV=10.96.09.26" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlicsw* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "4.2" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "4.3" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlit* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "4.0" ]
+		then product_rm $1 
+		fi
+		if [ "${VER}" = "4.1" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOabde* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "107.1.11" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOcorD* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOcrba* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOdbxd* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOidlD* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOifrD* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOinsD* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOjdev* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOodfD* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOodfM* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWOsams* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "2.0" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+sys_packages_50()
+{
+    case $1 in
+	SUNWdthep* ) if [ "`pkginfo -l $1 | grep VERSION | awk '{print $2}'`" = "1.1,REV=09.05.98" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlicsw* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+	SUNWlit* ) VER="`pkginfo -l $1 | grep VERSION | awk '{print $2}'`"
+		if [ "${VER}" = "5.0" ]
+		then product_rm $1 
+		fi ;;
+    esac
+}
+
+patches_54()
+{
+# Intel - 102778
+    for i in `ls -dt 102049* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+patches_55()
+{
+# Intel - 103243
+    for i in `ls -dt 103242* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+patches_551()
+{
+#Intel - 103628
+    for i in `ls -dt 103606* 103627* 103607* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+patches_56()
+{
+    for i in `ls -dt 105490* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+sw30_patches()
+{
+    for i in `ls -dt 100983* 101246* 101771* 101773* 101774* \
+	101909* 101910* 101911* 101912* 101934* 101961* \
+	102327* 102282* 100964* 102931* 103274* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+}
+
+sw31_patches()
+{
+
+    for i in `ls -dt 103027* 102955* 102934* 102935* 103219* \
+	102937* 103536* 103918* 103240* 103333* \
+	102381* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+ws40_patches()
+{
+    for i in `ls -dt 104174* 104829* 104631* 105073* 104529* \
+	104632* 104668* 105063* 105491* 103628* \
+	105062* 104741* 104366* 104731* 104768* 104844* 105154* 105178* \
+	105355* 105462* 2>/dev/null | sort -r `
+    do
+	patch_rm $i
+    done
+
+}
+
+patches()
+{
+	case $1 in
+		3.0) sw30_patches
+			;;
+		3.1) sw31_patches
+			;;
+		4.0) ws40_patches
+			;;
+		all) ws40_patches
+			patches_54
+			patches_55
+			patches_551
+			patches_56
+			;;
+	esac
+}
+
+pkg()
+{
+    cd /var/sadm/pkg
+    case $1 in
+
+	3.0) /bin/echo "Now uninstalling all Sparcworks 3.0.x packages\n" >> /tmp/uninstall_workshop.$$
+		for i in `pkginfo | grep SPRO | sort -r | awk '{print $2}'`
+		do
+			packages_30 $i
+		done
+
+	     /bin/echo "\nNow removing System Packages associated with Sparcworks 3.0.x" >> /tmp/uninstall_workshop.$$
+	
+		for i in `pkginfo | grep SUNW | sort -r | awk '{print $2}'`
+		do
+			sys_packages_30 $i
+		done
+	
+	     /bin/echo "\nFinished uninstalling Sparcworks 3.0.x\n" >> /tmp/uninstall_workshop.$$
+	     /bin/echo "\nFinished uninstalling Sparcworks 3.0.x"
+		;;
+
+	3.1) /bin/echo "Now uninstalling all Sparcworks 3.1 packages\n" >> /tmp/uninstall_workshop.$$
+		for i in `pkginfo | grep SPRO | sort -r | awk '{print $2}'`
+		do
+			packages_31 $i
+		done
+
+	     /bin/echo "\nNow removing System Packages associated with Sparcworks 3.1" >> /tmp/uninstall_workshop.$$
+	
+		for i in `pkginfo | grep SUNW | sort -r | awk '{print $2}'`
+		do
+			sys_packages_31 $i
+		done
+	
+	     /bin/echo "\nFinished uninstalling Sparcworks 3.1\n" >> /tmp/uninstall_workshop.$$
+	     /bin/echo "\nFinished uninstalling Sparcworks 3.1"
+		;;
+	4.0) /bin/echo "Now uninstalling all Workshop 4.0 packages\n" >> /tmp/uninstall_workshop.$$
+		for i in `pkginfo | grep SPRO | sort -r | awk '{print $2}'`
+		do
+			packages_40 $i
+		done
+
+	     /bin/echo "\nNow removing System Packages associated with Workshop 4.0" >> /tmp/uninstall_workshop.$$
+	
+		for i in `pkginfo | grep SUNW | sort -r | awk '{print $2}'`
+		do
+			sys_packages_40 $i
+		done
+	
+	     /bin/echo "\nFinished uninstalling WorkShop 4.0 \n" >> /tmp/uninstall_workshop.$$
+	     /bin/echo "\nFinished uninstalling WorkShop 4.0 "
+		;;
+	5.0) /bin/echo "Now uninstalling all Workshop 5.0 packages\n" >> /tmp/uninstall_workshop.$$
+		for i in `pkginfo | grep SPRO | sort -r | awk '{print $2}'`
+		do
+			packages_50 $i
+		done
+
+	     /bin/echo "\nNow removing System Packages associated with Workshop 5.0" >> /tmp/uninstall_workshop.$$
+	
+		for i in `pkginfo | grep SUNW | sort -r | awk '{print $2}'`
+		do
+			sys_packages_50 $i
+		done
+	
+	     /bin/echo "\nFinished uninstalling WorkShop 5.0 \n" >> /tmp/uninstall_workshop.$$
+	     /bin/echo "\nFinished uninstalling WorkShop 5.0 "
+		;;
+	"all") /bin/echo "Now uninstalling all Workshop packages\n" >> /tmp/uninstall_workshop.$$
+		for i in `pkginfo | grep SPRO | sort -r | awk '{print $2}'`
+		do
+			packages_all $i
+		done
+
+	     /bin/echo "\nNow removing System Packages associated with Workshop" >> /tmp/uninstall_workshop.$$
+	
+		for i in `pkginfo | grep SUNW | sort -r | awk '{print $2}'`
+		do
+			sys_packages_all $i
+		done
+	
+	     /bin/echo "\nFinished uninstalling WorkShop\n" >> /tmp/uninstall_workshop.$$
+	     /bin/echo "\nFinished uninstalling WorkShop"
+		;;
+    esac
+}
+
+date > /tmp/uninstall_workshop.$$
+
+/bin/echo "\nWhich version of the Compilers you you want to remove?"
+/bin/echo "\n\t\t1) Sparcworks 3.0, 3.0.1, and 3.0.2"
+/bin/echo "\t\t2) Sparcworks 3.1"
+/bin/echo "\t\t3) WorkShop 4.0"
+/bin/echo "\t\t4) WorkShop 5.0 Developer (2nd Early Access)"
+/bin/echo "\t\t5) All versions of the compiler"
+/bin/echo "\n\t\tEnter: \c"
+read response
+
+cd /var/sadm/patch
+case $response in
+# Volume 3#1, 3#2, and 4#1
+	1) patches "3.0"
+	   pkg "3.0"
+		;;
+# Volume 4#2
+	2) patches "3.1"
+	   pkg "3.1"
+		;;
+# Volume 5#1 and 5#2
+	3) patches "4.0"
+	   pkg "4.0"
+		;;
+	4) pkg "5.0"
+# patches "5.0"
+		;;
+	5) patches "all"
+	   pkg "all"
+		;;
+	*) /bin/echo "Not a valid option"
+	   exit 1
+		;;
+esac
+
+exit 0

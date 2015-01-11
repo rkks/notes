@@ -1,0 +1,2046 @@
+  The Linux Virtual File-system Layer
+  Neil Brown neilb@cse.unsw.edu.au and others.
+  29 December 1999 - v1.6
+
+  The Linux operating system supports multiple different file-systems,
+  including ext2 (the Second Extended file-system), nfs (the Network
+  File-system), FAT (The MS-DOS File Allocation Table file system), and
+  others.  To enable the upper levels of the kernel to deal equally with
+  all of these and other file-systems, Linux defines an abstract layer,
+  known as the Virtual File-system, or vfs.  Each lower level file-sys-
+  tem must present an interface which conforms to this Virtual file-sys-
+  tem.  This document describes the vfs interface (as present in Linux
+  2.3.29).  NOTE this document is incomplete.
+  ______________________________________________________________________
+
+  Table of Contents
+
+
+  1. Introduction
+
+  2. Objects and Methods
+
+     2.1 Files
+     2.2 Inodes
+     2.3 File-systems
+     2.4 Names
+
+  3. Registering and Mounting a file-system
+
+  4. The Super-Block and its operations
+
+     4.1 The Super-block Struture
+     4.2 The Super-Block Methods (or Operations)
+
+  5. The File and its Operations
+
+     5.1 File Structure
+     5.2 File Methods
+
+  6. Names, or dentrys
+
+     6.1 Dentry structure
+     6.2 Dentry Methods
+
+  7. Inodes and Operations
+
+     7.1 Inode Structure
+     7.2 Inode Methods
+
+  8. Locking
+
+     8.1 Dcache consistancy
+        8.1.1 Rename
+     8.2 File consistancy
+     8.3 Mount table locking
+
+  9. Credits
+
+  10. Scribbled notes
+
+
+
+  ______________________________________________________________________
+
+
+
+  11..  IInnttrroodduuccttiioonn
+
+
+  This document describes the internals of one of the fundamental Linux
+  kernel subsystems - the Virtual File-system Layer also known as the
+  VFS switch.  This subsystem corresponds to the "vnode/vfs layer" found
+  in commercial UNIX flavours, such as those based on SVR4/SVR5 code
+  base, e.g. SCO UnixWare.
+
+  All references to the C source code files are given relative to the
+  /usr/src/linux directory. All header files are relative to the
+  /usr/src/linux/include directory.
+
+
+  22..  OObbjjeeccttss aanndd MMeetthhooddss
+
+
+  The Virtual File-system interface is structured around a number of
+  generic object types, and a number of methods which can be called on
+  these objects.
+
+  The basic objects known to the VFS layer are files, file-systems,
+  inodes, and names for inodes.
+
+
+  22..11..  FFiilleess
+
+
+  Files are things that can be read from or written to.  They can also
+  be mapped into memory and sometimes a list of file names can be read
+  from them.  They map very closely to the file descriptor concept that
+  unix has.  Files are represented within Linux by a struct file which
+  has a number of methods stored in a struct file_operations.
+
+
+  22..22..  IInnooddeess
+
+
+  An inode represents a basic object within a file-system.  It can be a
+  regular file, a directory, a symbolic link, or a few other things.
+  The VFS does not make a strong distinction between different sorts of
+  objects, but leaves it to the actual file-system implementation to
+  provide appropriate behaviours, and to the higher levels of the kernel
+  to treat different objects differently.
+
+  Each inode is represented by a struct inode which has a number of
+  methods stored in a struct inode_operations.
+
+  It may seem that Files and Inodes are very similar.   They are but
+  there are some important differences.  One thing to note is that there
+  are some things that have inodes but never have files.  A good example
+  of this is a symbolic link.  Conversely there are files which do not
+  have inodes, particularly pipes (though not named pipes) and sockets
+  (though not UNIX domain sockets).
+
+  Also, a File has state information that an inode does not have,
+  particularly a position, which indicates where in the file the next
+  read or write will be performed.
+
+
+  22..33..  FFiillee--ssyysstteemmss
+
+
+  A file-system is a collection of inodes with one distinguished inode
+  known as the root.  Other inodes are accessed by starting at the root
+  and looking up a file name to get to another inode.
+  A file-system has a number of characteristics which apply uniformly to
+  all inodes within the file-system. Some of these are flags such as the
+  READ-ONLY flag.  Another important one is the blocksize.   I'm not
+  entirely sure why this is needed globallly.
+
+  Each file-system is represented by a struct super_block, and has a
+  number of methods stored in a struct super_operations.
+
+  There is a strong correlation within Linux between super-blocks (and
+  hence file-systems) and device numbers.  Each file-system must (appear
+  to) have a unique device on which the file-system resides.  Some file-
+  systems (such as nfs and proc) are marked as not needing a real
+  device.  For these, an anonymous device, with a major number of 0, is
+  automatically assigned.
+
+  As well as knowing about file-systems, Linux VFS knows about different
+  file-system types.  Each type of file-system is represented in Linux
+  by a struct file_system_type.  This contains just one method,
+  read_super which instantiates a super_block to represent a given file-
+  system.
+
+
+  22..44..  NNaammeess
+
+
+  All inodes within a file-system are accessed by name.  As the name-to-
+  inode lookup process may be expensive for some file-systems, Linux's
+  VFS layer maintains a cache of currently active and recently used
+  names.  This cache is referred to as the dcache.
+
+  The dcache is structured in memory as a tree. Each node in the tree
+  corresponds to an inode in a given directory with a given name.  An
+  inode can be associated with more than one node in the tree.
+
+  While the dcache is not a complete copy of the file tree, it is a
+  proper prefix of that tree (if that is a correct usage of the term).
+  This means that if any node of the file tree is in the cache, then
+  every ancestor of that node is also in the cache.
+
+  Each node in the tree is represented by a struct dentry which has a
+  number of methods stored in a struct dentry_operations.
+
+  The dentries act as an intermediary between Files and Inodes.  Each
+  file points to the dentry that it has open.  Each dentry points to the
+  inode that it references.  This implies that for every open file, the
+  dentry of that file, and of all the parents of that file are cached in
+  memory.  This allows a full path name of every open file to be easily
+  determined, as can be seen from doing:
+
+  ______________________________________________________________________
+  # ls -l /proc/self/fd
+  total 0
+  lrwx------   1 root     root           64 Nov 23 07:51 0 -> /dev/pts/2
+  lrwx------   1 root     root           64 Nov 23 07:51 1 -> /dev/pts/2
+  lrwx------   1 root     root           64 Nov 23 07:51 2 -> /dev/pts/2
+  lr-x------   1 root     root           64 Nov 23 07:51 3 -> /proc/15588/fd/
+  ______________________________________________________________________
+
+
+
+
+  33..  RReeggiisstteerriinngg aanndd MMoouunnttiinngg aa ffiillee--ssyysstteemm
+
+
+  It is probably worth starting by observing that there is possible
+  ambiguity in our use of the word file-system.  It can be used to mean
+  a particular type, or class, of file-system, such as ext2 or nfs or
+  coda, or it can be used to mean a particular instance of a file-
+  system, such as /usr or /home or _T_h_e _f_i_l_e_-_s_y_s_t_e_m _o_n _/_d_e_v_/_h_d_a_4.
+
+  The first usage is implied when registering a file-system, the second
+  is implied while mounting a file-system.  I will continue to use this
+  ambiguous language as most people are familiar with it and nothing
+  better is obvious.
+
+  Linux finds out about new file-system types by calls
+  register_filesystem (and forgets about them by the calls to its
+  counterpart unregister_filesystem).  The formal declarations are:
+
+
+       #include <linux/fs.h>
+
+       int register_filesystem(struct file_system_type * fs);
+       int unregister_filesystem(struct file_system_type * fs);
+
+
+
+
+  The function register_filesystem returns 0 on success and -EINVAL if
+  fs==NULL.  It returns -EBUSY if either fs->next != NULL or there is
+  already a file-system registered under the same name.  It should be
+  called (directly or indirectly) from init_module for file-systems
+  which are being loaded as modules, or from filesystem_setup in
+  fs/filesystems.c.  The function unregister_filesystem should only be
+  called from the cleanup_module routine of a module.  It returns 0 on
+  success and -EINVAL if the argument is not a pointer to a registered
+  file-system.  (In particular, unregister_filesystem(NULL) may Oops).
+
+  An example of file-system registration and unregistration can be seen
+  in fs/ext2/super.c:
+
+
+       static struct file_system_type ext2_fs_type = {
+               "ext2",
+               FS_REQUIRES_DEV /* | FS_IBASKET */,     /* ibaskets have unresolved bugs */
+               ext2_read_super,
+               NULL
+       };
+
+       int __init init_ext2_fs(void)
+       {
+               return register_filesystem(&ext2_fs_type);
+       }
+
+       #ifdef MODULE
+       EXPORT_NO_SYMBOLS;
+
+       int init_module(void)
+       {
+               return init_ext2_fs();
+       }
+
+       void cleanup_module(void)
+       {
+               unregister_filesystem(&ext2_fs_type);
+       }
+
+       #endif
+
+
+
+
+  A struct file_system_type is defined in linux/fs.h and has the
+  following format:
+
+
+
+       ______________________________________________________________________
+       struct file_system_type {
+               const char *name;
+               int fs_flags;
+               struct super_block *(*read_super) (struct super_block *, void *, int);
+               struct file_system_type * next;
+       };
+       ______________________________________________________________________
+
+
+
+
+
+     nnaammee
+        The name field simply gives the name of the file-system type,
+        such as ext2 or iso9660 or msdos.  This field is used as a key,
+        and it is not possible to register a file-system with a name
+        that is already in use.  It is also used for the
+        /proc/filesystems file which lists all file-system types
+        currently registered with the kernel.  When a file-system is
+        implemented as a module, the name points to the module's address
+        space (mapped to a vmalloc'd area) which means that if you
+        forget to unregister_filesystem in cleanup_module and try to cat
+        /proc/filesystems/ you will get an Oops trying to dereference
+        name - a common mistake made by file-system writers at the first
+        stages of development..
+
+
+     ffss__ffllaaggss
+        A number of adhoc flags which record features of the file-
+        system.
+
+
+        FFSS__RREEQQUUIIRREESS__DDEEVV
+           As mentioned above, every mounted file-system is connected to
+           some device, or at least some device number.  If a file-
+           system type has FS_REQUIRES_DEV, then a real device must be
+           given when mounting the file-system, otherwise an anonymous
+           device is allocated.
+
+           nfs and procfs are examples of file-systems that don't
+           require a device. ext2 and msdos do.
+
+
+        FFSS__NNOO__DDCCAACCHHEE
+           This flag is declared but not used at all. From the comment
+           in fs.h the intent is that for file-systems marked this way,
+           the dcache only keeps entries for files that are actually in
+           use.
+
+
+        FFSS__NNOO__PPRREELLIIMM
+           Like FS_NO_DCACHE, this flag is never used.  The intent
+           appears to be that the dcache will have entries that are in
+           use or have been used, but will not speculatively cache
+           anything else.
+
+
+        FFSS__IIBBAASSKKEETT
+           Another vapour-flag.  See section on ibaskets below, which
+           may be a vapour-section.
+     nneexxtt
+        next is simply a pointer for chaining all file_system_types
+        together.  It should be initialised to NULL (register_filesystem
+        does not set it for you and will return -EBUSY if you don't set
+        next to NULL).
+
+
+     rreeaadd__ssuuppeerr
+        The read_super method is called when a file-system (instance) is
+        being mounted.
+
+        The struct super_block is clean (all fields zero) except for the
+        s_dev and s_flags fields.  The void * pointer points to the data
+        what has been passed down from the mount system call. The
+        trailing int field tells whether read_super should be silent
+        about errors.  It is set only when mounting the root file-
+        system.  When mounting root, every possible file-system is tried
+        in turn until one succeeds. Printing errors in this case would
+        be untidy.
+
+        read_super must determine whether the device given in s_dev
+        together with the data from mount define a valid file-system of
+        this type.  If they do, then it should fill out the rest of the
+        struct super_block and return the pointer.  If not, it should
+        return NULL.
+
+
+
+  44..  TThhee SSuuppeerr--BBlloocckk aanndd iittss ooppeerraattiioonnss
+
+
+  Each mounted file-system is represented by the super_block structure.
+  The fact that it is mounted is stored in a struct vfsmount, the
+  declaration of which can be found in linux/mount.h:
+
+
+       ______________________________________________________________________
+       struct vfsmount
+       {
+         kdev_t mnt_dev;                       /* Device this applies to */
+         char *mnt_devname;                    /* Name of device e.g. /dev/dsk/hda1 */
+         char *mnt_dirname;                    /* Name of directory mounted on */
+         unsigned int mnt_flags;               /* Flags of this device */
+         struct super_block *mnt_sb;           /* pointer to superblock */
+         struct quota_mount_options mnt_dquot; /* Diskquota specific mount options */
+         struct vfsmount *mnt_next;            /* pointer to next in linkedlist */
+       };
+       ______________________________________________________________________
+
+
+
+
+  These vfsmount structures are linked together in a simple linked list
+  starting from vfsmntlist in fs/super.c.  This list is mainly used for
+  finding mounted file-system information given a device, particularly
+  be the disc quota code.
+
+  The reason why vfsmount is kept separate from the list of super blocks
+  super_blocks is because if the super-block already exists then
+  fs/super.c:read_super() is satisfied by fs/super.c:get_super() instead
+  of going through the read_super file-system-specific method. But the
+  entry in vfsmntlist is unlinked as soon as the file-system is
+  unmounted.
+
+  Each mount is also recorded in the dcache which will be described
+  later, and this is the source of mount information used when
+  traversing path names.
+
+
+  44..11..  TThhee SSuuppeerr--bblloocckk SSttrruuttuurree
+
+
+  A somewhat reduced description of the super-block structure is:
+
+
+       ______________________________________________________________________
+       struct super_block {
+               struct list_head        s_list;         /* Keep this first */
+               kdev_t                  s_dev;
+               unsigned long           s_blocksize;
+               unsigned char           s_blocksize_bits;
+               unsigned char           s_lock;
+               unsigned char           s_dirt;
+               struct file_system_type *s_type;
+               struct super_operations *s_op;
+               struct dquot_operations *dq_op;
+               unsigned long           s_flags;
+               unsigned long           s_magic;
+               struct dentry           *s_root;
+               wait_queue_head_t       s_wait;
+
+               struct inode            *s_ibasket;
+               short int               s_ibasket_count;
+               short int               s_ibasket_max;
+               struct list_head        s_dirty;        /* dirty inodes */
+               struct list_head        s_files;
+
+               union {
+                       /* Configured-in filesystems get entries here */
+                       void                    *generic_sbp;
+               } u;
+               /*
+                * The next field is for VFS *only*. No filesystems have any business
+                * even looking at it. You had been warned.
+                */
+               struct semaphore s_vfs_rename_sem;      /* Kludge */
+       };
+       ______________________________________________________________________
+
+
+
+
+  See linux/fs.h for a complete declaration which includes all file-
+  system-specific components of the union u which were suppressed above.
+  The various fields in the super-block are:
+
+
+
+     ss__lliisstt
+        A doubly linked list of all mounted file-systems (see
+        linux/list.h).
+
+
+     ss__ddeevv
+        The device (possibly anonymous) that this file-system is mounted
+        on.
+
+
+     ss__bblloocckkssiizzee
+        The basic blocksize of the file-system.  I'm not sure exactly
+        how this is used yet. It must be a power of 2.
+
+     ss__bblloocckkssiizzee__bbiittss
+        The power of 2 that s_blocksize is (i.e. log2(s_blocksize)).
+
+
+     ss__lloocckk
+        This indicates whether the super-block is currently locked.  It
+        is managed by lock_super and unlock_super.
+
+        lock_kernel.
+
+
+     ss__wwaaiitt
+        This is a queue of processes that are waiting for the s_lock
+        lock on the super-block.
+
+
+     ss__ddiirrtt
+        This is a flag which gets set when a super-block is changed, and
+        is cleared whenever the super-block is written to the device.
+        This happens when a filesystem is unmounted, or in response to a
+        sync system call.
+
+
+     ss__ttyyppee
+        This is simply a pointer to the struct file_system_type
+        structure discussed above.
+
+
+     ss__oopp
+        This is a pointer to the struct super_operations which will be
+        described next.
+
+
+     ddqq__oopp
+        This is a pointer to Disc Quota operations which will be
+        described later.
+
+
+     ss__ffllaaggss
+        This is a list of flags which are logically ored with the flags
+        in each inode to determine certain behaviours.  There is one
+        flag which applies only to the whole file-system, and so will be
+        described here. The others are described under the discussion on
+        inodes.
+
+
+        MMSS__RRDDOONNLLYY
+           A file-system with the flag set has been mounted read-only.
+           No writing will be permitted, and no indirect modification,
+           such as mount times in the super-block or access times on
+           files, will be made.
+
+
+     ss__mmaaggiicc
+        This records an identification number that has been read from
+        the device to confirm that the data on the device corresponds to
+        the file-system in question.  It seems to be used by the Minix
+        file-system to distinguish between various flavours of that
+        file-system.  It is not clear why this is in the generic part of
+        the structure, and not confined to the file-system specific part
+        for those file-systems which need it.  Maybe this is historical.
+
+        The one _i_n_t_e_r_e_s_t_i_n_g usage of the field is in
+        fs/nfsd/vfs.c:nfsd_lookup() where it is used to make sure that a
+        proc or nfs type file-system is never accessed via NFS.
+
+     ss__rroooott
+        This is a stuct dentry which refers to the root of the file-
+        system.  It is normally created by loading the root inode from
+        the file-system, and passing it to d_alloc_root.  This dentry
+        will get spliced into the dcache by the mount command (do_mount
+        calls d_mount).
+
+
+     ss__iibbaasskkeett,, ss__iibbaasskkeett__ccoouunntt,, ss__iibbaasskkeett__mmaaxx
+        These three refer to a basket of inodes I guess, but there is no
+        such thing in current versions.
+
+
+     ss__ddiirrttyy
+        A list of dirty inodes linked on the i_list field.
+
+        When an inode is marked as dirty with mark_inode_dirty it gets
+        put on this list.  When sync_inodes is called, any inode in this
+        list gets passed to the file-system's write_inode method.
+
+
+     ss__ffiilleess
+        This is a list of files (linked on f_list) of open files on this
+        file-system.  It is used, for example, to check if there are any
+        files open for write before remounting the file-system as read-
+        only.
+
+
+     uu..ggeenneerriicc__ssbbpp
+        The u union contains one file-system-specific super-block
+        information structure for each file-system known about at
+        compile time. Any file-system loaded as a module must allocate a
+        separate structure and place a pointer in u.generic_sbp.
+
+
+     ss__vvffss__rreennaammee__sseemm
+        This semaphore is used as a file-system wide lock while renaming
+        a directory.  This appears to be to guard against possible races
+        which may end up renaming a directory to be a child of itself.
+        This semaphore is not needed or used when renaming things that
+        are not directories.
+
+
+  44..22..  TThhee SSuuppeerr--BBlloocckk MMeetthhooddss ((oorr OOppeerraattiioonnss))
+
+
+  The methods defined in the struct super_operations are:
+
+
+
+       ______________________________________________________________________
+       struct super_operations {
+               void (*read_inode) (struct inode *);
+               void (*write_inode) (struct inode *);
+               void (*put_inode) (struct inode *);
+               void (*delete_inode) (struct inode *);
+               int (*notify_change) (struct dentry *, struct iattr *);
+               void (*put_super) (struct super_block *);
+               void (*write_super) (struct super_block *);
+               int (*statfs) (struct super_block *, struct statfs *, int);
+               int (*remount_fs) (struct super_block *, int *, char *);
+               void (*clear_inode) (struct inode *);
+               void (*umount_begin) (struct super_block *);
+       };
+       ______________________________________________________________________
+
+  All of these methods get called with only the kernel lock held.  This
+  means that they can safely block, but are responsible from guarding
+  against concurrent access themselves.  All are called from a process
+  context, not from interrupt handlers or the _b_o_t_t_o_m _h_a_l_f.
+
+
+     rreeaadd__iinnooddee
+        This method is called to read a specific inode from a mounted
+        file-system.  It is only called from get_new_inode out of iget
+        in fs/inode.c.
+
+        In the struct inode * argument passed to this method the fields
+        i_sb, i_dev and particularly i_ino will be initialised to
+        indicate which inode should be read from which file-system.  It
+        must set (among other things) the i_op field of struct inode to
+        point to the relevant struct inode_operations so that VFS can
+        call the methods on this inode as needed.
+
+        iget is mostly called from within particular file-systems to
+        read inodes for that file-system.  One notable exception is in
+        fs/nfsd/nfsfh.h where it is used to get an inode based on
+        information in the nfs file handle.
+
+        It is not clear that this method needs to be exported as (with
+        the exception of nfsd) it is only (indirectly) used by the file-
+        system which provides it.  Avoiding it would allow more
+        flexibility than a simple 32bit inode number to identify a
+        particular inode.
+
+        The nfsd usage could better be replaced by an interface that
+        takes a file handle (or part there-of) and returns an inode.
+
+
+     wwrriittee__iinnooddee
+        This method gets called on inodes which have been marked dirty
+        with mark_inode_dirty.  It is called when a sync request is made
+        on the file, or on the file-system.  It should make sure that
+        any information in the inode is safe on the device.
+
+
+     ppuutt__iinnooddee
+        If defined, this method is called whenever the reference count
+        on an inode is decreased.  Note that this does not mean that the
+        inode is not in use any more, just that it has one fewer users.
+
+        put_inode is called bbeeffoorree the i_count field is decreased, so if
+        put_inode wants to check if this is the last reference, it
+        should check if i_count is 1 or not.
+
+        Almost all file-systems that define this method use it to do
+        some special handling when the last reference to the inode is
+        release.  i.e. when i_count is 1 and is about to be come zero.
+
+
+
+     ddeelleettee__iinnooddee
+        If defined, delete_inode is called whenever the reference count
+        on an inode reaches 0, and it is found that the link count
+        (i_nlink) is also zero.  It is presumed that the file-system
+        will deal with this situation be invalidating the inode in the
+        file-system and freeing up any resourses used.
+
+        It could be argued that this and the previous methods should be
+        replaced by one method that is called whenever the i_count field
+        reaches 0, and then the file-system gets to decide if it should
+        do something special with i_nlink being 0.  The only difficulty
+        that this might cause with current file-systems is that ext2
+        calls ext2_discard_prealloc when put_inode is called,
+        independently of i_count.  This would no longer be possible.
+        But is this even desirable?  Would it not make more sense to do
+        this only in ext2_release_file (which does it as well).
+
+
+     nnoottiiffyy__cchhaannggee
+        This is called when inode attributes are changed, the argument
+        struct iattr * pointing to the new set of attributes.  If the
+        file-system does not define this method (i.e. it is NULL) then
+        VFS uses the routine fs/iattr.c:inode_change_ok which implements
+        POSIX standard attributes verification.  Then VFS marks the
+        inode as dirty.  If the file-system implements its own
+        notify_change then it should call mark_inode_dirty(inode) after
+        it has set the attributes.  An example of how to implement this
+        method can be seen in fs/ext2/inode.c:ext2_notify_change().
+
+
+     ppuutt__ssuuppeerr
+        This is called at the last stages of umount(2) system call,
+        before removing the entry from vfsmntlist.  This method is
+        called with super-block lock held.  A typical implementation
+        would free file-system-private resources specific for this mount
+        instance, such as inode bitmaps, block bitmaps, a buffer header
+        containing super-block and decrement module hold count if the
+        file-system is implemented as a dynamically loadable module. For
+        example, fs/bfs/inode.c:bfs_put_super() looks very simple:
+
+
+          ___________________________________________________________________
+          static void bfs_put_super(struct super_block *s)
+          {
+                  brelse(s->su_sbh);
+                  kfree(s->su_imap);
+                  kfree(s->su_bmap);
+                  MOD_DEC_USE_COUNT;
+          }
+          ___________________________________________________________________
+
+
+
+
+
+     wwrriittee__ssuuppeerr
+        Called when VFS decides that the super-block needs to be written
+        to disk.  Called from fs/buffer.c:file_fsync,
+        fs/super.c:sync_supers and fs/super.c:do_umount.  Obviously not
+        needed for a read-only file-system.
+
+
+     ssttaattffss
+        This method is needed to implement statfs(2) system call and is
+        called from fs/open.c:sys_statfs if implemented, otherwise
+        statfs(2) will fail with errno set to ENODEV.
+
+
+     rreemmoouunntt__ffss
+        Called when file-system is being remounted, i.e. if the
+        MS_REMOUNT flag is specified with the mount(2) system call.
+        This can be used to change various mount options without
+        unmounting the file-system.  A common usage is to change a
+        readonly file-system into a writable file-system.
+
+
+
+     cclleeaarr__iinnooddee
+        Optional method, called when VFS clears the inode.  This is
+        needed (at least) by any file-system which attaches kmalloced
+        data to the inode structure, as particularly might be the case
+        for file-systems using the generic_ip field in struct inode.
+
+        It is currently used by ntfs which does attach kalloced data to
+        an inode, and by fat which does interesting things to present a
+        pretense of stable inode numbers on a file-system which does not
+        support inode numbers.
+
+
+     uummoouunntt__bbeeggiinn
+        This method is called early in the unmounting process if the
+        MNT_FORCE flag was given to umount.  The intentions is that it
+        should cause any incomplete transaction on the file-system to
+        fail quickly rather than block waiting on some external event
+        such as a remote server responding.
+
+        Note that calling umount_begin will probably not make an active
+        file-system become unmountable, but it should allow any
+        processes using that file-system to be killable, rather than
+        being in an uninterruptible wait.
+
+        Currently, NFS is the only file-system which provides
+        umount_begin.
+
+
+
+  55..  TThhee FFiillee aanndd iittss OOppeerraattiioonnss
+
+
+  A file object is used where-ever there is a need to read from or write
+  to something.  This includes accessing objects within file-system,
+  communicating through a pipe, or over a network.  Files are accessible
+  to processes through their _f_i_l_e _d_e_s_c_r_i_p_t_o_r_s.
+
+
+  55..11..  FFiillee SSttrruuccttuurree
+
+
+  The file structure is defined in linux/fs.h to be:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ______________________________________________________________________
+  struct fown_struct {
+          int pid;                /* pid or -pgrp where SIGIO should be sent */
+          uid_t uid, euid;        /* uid/euid of process setting the owner */
+          int signum;             /* posix.1b rt signal to be delivered on IO */
+  };
+
+  struct file {
+          struct list_head        f_list;
+          struct dentry           *f_dentry;
+          struct file_operations  *f_op;
+          atomic_t                f_count;
+          unsigned int            f_flags;
+          mode_t                  f_mode;
+          loff_t                  f_pos;
+          unsigned long           f_reada, f_ramax, f_raend, f_ralen, f_rawin;
+          struct fown_struct      f_owner;
+          unsigned int            f_uid, f_gid;
+          int                     f_error;
+
+          unsigned long           f_version;
+
+          /* needed for tty driver, and maybe others */
+          void                    *private_data;
+  };
+  ______________________________________________________________________
+
+
+
+
+  The fields have the following meaning:
+
+
+
+     ff__lliisstt
+        This field links files together into one of a number of lists.
+        There is one list for each active file-system, starting at the
+        s_files pointer in the super-block.  There is one for free file
+        structures (free_list in fs/file_table.c).  And there is one for
+        anonymous files (anon_list in fs/file_table.c) such as pipes.
+
+
+     ff__ddeennttrryy
+        This field records the dcache entry that points to the inode for
+        this file.  If the inode refers to an object, such as a pipe,
+        which isn't in a regular file-system, the dentry is a root
+        dentry created with d_alloc_root.
+
+
+     ff__oopp
+        This field points to the methods to use on this file.
+
+
+     ff__ccoouunntt
+        The number of references to this file.  One for each different
+        user-process file descriptor, plus one for each internal usage.
+
+
+     ff__ffllaaggss
+        This field stores the flags for this file such as access type
+        (read/write), nonblocking, appendonly etc.  These are defined in
+        the per-architecture include file asm/fcntl.h.  Some of these
+        flags are only relevant at the time of opening, and are not
+        stored in f_flags.  These excluded flags are O_CREAT, O_EXCL,
+        O_NOCTTY, O_TRUNC.  This list is from filp_open in fs/open.c.
+
+     ff__mmooddee
+        The bottom two bits of f_flags encode read and write access in
+        a way that it is not easy to extract the individual read and
+        write access information.  f_mode stores the read and write
+        access as two separate bits.
+
+
+     ff__ppooss
+        This records the current file position which will be the address
+        used for the next read request, and for the next write request
+        if the file does NOT have the O_APPEND flag.
+
+
+     ff__rreeaaddaa,, ff__rreemmaaxx,, ff__rraaeenndd,, ff__rraalleenn,, ff__rraawwiinn
+        These five fields are used to keeping track of sequential access
+        patterns on the file, and determining how much read-ahead to do.
+        There may be a separate section on read-ahead.
+
+
+     ff__oowwnneerr
+        This structure stores a process id and a signal to send to the
+        process when certain events happen with the file, such as new
+        data being available.  Currently, keyboards, mice, serial ports
+        and network sockes seem to be the only files which is this
+        feature (via kill_fasync).
+
+
+     ff__uuiidd,, ff__ggiidd
+        These fields get set to the owner and group of the process which
+        opened the file.  They don't seem to be used at all.
+
+
+     ff__eerrrroorr
+        This is used by the NFS client file-system code to return write
+        errors.  It is set in fs/nfs/write.c and checked in
+        fs/nfs/file.c, and used in mm/filemap.c:generic_file_write
+
+
+     ff__vveerrssiioonn
+        This field is available to be used by the underlying file-system
+        to help cache state, and check for the cache being invalid.  It
+        is changed whenever the file has its f_pos value changed.
+
+        For example, the ext2 file-system uses it in conjuction with the
+        i_version field in the inode to detect when a directory may have
+        changed.  If neither the directory nor the file position has
+        changed, then ext2  can be sure that the current file position
+        is the start of a valid directory entry, otherwise it much re-
+        check from the start of the block.
+
+
+     pprriivvaattee__ddaattaa
+        This is used by many device drivers, and even a few file-
+        systems, to store extra per-open-file information (such as
+        credentials in coda).
+
+
+
+  55..22..  FFiillee MMeetthhooddss
+
+  The list of file methods are defined in linux/fs.h to be:
+
+
+
+
+
+  ______________________________________________________________________
+  typedef int (*filldir_t)(void *, const char *, int, off_t, ino_t);
+
+  struct file_operations {
+          loff_t (*llseek) (struct file *, loff_t, int);
+          ssize_t (*read) (struct file *, char *, size_t, loff_t *);
+          ssize_t (*write) (struct file *, const char *, size_t, loff_t *);
+          int (*readdir) (struct file *, void *, filldir_t);
+          unsigned int (*poll) (struct file *, struct poll_table_struct *);
+          int (*ioctl) (struct inode *, struct file *, unsigned int, unsigned long);
+          int (*mmap) (struct file *, struct vm_area_struct *);
+          int (*open) (struct inode *, struct file *);
+          int (*flush) (struct file *);
+          int (*release) (struct inode *, struct file *);
+          int (*fsync) (struct file *, struct dentry *);
+          int (*fasync) (int, struct file *, int);
+          int (*check_media_change) (kdev_t dev);
+          int (*revalidate) (kdev_t dev);
+          int (*lock) (struct file *, int, struct file_lock *);
+  };
+  ______________________________________________________________________
+
+
+
+
+
+
+     llllsseeeekk
+        This implements the lseek system call. If it is left undefined,
+        then default_llseek from fs/read_write.c is used instead.  This
+        updates the f_pos field as expected, and also may change the
+        f_reada field and f_version field.
+
+
+     rreeaadd
+        This is used to implement the read system call and to support
+        other occasions for reading files such a loading executables and
+        reading the quotas file.  It is expected to update the offset
+        value (last argument) which is usually a pointer to the f_pos
+        field in the file structure, except for the pread and pwrite
+        system calls.
+
+        For file-systems on block devices, there is a routine
+        generic_file_read in mm/filemap.c which can be used for this
+        method providing that the inode has a readpage method defined.
+
+
+     wwrriittee
+        This method allows writing to a file such as when using the
+        write system call.  This method does not necessarily make sure
+        that the data has reached the device, but may only queue it
+        ready for writing when convenient, depending on the semantics of
+        the file type.
+
+        For file-systems on block devices, generic_file_write may be
+        used in conjunction with block_write_partial_page from
+        fs/buffer.c to implement this method.
+
+
+     rreeaaddddiirr
+        readdir should read directory entries from the file, which would
+        presumably be a directory, and return them using the filldir_t
+        callback function.  This function takes the void * handle that
+        was  passed along with a pointer to a name, the length of the
+        name, the postion in the file where this name was found, and the
+        inode number associated with the name.
+        If the filldir call-back returns non-zero, then readdir should
+        assume that it has had enough, and should return as well.
+
+        When readdir reaches the end of the directory, it should return
+        with the value 0.  Otherwise it may return after just some of
+        the entres have been given to filldir.  In this case is should
+        return a non-zero value.  It should return a negative number on
+        error.
+
+
+     ppoollll
+        poll is use to implement the select and poll system calls.  It
+        should add a poll_table_entry to the poll_table_struct that it
+        is passed, and do some other stuff.... I haven't looked into
+        this much yet.
+
+
+     iiooccttll
+        This implements _a_d _h_o_c ioctl functionality.  If an ioctl request
+        is not one of a set of known requests (FIBMAP, FIGETBSZ,
+        FIONREAD), then the request is passed on the underlying file
+        implementation.
+
+
+     mmmmaapp
+        This routine implements memory mapping of files.  It can often
+        be implemented using generic_file_mmap.  Its task seems to be to
+        validate that the mapping is allowed, and to set up the vm_ops
+        field of the vm_area_struct to point to something appropriate.
+
+
+     ooppeenn
+        This method, if defined, is called when a new file has been
+        opened in an inode.  It can do any setup that may be needed on
+        open.  This is not used with many file-systems. One exception is
+        coda which tries to get the file cached locally at open.
+
+
+     fflluusshh
+        flush is called when a file descriptor is closed.  There may be
+        other file descriptors open on this file, so it isn't
+        necessarily a final close of the file, just an interim one.  The
+        only file-system that currently defines this method is the NFS
+        client, which flushes out any write-behind requests that are
+        pending.
+
+        Flush can return an error status back through the close system
+        call, and so needs to be used if errors need to be checked for.
+        Unfortunately, there is no way that flush can reliably determine
+        if it is the last call to flush.
+
+
+     rreelleeaassee
+        release is called when the last handle on a file is closed.  It
+        should do any special cleanup that is needed.
+
+        release cannot return any error status to anyone, and so should
+        really be of type void rather than int.
+
+
+     ffssyynncc
+        This method implements the fsync  and fdatasync system calls
+        (they are currently identical).  It should not return until all
+        pending writes for the file have successfully reached the
+        device.
+
+        fsync may be partially implemented using
+        generic_buffer_fdatasync which will write out all dirty buffers
+        on all mapped pages of the inode.
+
+
+     ffaassyynncc
+        This method is called when the FIOASYNC flag of the file
+        changes. The int parameter contains the new value of this flag.
+        No file-systems currently use this method.
+
+
+     cchheecckk__mmeeddiiaa__cchhaannggee
+        This method should check if the underlying media has changed,
+        and should return true if it has.  The only place out-side of
+        disc drivers where it is called is in read_super when a file-
+        system is about to be mounted.  If it returns true at this
+        point, all buffers associated with the device are invalidated.
+
+
+     rreevvaalliiddaattee
+        Revalidate is called after buffers have been invalidated after a
+        media change, as reported by check_media_change.  So it is only
+        meaningful if check_media_change is defined.   This shouldn't be
+        confused with the inode:revalidate method which is quite
+        different.
+
+
+
+     lloocckk
+        This method allows a file service to provide  extra handling of
+        POSIX locks.  It is not used for FLOCK style locks.  This is
+        useful particularly for network file-systems where other locks
+        might be held in ways only noticeable by the file-system.
+
+        When locks are being set or removed, a lock is obtained firstly
+        with this method, and then also with the standard posix lock
+        code.  If this method succeeds in getting a lock, but the local
+        code fails, then the lock will never be released...
+
+        When a process is trying to find what locks are present,
+        information returned by this method is used, the local locks are
+        not checked.
+
+
+  66..  NNaammeess,, oorr ddeennttrryyss
+
+  The VFS layer does all management of path names of files, and converts
+  them into entries in the dcache before passing allowing the underlying
+  file-system to see them.  The one exception to this is the target of
+  an symbolic link, which is passed untouched to the underlying file-
+  system.  The underlying file-system is then expected to interpret it.
+  This seems like a slightly blurred module boundry.
+
+  The dcache is made up of lots of struct dentrys.  Each dentry
+  corresponds to one filename component in the file-system and the
+  object associated with that name (if there is one).  Each dentry
+  references its parent which must exist in the dcache.  dentrys also
+  record file-system mounting relationships.
+
+  The dcache is a master of the inode cache.  Whenever a dcache entry
+  exists, the inode will also exist in the inode cache.  Conversely
+  whenever there is an inode in the inode cache, it will reference a
+  dentry in the dcache.
+
+
+
+  66..11..  DDeennttrryy ssttrruuccttuurree
+
+
+  The dentry structure is defined in linux/dcache.h.
+
+
+
+       ______________________________________________________________________
+       struct qstr {
+               const unsigned char * name;
+               unsigned int len;
+               unsigned int hash;
+       };
+
+       #define DNAME_INLINE_LEN 16
+
+       struct dentry {
+               int d_count;
+               unsigned int d_flags;
+               struct inode  * d_inode;        /* Where the name belongs to - NULL is negative */
+               struct dentry * d_parent;       /* parent directory */
+               struct dentry * d_mounts;       /* mount information */
+               struct dentry * d_covers;
+               struct list_head d_hash;        /* lookup hash list */
+               struct list_head d_lru;         /* d_count = 0 LRU list */
+               struct list_head d_child;       /* child of parent list */
+               struct list_head d_subdirs;     /* our children */
+               struct list_head d_alias;       /* inode alias list */
+               struct qstr d_name;
+               unsigned long d_time;           /* used by d_revalidate */
+               struct dentry_operations  *d_op;
+               struct super_block * d_sb;      /* The root of the dentry tree */
+               unsigned long d_reftime;        /* last time referenced */
+               void * d_fsdata;                /* fs-specific data */
+               unsigned char d_iname[DNAME_INLINE_LEN]; /* small names */
+       };
+       ______________________________________________________________________
+
+
+
+
+
+     dd__ccoouunntt
+        This is a simple reference count.
+
+        The count does NOT include the reference from the parent through
+        the d_subdirs list, but does include the d_parent references
+        from children.  This implies that only leaf nodes in the cache
+        may have a d_count of 0.  These entries are linked together by
+        the d_lru list as will be seen.
+
+
+     dd__ffllaaggss
+        There are currently two possible flags, both for use by specific
+        file-system implementations (so why are they exposed?), and so
+        will not be documented here.  They are DCACHE_AUTOFS_PENDING and
+        DCACHE_NFSFS_RENAMED.
+
+
+     dd__iinnooddee
+        Simply a pointer to the inode related to this name.  This field
+        may be NULL, which indicates a negative entry, implying that the
+        name is known not to exist.
+
+
+
+     dd__ppaarreenntt
+        This will point to the parent dentry.  For the root of a file-
+        system, or for an anonymous entry like that for a file, this
+        points back to the containing dentry itself.
+
+
+     dd__mmoouunnttss
+        For a directory that has had a file-system mounted on it, this
+        points to the root dentry of that file-system.  For other
+        dentries, this points back to the dentry itself.
+
+        It is not possible to mount a file-system on a mountpoint, so
+        there will never be a chain of d_mount entries longer than one.
+
+
+     dd__ccoovveerrss
+        This is the inverse of d_mounts.  For the root of a mounted
+        file-system, this points to the dentry of the directory that it
+        is mounted on.  For other dentrys, this points to the dentry
+        itself.
+
+
+     dd__hhaasshh
+        This doubly linked list chains together the entries in one hash
+        bucket.
+
+
+     dd__llrruu
+        This provides a doubly linked list of unreferenced leaf nodes in
+        the cache. The head of the list is the dentry_unused global
+        variable. It is stored in Least Recently Used order.
+
+        When other parts of the kernel need to reclaim memory or inodes,
+        which may be locked up in unused entries in the dcache, they can
+        call select_dcache which finds removable entries in the d_lru
+        and prepares them to be removed by prune_dcache.
+
+
+     dd__cchhiilldd
+        This list_head is used to link together all the children of the
+        d_parent of this dentry.  One might think that d_sibling might
+        be a better name.
+
+
+     dd__ssuubbddiirrss
+        This is the head of the d_child list that links all the children
+        of this dentry.  Ofcourse, elements may refer to file and not
+        just sub-directories, so d_child may be a better name, but that
+        is already in use:-).
+
+
+     dd__aalliiaass
+        As files (and some other file-system objects) may have multiple
+        names in the file-system through multiple hard links, it is
+        possible that multiple dentrys refer to the same inode.  When
+        this happens, the dentrys are linked on the d_alias field.  The
+        inode's i_dentry field is the head of this list.
+
+
+     dd__nnaammee
+        The d_name field contains the name of this entry, together with
+        its hash value.  The name subfield may point to the d_iname
+        field of the dentry or, if that isn't long enough, it will point
+        to a separately allocated string.
+
+
+     dd__ttiimmee
+        This field is only used by underlying file-systems, which can
+        presumably do whatever they want.  The intention is to use it to
+        record something about when this entry was last known to be
+        valid to get some idea about when its validity might need to be
+        checked again.
+
+
+     dd__oopp
+        This points to the struct dentry_operations with specifics for
+        how to handle this dentry.
+
+
+     dd__ssbb
+        This points to the super-block of the file-system on which the
+        object refered to by the dentry resides.  It is not clear why
+        this is needed rather than using d_inode->i_sb.
+
+
+     dd__rreeffttiimmee
+        This is set to the current time in jiffies whenever the d_count
+        reaches zero, but it is never used.
+
+
+     dd__ffssddaattaa
+        This is available for specific file-systems to use as they wish.
+        This is currently only used by nfs to store a file handle. (Odd
+        that, I would have thought that the filehandle is per-inode, not
+        per-name, but I gather some nfs servers don't agree).
+
+
+     dd__iinnaammee
+        This stores the first 16 characters of the name of the file for
+        easy reference.   If the name fits completely, then d_name.name
+        points here, otherwise it points to separately allocated memory.
+
+
+
+  66..22..  DDeennttrryy MMeetthhooddss
+
+  Most handling of dentries is common across all file-systems, so most
+  operations that you would expect to do on dentries do not have methods
+  in the dentry_operations list.  Rather, it provides for a few
+  operations which may be handled in a non-obvious way by some file-
+  system implementations.  A file-system can choose to leave all of the
+  methods as NULL, in which case the default operation will apply.
+
+  The structure definition from linclude/linux/dcache.h is:
+
+
+
+       ______________________________________________________________________
+       struct dentry_operations {
+               int (*d_revalidate)(struct dentry *, int);
+               int (*d_hash) (struct dentry *, struct qstr *);
+               int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
+               void (*d_delete)(struct dentry *);
+               void (*d_release)(struct dentry *);
+               void (*d_iput)(struct dentry *, struct inode *);
+       };
+       ______________________________________________________________________
+
+
+
+
+
+     dd__rreevvaalliiddaattee
+        This method is called whenever a path lookup uses an entry in
+        the dcache, in order to see if the entry is still valid.  It
+        should return 1 if it can still be trusted, else 0.  The default
+        is to assume a return value of 1.
+
+        The int argument gives the flags relevant to this lookup, and
+        can include any of LOOKUP_FOLLOW, LOOKUP_DIRECTORY,
+        LOOKUP_SLASHOK, LOOKUP_CONTINUE.  These will be described (if at
+        all) under the section on namei.
+
+        This method is only needed if the file-system is likely to
+        change without the VFS layer doing anything, as may happen with
+        shared file systems.
+
+        If d_revalidate returns 0, the VFS layer will attempt to prune
+        the dentry from the dcache.  This is done by d_invalidate which
+        removes any children which are not in active use and, if that
+        was successful, unhashes the dentry.
+
+
+
+     dd__hhaasshh
+        If the file-system has non-standard rules about valid names or
+        name equivalence, then this routine should be provided to check
+        for validity and return a canonical hash.
+
+        If the name is valid, a hash should be calculated (which should
+        be the same for all equivalent names) and stored in the qstr
+        argument.  If the name is not valid, an appropriate (negative)
+        error code should be returned.
+
+        The dentry argument is the dentry of the ppaarreenntt of the name in
+        question (which is found in the qstr), as the dentry of the name
+        will not be complete yet.
+
+
+     dd__ccoommppaarree
+        This should compare the two qstrs (again in the context of the
+        dentry being their parent) to see if they are equivalent.  It
+        should return 0 only if they are the same.  Ordering is not
+        important.
+
+
+     dd__ddeelleettee
+        This is called when the reference count reaches zero, bbeeffoorree the
+        dentry is placed on the dentry_unused list.
+
+
+     dd__rreelleeaassee
+        This is called just before a dentry is finally freed up.  It can
+        be used to release the d_fsdata if any.
+
+
+     dd__iippuutt
+        If defined, this is called instead of iput to release the inode
+        when the dentry is being discarded.  It should do the equivalent
+        of iput plus anything else that it wants.
+
+
+
+
+  77..  IInnooddeess aanndd OOppeerraattiioonnss
+
+
+
+  Linux keeps a cache of active and recently used inodes.  There are two
+  paths by which these inodes can be accessed.
+
+  The first is through the dcache described above.  Each dentry in the
+  dcache refers to an inode, and thereby keeps that inode in the cache.
+
+  The second path is through the inode hash table.  Each inode is hashed
+  (to an 8 bit number) based on the address of the file-system's super-
+  block and the inode number.  Inodes with the same hash value are then
+  chained together in a doubly linked list.
+
+  Access though the hash table is achieved using the iget function.
+  iget is only called by individual file-system implementations when
+  looking up an inode (which wasn't found in the dcache), and by nfsd.
+
+  Basing the hash on the inode number is a bit restrictive as it assumes
+  that every file-system can uniquely identify a file in 32 bits.  This
+  is a problem at least of the NFS file-system, which would prefer to
+  use the 256 bit file handle as the unique identifier in the hash.
+
+  The nfsd usage might be better served by having the file-system
+  provide a filehandle-to-inode mapping function which has interpret the
+  filehandle however is most appropriate.
+
+
+  77..11..  IInnooddee SSttrruuccttuurree
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ______________________________________________________________________
+  struct inode {
+          struct list_head        i_hash;
+          struct list_head        i_list;
+          struct list_head        i_dentry;
+
+          unsigned long           i_ino;
+          unsigned int            i_count;
+          kdev_t                  i_dev;
+          umode_t                 i_mode;
+          nlink_t                 i_nlink;
+          uid_t                   i_uid;
+          gid_t                   i_gid;
+          kdev_t                  i_rdev;
+          off_t                   i_size;
+          time_t                  i_atime;
+          time_t                  i_mtime;
+          time_t                  i_ctime;
+          unsigned long           i_blksize;
+          unsigned long           i_blocks;
+          unsigned long           i_version;
+          unsigned long           i_nrpages;
+          struct semaphore        i_sem;
+          struct inode_operations *i_op;
+          struct super_block      *i_sb;
+          wait_queue_head_t       i_wait;
+          struct file_lock        *i_flock;
+          struct vm_area_struct   *i_mmap;
+          struct page             *i_pages;
+          spinlock_t              i_shared_lock;
+          struct dquot            *i_dquot[MAXQUOTAS];
+          struct pipe_inode_info  *i_pipe;
+
+
+          unsigned long           i_state;
+
+          unsigned int            i_flags;
+          unsigned char           i_sock;
+
+          atomic_t                i_writecount;
+          unsigned int            i_attr_flags;
+          __u32                   i_generation;
+          union {
+                  ....
+                  struct ext2_inode_info          ext2_i;
+                  ....
+                  struct socket                   socket_i;
+                  void                            *generic_ip;
+          } u;
+  };
+  ______________________________________________________________________
+
+
+
+
+  Many fields in the inode structure will have an obvious meaning to
+  anyone familiar with Unix file-systems, so they will be skipped.  Here
+  I will only deal with those specific to Linux or which have
+  interesting usage.
+
+
+
+     ii__hhaasshh
+        The i_hash linked list links together  all inodes which hash to
+        the same hash bucket.  Hash values are based on the address of
+        the super-block structure, and the inode number of the inode.
+     ii__lliisstt
+        The i_list linked list links inodes in various states.  There is
+        the inode_in_use list which lists unchanged inodes that are in
+        active use, inode_unused which lists unused inodes, and
+        superblock->s_dirty which holds all the dirty inodes on the
+        given file system.
+
+
+     ii__ddeennttrryy
+        The i_dentry list is a list of all struct dentrys that refer to
+        this inode.  They are linked together with the d_alias field of
+        the dentry.
+
+
+     ii__vveerrssiioonn
+        The i_version field is available for file-systems to use to
+        record that a change has been made since some previous time.
+        Typically the i_version is set to the current value of the event
+        global variable which is then incremented.  The file-system code
+        will sometimes assign the current value of i_version to the
+        f_version field of an associated file structure. On a subsequent
+        use of the file structure, it is then possible to tell if the
+        inode has been changed, and if necessary, data cached in the
+        file structure can be refreshed.
+
+
+
+     ii__nnrrppaaggeess
+        This field records the number of pages, linked at i_pages which
+        are currently cached for this inode.  It is incremented by
+        add_page_to_inode_queue and decremented by
+        remove_page_from_inode_queue.
+
+
+     ii__sseemm
+        This semaphore guards changes to the inode.  Any code that wants
+        to make non-atomic access to the inode (i.e. two related
+        accesses with the possibility of sleeping inbetween) must first
+        claim this semaphore.  This includes such things as allocating
+        and deallocating blocks and searching through directories.
+
+        It appears that it is not possible to claim a shared lock for
+        read-only operations.
+
+
+     ii__fflloocckk
+        This points to the list of struct file_lock structures that
+        impose locks in this inode.
+
+
+     ii__mmmmaapp
+        All of the vm_area_struct structures that describe mapping of an
+        inode are linked together with the vm_next_share and
+        vm_pprev_share pointers.  This i_mmap pointer points into that
+        list.
+
+
+     ii__ppaaggeess
+        This is the list of all pages in the page cache that refer to
+        this inode.  They are linked together on the next and prev links
+        in the page structure.
+
+
+     ii__sshhaarreedd__lloocckk
+        This spin lock guards the vm_next_share and vm_prev_share
+        pointers in the i_mmap list.
+     ii__ssttaattee
+        There are three possible inode state bits: I_DIRTY, I_LOCK,
+        I_FREEING.
+
+        II__DDIIRRTTYY
+           Dirty inodes are on the per-super-block s_dirty list, and
+           will be written next time a sync is requested.
+
+        II__LLOOCCKK
+           Inodes are locked while they are being created, read or
+           written.
+
+        II__FFRREEEEIINNGG
+           An inode is has this state when the reference count and link
+           count have both reached zero.  This seems to be only used by
+           igrab called from the fat file-system.  fat does funny things
+           with inodes.
+
+
+     ii__ffllaaggss
+        The i_flags field correspond to the s_flags field in the super
+        block.  Many of the flags can be set system wide or per inode.
+        The per-inode flags are:
+
+
+        MMSS__NNOOSSUUIIDD
+           Setuid/setgid is not permitted in this file.
+
+        MMSS__NNOODDEEVV
+           If this inode is a device special file, it cannot be opened.
+
+        MMSS__NNOOEEXXEECC
+           This file cannot be executed.
+
+        MMSS__SSYYNNCCHHRROONNOOUUSS
+           All write should be synchronous.
+
+        MMSS__MMAANNDDLLOOCCKK
+           Mandatory locking is honoured.
+
+        SS__QQUUOOTTAA
+           Quotas have been initialised.
+
+        SS__AAPPPPEENNDD
+           The file can only be appended to.
+
+        SS__IIMMMMUUTTAABBLLEE
+           The file may not be changed, even by root.
+
+        MMSS__NNOOAATTIIMMEE
+           Do not update access time on the inode when the file is
+           accessed.
+
+        MMSS__NNOODDIIRRAATTIIMMEE
+           Do not update access time on directories (but still do so on
+           files unless MS_NOATIME).
+
+        MMSS__OODDDD__RREENNAAMMEE
+           Wierd nfs thing.
+
+
+     ii__wwrriitteeccoouunntt
+        If this is positive, it counts the number of clients (files or
+        memory maps) which have write access.  If negative, then the
+        absolute value ofthis number counts the number of VM_DENYWRITE
+        mappings that are current. Otherwise it is 0, and nobody is
+        trying to write or trying to stop others from writing.
+
+     ii__aattttrr__ffllaaggss
+        This is never used, and is only set by ext2_read_inode to be
+        some combination of ATTR_FLAG_SYNCRONOUS, ATTR_FLAG_APPEND,
+        ATTR_FLAG_IMMUTABLE and ATTR_FLAG_NOATIME.
+
+
+     ii__ggeenneerraattiioonn
+        The intent of i_generation is to be able to distinguish between
+        an inode before and after a delete/reuse cycle.  This is
+        important for NFS.  Currently, only ext2 and nfsd maintain this
+        field.
+
+        It is not clear that this could be exported to the VFS layer at
+        all as it's use is so specific.  Rather each file-system should
+        have the opportunity to provide a unique file handle for a given
+        inode, and each can then do whatever seems best to guarantee
+        uniqueness.
+
+
+
+  77..22..  IInnooddee MMeetthhooddss
+
+
+
+
+       ______________________________________________________________________
+       struct inode_operations {
+               struct file_operations * default_file_ops;
+               int (*create) (struct inode *,struct dentry *,int);
+               struct dentry * (*lookup) (struct inode *,struct dentry *);
+               int (*link) (struct dentry *,struct inode *,struct dentry *);
+               int (*unlink) (struct inode *,struct dentry *);
+               int (*symlink) (struct inode *,struct dentry *,const char *);
+               int (*mkdir) (struct inode *,struct dentry *,int);
+               int (*rmdir) (struct inode *,struct dentry *);
+               int (*mknod) (struct inode *,struct dentry *,int,int);
+               int (*rename) (struct inode *, struct dentry *,
+                               struct inode *, struct dentry *);
+               int (*readlink) (struct dentry *, char *,int);
+               struct dentry * (*follow_link) (struct dentry *, struct dentry *, unsigned int);
+
+               int (*get_block) (struct inode *, long, struct buffer_head *, int);
+
+               int (*readpage) (struct file *, struct page *);
+               int (*writepage) (struct file *, struct page *);
+               int (*flushpage) (struct inode *, struct page *, unsigned long);
+
+               void (*truncate) (struct inode *);
+               int (*permission) (struct inode *, int);
+               int (*smap) (struct inode *,int);
+               int (*revalidate) (struct dentry *);
+       };
+       ______________________________________________________________________
+
+
+
+
+
+
+     ddeeffaauulltt__ffiillee__ooppss
+        This points to the default table of file operations for files
+        opened on this inode.  When a file is opened, the f_op field in
+        the file structure is initialised from this, and then the open
+        method in the file_operations table is called.  That method may
+        choose to change the f_op to a different (non-default) method
+        table.  This is done, for example, when a device special file is
+        opened.
+
+
+     ccrreeaattee
+        This, and the next 8 methods are only meaningful on directory
+        inodes.
+
+        create is called when the VFS wants to create a file with the
+        given name (in the dentry) in the given directory.  The VFS will
+        have already checked that the name doesn't exist, and the dentry
+        passed will be a negative dentry meaning that the inode pointer
+        will be NULL.
+
+        Create should, if successful, get a new empty inode from the
+        cache with get_empty_inode, fill in the fields and insert it
+        into the hash table with  insert_inode_hash, mark it dirty with
+        mark_inode_dirty, and instantiate it into the dcache with
+        d_instantiate.
+
+        The int argument contains the mode of the file which should
+        indicate that it is S_IFREG and specify the required permission
+        bits.
+
+
+     llooookkuupp
+        lookup should check if that name (given by the dentry) exists in
+        the directory (given by the inode) and should update the dentry
+        using d_add if it does.  This involves finding and loading the
+        inode.
+
+        If the lookup failed to find anything, this is indicated by
+        returning a negative dentry, with an inode pointer of NULL.
+
+        As well as returning an error or NULL, indicating that the
+        dentry was correctly updated, lookup can return an alternate
+        dentry, in which case the passed dentry will be released.  I
+        don't know if this possibility is actually used.
+
+
+     lliinnkk
+        The link method should make a hhaarrdd link from the name refered to
+        by the first dentry to the name referred to by the second
+        dentry, which is in the directory refered to by the inode.
+
+        If successful, it should call d_instantiate to link the inode of
+        the linked file to the new dentry (which was a negative dentry).
+
+
+     uunnlliinnkk
+        This should remove the name refered to by the dentry from the
+        directory referred to by the inode.   It should d_delete the
+        dentry on success.
+
+
+     ssyymmlliinnkk
+        This should create a symbolic link in the given directory with
+        the given name having the given value.  It should d_instantiate
+        the new inode into the dentry on success.
+
+
+     mmkkddiirr
+        Create a directory with the given parent, name, and mode.
+
+
+     rrmmddiirr
+        Remove the named directory (if empty) and d_delete the dentry.
+
+
+     mmkknnoodd
+        Create a device special file with the given parent, name, mode,
+        and device number.  Then d_instantiate the new inode into the
+        dentry.
+
+
+     rreennaammee
+        The first inode and entry refer to a directory and name that
+        exist.  rename should rename the object to have the parent and
+        name given by the second inode and dentry.  All generic checks,
+        including that the new parent isn't a child of the old name,
+        have already been done.
+
+
+     rreeaaddlliinnkk
+        The symbolic link referred to by the dentry is read and the
+        value is copied into the user buffer (with copy_to_user) with a
+        maximum length given by the int.
+
+
+     ffoollllooww__lliinnkk
+        If we have a directory (the first dentry) and a name within that
+        directory (the second dentry) then the _o_b_v_i_o_u_s result of
+        following the name from the directory would arrive at the second
+        dentry.  If an inode requires some other, non-obvious, result --
+        as do symbolic links -- the inode should provide a follow_link
+        method to return the appropriate new dentry.   The int argument
+        contains a number of LOOKUP flags which are described in the
+        section on namei lookups.
+
+
+     ggeett__bblloocckk
+        This method is used to find the device block that holds a given
+        block of a file.  The inode and long indicate the file and block
+        number being sought (the block number is the file offset divided
+        by the file-system block size).  get_block should initialise the
+        b_dev and b_blocknr fields of the buffer_head, and should
+        possibly modify the b_state flags.
+
+        If the int argument is non-zero then a new block should be
+        allocated if one does not already exist.
+
+
+     rreeaaddppaaggee
+        Readpage is only called by mm/filemap.c It is called by:
+
+     +o  try_to_read_ahead from generic_file_readahead and filemap_nopage
+
+     +o  do_generic_file_read
+
+     +o  sys_sendfile
+
+     +o  filemap_nopage
+
+     +o  generic_file_mmap requires it to be non-null.
+
+        Thus it is needed for memory mapping of files (as you would
+        expect), for using the sendfile system call, or if the
+        generic_read_file is to be used for the file:read method.
+
+        readpage is not expected to actually read in the page. It must
+        arrange for the read to happen.  Clients wait for the page to be
+        unlocked before using the data.
+
+        readpage can be implemented using block_read_full_page which is
+        defined in fs/buffer.c.  This routine assumes that
+        inode:get_block has been defined and sets up a buffer_heads to
+        access the block in question.  These buffer_heads will be set to
+        call 'end_buffer_io_async' on completion, which will unlock the
+        page when all buffers on the page complete.
+
+
+     wwrriitteeppaaggee
+        Writepage is called from linux/mm/filemap.c too.
+
+        it is called by do_write_page from filemap_write_page, from
+        filemap_swapout, filemap_sync_pte, and from generic_file_mmap.
+
+        Writepage can be implemented using block_write_full_page from
+        fs/buffer.c.  It is a close twin of block_read_fullpage.  The
+        important differences being:
+
+     +o  block_read_fullpage initiates a read with ll_rw_block, while
+        block_write_fullpage only sets up the buffers, but doesn't
+        initiate the write.
+
+     +o  block_read_fullpage calls inode:get_block with the create flags
+        set to zero, while block_write_fullpage sets it to one, and
+
+     +o  block_read_fullpage calls init_buffer to get end_buffer_io_async
+        called on completion.
+
+        These two routines could be cleaned up a bit so that the
+        similarity and differences stand out more.
+
+
+
+     fflluusshhppaaggee
+        flushpage is called from mm/filemap.c and mm/swap_state.c.
+
+        In mm/filemap.c is called by truncate_inode_pages to make sure
+        no I/O is pending on a page before the page is released.
+        mm/swap_state.c similarly calls it when a page is being removed
+        from the swap cache -- all I/O must be finished.
+
+
+        HEREish
+
+
+     ttrruunnccaattee
+        TODO
+
+     ppeerrmmiissssiioonn
+        TODO
+
+     ssmmaapp
+        TODO
+
+     rreevvaalliiddaattee
+        TODO
+
+
+
+
+
+
+
+
+  88..  LLoocckkiinngg
+
+
+  All file-system operations are still protected by the big kernel lock.
+  The moves to make file-system code SMP safe seem to be progressing
+  from the bottom up, with the buffer cache and page cache essentially
+  SMP safe, the inode cache probably SMP safe (there is spin lock called
+  inode_lock which must be held during inode operations) and the dcache
+  totally SMP-unsafe.
+
+  As file-system operations are mostly done at the dcache level, file
+  system operations are all under the kernel lock.
+
+  The main (only?) non-SMP locking issues that file-systems need to deal
+  with are consistancy of the hierarchical structure in the dcache, and
+  consistancy of any internal structure a individual files (or file-
+  system objects).
+
+
+  88..11..  DDccaacchhee ccoonnssiissttaannccyy
+
+  Changes to the dache involve adding and deleting dentries as children
+  of pre-existing dentries.
+
+  Deleting entries in performed in a lazy fashion. Entires that are not
+  wanted any longer are unhash so that they will not be found by future
+  lookups.  Once the last reference to the unwanted dentry is removed,
+  the dentry will be pruned by dput.
+
+  Adding entries is done by first adding a 'negative' entry which has a
+  NULL pointer for the d_inode, and then instantiating that entry by
+  filling in the d_inode pointer appropriately.
+
+  Any operation which might change the dcache structure must hold a lock
+  while making the change. The protocol used in the VFS layer that the
+  i_sem semaphore on the parent inode must be held when adding a dentry
+  as a child of that inode, or when changing the d_inode pointer in any
+  child of the inode.  Note that unhashing or pruning entries do not
+  require the semaphore to be held as these can be done atomically under
+  the kernel lock.
+
+  The situations which require i_sem to be help down include:
+
+  +o  performing a lookup operation in the file-system which will add a
+     new child dentry - possibly a negative one.
+
+  +o  creating a new file to instantiate a negative dentry.
+
+  +o  Unlinking a file, and hence changing a dentry into a negative
+     dentry.
+
+  Many operations require a two step processes.  The first step does a
+  lookup of some name in a directory.  The second step performs some
+  operation on the name that was found, such as to instantiate it or is
+  some other way change the d_inode pointer.  This requires the i_sem
+  semaphore two be taken and released twice, once of the lookup and once
+  for the other step.  In order the ensure that no incompatible
+  operations has occurred between the two holds on the semaphore, the
+  VFS locking protocol requires that after the second
+  down(&inode->i_sem, the operation must check that the parent dentry
+  really is still the parent of the child dentry.  This can be done
+  using code similar to the check_parent macro in fs/namei.c.
+
+
+
+
+  88..11..11..  RReennaammee
+
+  A particularly interesting case for dcache locking involves the rename
+  operation, as this changes two entries in the one operation.
+
+  When renaming a file (or other non-directory object) it is sufficient
+  to lock both parent directories.  If order to avoid deadlocks, the
+  convention is to HERE
+
+
+  88..22..  FFiillee ccoonnssiissttaannccyy
+
+
+
+  88..33..  MMoouunntt ttaabbllee lloocckkiinngg
+
+
+
+
+  99..  CCrreeddiittss
+
+
+
+     RRiicchhaarrdd GGoooocchh <rgooch@atnf.csiro.au>
+        This document was inspired in part by Documentation/vfs.txt
+        which was by by Richard.
+
+     TTiiggrraann AAiivvaazziiaann <tigran@sco.com>
+        Tigran has provided a number of additions and corrections, and
+        well as valuable encouragement.
+
+
+  1100..  SSccrriibbbblleedd nnootteess
+
+
+  NOTES:
+
+  brw_page in fs/buffer.c is called by mm/page_io.c and is also exported
+  to modules.  It is for swap page I/O.
+
+  NOTES:
+
+  generic_file_read does readahead, and reads a full page.
+  generic_file_write calls the helper routine to write each page, or
+  part there of.  The helper copies the user-space buffer into the page,
+  after reading in partial blocks and sets up the buffer-headers to
+  allow write.
+
+
+  When writing to a file, the data is copied into the page cache, and
+  buffer_heads are set up, marked dirty.  Eventually, either by fsync or
+  bdflush (possibly called by balance_dirty) ll_rw_block(WRITE) will be
+  called.  ll_rw_block goes straight to the device_queue unless it is an
+  MD or LOOP device, which might intervene.
+
+  SUGGESTIONS:
+
+  allow inode:follow_link to be NULL, implying readlink followed by
+  lookup_dentry.
+
+  discard i_generation in favour of getfilehandle
+
+
+
+
+

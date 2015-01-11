@@ -1,0 +1,98 @@
+<HTML>
+<HEAD>
+<TITLE>Burn CDs With the Solaris[TM] 8 Operating Environment</TITLE>
+</HEAD>
+<body>
+
+
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td> <br>
+      <br>
+      <font size="3" color="#666699"><b>Burn CDs With the Solaris[TM] 8 Operating Environment</b></font></td>
+  </tr>
+  <tr>
+    <td> </td>
+  </tr>
+</table>
+
+<h4>CD-ROM drives are commonly used for duplicating existing CDs, and for making CD data backups of hard disk files. This article demonstrates how both tasks can be accomplished using cdrecord on the Solaris[TM] Operating Environment.</h4>
+
+<p>A simple command line program, cdrecord, means burning CDs using Solaris software is quick, simple, and cost-effective. The cdrecord program, which works for both SPARC[TM] and Intel Architecture systems, is included on the Solaris Software Companion CD (Update 2 and higher), and is also available for free download from <a href="http://www.sun.com/software/solaris/freeware/download.html"> sun.com/software/solaris/freeware/download.html</a>.</p>
+
+<P>While optional, configuring a cdrecord startup file, /etc/default/cdrecord, will save time in the future. This startup configuration file can hold information that cdrecord will need every time it's used, such as the CD recorder's speed, device name, the preferred buffer size, and so on. Alternately, these options can be entered into the command line before every use.</P>
+
+<UL>The first step is to identify the cd recorder device name, which can be found by scanning the device buses. In order to scan the devices, however, the volume management must be turned off.
+  <LI>Log in as root</LI>
+  <LI>Turn off volume management by typing /etc/init.d/volmgt stop</LI>
+  <LI>Discover the CD recorder and CD-ROM drive device names by typing cdrecord -scanbus at the root prompt. The command output should be similar to:
+
+<PRE>
+	  	#  cdrecord -scanbus
+	  	cdrecord 1.9 (i386-pc-solaris2.8) Copyright (C) 1995-2000
+
+	  	1,0,0  100) 'CREATIVE' 'CD5233E ' '1.00' Removable CD-ROM
+	  	2,4,0  204) 'PLEXTOR' 'CD-R PX-R820T' '1.05' Removable CD-ROM
+	</PRE></LI>
+</UL>
+
+
+The device ID is the first three numbers listed in each entry -- in this case, device 2,4,0 is the CD recorder, for example. The configuraiton file can also include a recording speed (for example, 8 times), and a buffer size (for example, 8 megabytes) to help avoid under runs. To create the configuration file, located in /etc/default/cdrecord, type:
+
+<PRE>
+  	# cat /etc/default/cdrecord
+  	CDR_FIFOSIZE=8m
+  	CDR_SPEED=8
+  	CDR_DEVICE=USCSI:2,4,0
+
+</PRE>
+
+The cdrecord program startup configuration file is now set up for the future!
+
+<P><B>CD to CD</B></P>
+
+<P>To duplicate an existing CD, insert the CD into the CD-ROM drive. (Remember, duplicating CDs might require certain copyright and license permissions!) Then:
+</P>
+<P>Determine the controller and target numbers. These are listed in the cdrecord -scanbus output (from before): 1,0,0  100) 'CREATIVE' 'CD5233E ' '1.00' Removable CD-ROM . The first number is the controller number, and the second number is the target number. In this case, they are one and zero, respectively. Also note that in the Solaris 8 platform, the IDE CD-ROM drive device names are very similar to SCSI device names -- both contain target numbers.</P>
+
+<P>Choose an output file with sufficient free hard disk space (at least 700 megabytes recommended). For this example, the free space is located in the /local file system.</P>
+
+<P>Capture an ISO image file of the CD by typing (at root prompt):</P>
+
+	<PRE>
+  # dd if=/dev/dsk/c1t0d0p0  of=/local/mycdromfile.iso
+
+</PRE>
+
+<P>It will take about five to ten minutes to copy the entire CD image file to disk. After inserting a blank CD into the CD-ROM drive, burn the image from disk onto a second CD by typing:</P>
+
+	<PRE>
+	  # cdrecord -v /local/mycdromfile.iso
+	</PRE>
+
+
+<P>This should take about 15 to 30 minutes, depending on the speed of the CD burner. In the above command, -v displays each step with extra information, just in case something isn't successful.</P>
+
+<P><B>Data to CD</B></P>
+
+<P>Many users also utilize CD-ROM drives to create data backups on CD of a system's home directory and files. The Solaris 8 Operating Environment includes a very useful command for this, mkisofs, which creates an image file when pointed at a system directory. To make an image file of a home directory, for example /home/neal, type:</P>
+
+<PRE>
+  	# mkisofs -l -L -r -o /local/mycdromfile2.iso  /home/neal
+</PRE>
+
+
+<P>This will take all the files in the /home/neal directory and create a CD-ROM ISO image file at /local/mycdromfile2.iso.</P>
+
+<P>When this is finished, insert a blank CD into the CD-ROM drive, and type:</P>
+<PRE>
+
+  	# cdrecord -v /local/mycdromfile2.iso
+</PRE>
+
+
+<P>This will copy the data image onto the blank CD, and should take about 15 to 30 minutes depending on the speed of the burner. More information about the mkisofs command, including all its configurable options, can be found by typing man mkisofs at a shell prompt.</P>
+
+<P>For additional software and hardware information, documentation, source code, and a list of supported CD recorders for cdrecord (an open source project), visit the <A HREF="http://freshmeat.net/projects/cdrecord"> Freshmeat Web site</A>. To learn more about the Solaris Operating Environment, please visit <A HREF="http://www.sun.com/solaris"> www.sun.com/solaris</A>.</P>
+</body>
+</html>

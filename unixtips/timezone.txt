@@ -1,0 +1,20 @@
+Problem
+-------
+How do I change the timezone on my Solaris server/workstation?
+
+Solution
+--------
+a) Edit /etc/TIMEZONE
+	NOTE: the man page incorrectly states this file is called /etc/timezone
+b) Reboot your server with shutdown or init.
+
+
+Examples
+--------
+US/Eastern
+US/Central
+US/Mountain
+US/Pacific
+
+For the full list, look in:
+	/usr/share/lib/zoneinfo/

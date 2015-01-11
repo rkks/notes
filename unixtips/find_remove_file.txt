@@ -1,0 +1,48 @@
+So you created a file (somehow) with a wierd character in it?  Something like:
+	-f
+or
+	*
+
+Removal Method #1
+-----------------
+cd to the directory
+rm ./funnyfilename
+
+Ex. 
+cd /tmp
+rm ./-f
+
+
+Removal Method #2
+-----------------
+cd to the directory
+rm -- -f
+If -f was the filename.
+
+
+Removal Method #3
+-----------------
+Just cd to the directory and:
+	ls -i
+to get the inode number.
+
+Plug that into the find statement below:
+	find . -inum acutal_inode_number -exec rm -i {} \;
+
+
+
+
+
+HEY!!  What if I am doing this in the root directory?  I don't want to remove every file with that same inode number on different filesystems.
+
+Just add the -xdev or the -mount option:
+	Restricts the search to the file system	containing  
+	the directory specified.  Does not list mount 
+	points to other file systems.
+	
+	find . -inum whatever_it_is -mount -exec rm -i {} \;
+	
+	
+	
+The -i option will give you a chance to make sure you got it all correct 
+(you will be prompted) before going on an rm rampage.

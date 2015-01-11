@@ -1,0 +1,18 @@
+If one of your DiskSuite / SVM mirrors went bad (for your root disk) and now you
+have 1/2 or less of your metadb's, the system won't boot.  
+
+You have to do a couple of things to convince it otherwise.
+
+a)  Run: metadb -i or format
+to see which disk is having the problem.
+Format will tell you something like "drive type unknown" on the bad disk and by
+looking at the other metadb entries, it should be fairly obvious which disk is bad.
+
+b) Delete the metadb's on the bad disk:
+metadb -d c1t0d0s7
+
+c) Remount root as writable so you can continue to boot:
+mount -o remount /
+
+d) Type: exit 
+to continue booting from single-user mode.

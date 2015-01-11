@@ -1,0 +1,51 @@
+Q: We are using jumpstart to automate our Solaris installs. At the end,
+the jumpstart finish script installs a script that runs after reboot to
+install the custom software packages via executing pkgadd commands.
+These pkgadd commands in turn have pre- and post-install scripts and
+want to interact with the installer. When trying to install, the pkgadd
+has errors and fail because the pre- and post-install scripts don't get
+that user interaction. Do you know how I could automate this? 
+
+A: You can have pkgadd use an alternate administrative file and do
+installs without manual intervention. Your pkgadd command will look
+something like the following: 
+
+	pkgadd -n -a $adminfile $package 
+
+$adminfile will be another file in your jumpstart setup that contains
+the following text (or you can tailor to taste): 
+
+
+ mail=
+ instance=quit
+ partial=nocheck
+ runlevel=nocheck
+ idepend=nocheck
+ rdepend=nocheck
+ space=ask
+ setuid=nocheck
+ conflict=nocheck
+ action=nocheck
+ basedir=default
+
+This gives the pkgadd command all the answers it needs to do the
+installation without intervention, unless you don't have enough space.
+The default administration file is located in
+/var/sadm/install/admin/default, and specifies ask for most of the above
+questions: 
+
+
+ mail=
+ instance=unique
+ partial=ask
+ runlevel=ask
+ idepend=ask
+ rdepend=ask
+ space=ask
+ setuid=ask
+ conflict=ask
+ action=ask
+ basedir=default
+
+See the man page for pkgadd(1M) for more information on the available
+flags, and admin(4) for more information on the parameters in the admin file. 

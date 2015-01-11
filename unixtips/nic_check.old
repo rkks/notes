@@ -1,0 +1,57 @@
+#!/bin/ksh
+#set -xv
+#
+# nic_check - 01/12/2001 - David Cashion - initial script
+#           - 11/06/2002 - David Cashion - added ability to look at all
+#                               interfaces or just the one specified
+#
+# Polls the interfaces specified (or all of them with exception of leX and 
+# loX) for speed, link, duplex, and transceiver location.
+#
+# NOTE:  Needs to be run as root.
+
+
+#### Pick the interface given or run through all of them (except l[eo])
+if [ $# -eq 1 ]; then
+   if [ $1 == "-all" ]; then
+        nics=$(/usr/sbin/ifconfig -a | awk -F: '/^[a-km-z]/ {print $1}' | sort -u)
+        print "Checking these network interfaces: $nics\n"
+   else
+        nics=$1
+   fi
+else
+   print "USAGE:"
+   print "\t$0 INTERFACEinstance"
+   print "\t$0 -all"
+   print "\n\tExample: $0 hme0"
+   exit 1
+fi         
+
+
+for item in $nics; do
+   interface=$(echo $item | cut -c1-3)
+   int_inst=$(echo $item | cut -c4)
+
+   #### First we have to select the interface and instance
+   $(/usr/sbin/ndd -set /dev/$interface instance $int_inst)
+   if [ $? -ne 0 ]; then
+        print "ERROR: No such device: $item"
+        exit 1
+   fi
+
+   print "Network interface: $item"
+   echo "-----------------------"
+
+   #### 0=down, 1=up
+   print -n "Link: "
+   [ $(/usr/sbin/ndd -get /dev/$interface link_status) -eq 0 ] && print "down" || print "up"
+
+   #### 0=10Mb, 1=100Mb
+   print -n "Speed: "
+   [ $(/usr/sbin/ndd -get /dev/$interface link_speed) -eq 0 ] && print "10Mb" || print "100Mb"
+
+   #### 0=half, 1=full duplex
+   print -n "Duplex: "
+   [ $(/usr/sbin/ndd -get /dev/$interface link_mode) -eq 0 ] && print "half" || print "full"
+   print
+done

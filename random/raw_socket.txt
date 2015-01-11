@@ -1,0 +1,1986 @@
+
+
+			Exile 2000 International Coding Team
+			     (http://www.exile2k.org)
+		   Documentation about native raw socket programming
+			   All rights reserved Exile Team
+
+		Free to distribute this text just keep it's integrity
+	       	   Ripping is lame remember this
+
+
+	Questions or comments?
+
+				    Nitr0gen
+			     nitr0gen@hackersnews.com
+
+
+		PLEASE EXCUSE MY POOR ENGLISH, IT'S NOT MY MOTHER LANGUAGE
+
+
+
+
+
+-----[ Forewords ]---
+
+
+		Well you're in it, there's no  way to  escape
+	the native way of raw socket programming. In contrast
+	of many  people  thinking it's  boring  or a waste of
+	time, coding in raw socket  is a good  experience  to
+	learn and  is very  useful  sometimes.  With it,  you
+	get   more flexibility   to  innovate new  protocols,
+	control   what's   really happening   at lower level.
+	Building  packet  through  a  library   is  efficient
+	but imagine how powerfull  it gets when  you can code
+	your own lib.  Actually, i'm not  writing  this paper
+	to convince you how kool or strong raw socket  coding
+	is, so i'll get  to  the  point. Firstly  i  want  to
+	notice  that to  understand this documentation a good
+	knowledge of C and networking  concept's required.  i
+	introduce the ip  header first, secondly  tcp header,
+	then  udp header  and  last  but  not least, the icmp
+	header.
+
+	The second part   of this foreword  is   dedicated to
+	lamers.  i know   the  whole  world's   focusing   on
+	them     but   please,  respect   the    intellectual
+	knowledge of the  author  and   don't  rip  this text
+	for your purposes.
+
+
+
+
+
+
+
+
+-----[ Content ]---
+
+
+
+
+	[ Ip Header ]
+		- Theory
+		- Fragmentation
+		- Checksum
+		- Examples
+
+	[ Tcp Header ]
+		- Theory
+		- Example
+
+	[ Udp Header ]
+		- Theory
+		- Example
+
+	[ Icmp Header ]
+		- Theory
+		- Example
+
+	[ The Implementation ]
+
+	[ Conclusion ]
+
+	[ Appendix A ]
+		- Structures and Functions
+		- Sources
+
+	[ References ]
+
+	[ Greetings ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ CHAPTER 1 ]
+				 (IP HEADER)
+
+
+---[ Theory
+
+
+		Well if you're interest in raw socket programming
+	i assume  you  know  tcp/ip's basic. By this, i mean  all
+	layers  and stuff.  Ip  header is  part  of  the  NETWORK
+	layers in tcp/ip protocol suit. Basicly ip header is used
+	to route packets over a network such as the internet, wan
+	or lan. Transmission  mode of this  header is  unreliable
+	datagram  because  you  don't have  garanty that  it will
+	arrive  at  destination, or  even   worst, packets   sent
+	aren't surely received in the order they were  delivered.
+	Take for example (Datagram A and B) A  is sent  before B,
+	it's not garantied that A will take the same way(Routing)
+	as B to arrive at destination. The result of this is what
+	i said before, datagram aren't surely received in the way
+	they were delivered.As you are reading this documentation
+	you   know it's  not  a  tcp/ip course   but   a   coding
+	documentation, therefore, i'll limit myself to coding. As
+	a  matter  of  information,  when  you   build  a  packet
+	don't  forget   your   htons()   or htonl()   to  respect
+	byte ordering. Some  reader  will  interogate  themselves
+	and ask  why i'm  telling that,  i'll answer  that i have
+	been sticking 1 month to find this little problem. PLEASE
+	DON'T DO AS I DID!!!!
+
+
+
+
+	Here's an ascii art of a Ip header:
+
+
+	0                     15-16                    31
+	+-----+-----+-----------+-----------------------+  \
+	| Ver | IHL |    TOS    |      Total Length     |   \
+	| (4) | (4) |    (8)    |         (16 )         |    |
+	+-----+-----+-----------+--------+--------------+    |
+	|    Identification     |  Flags |  Frag Offset |    |
+	|        (16)           |   (3)  |     (13)     |    |
+	+-----------+-----------+--------+--------------+    |
+	|    TTL    |  Protocol |    Header Checksum    |   20 Bytes
+	|    (8)    |    (8)    |         (16)          |    |
+        +-----------+-----------+-----------------------+    |
+	|               Source Ip Address               |    |
+	|                      (32)                     |    |
+	+-----------------------------------------------+    |
+	|             Destination Ip Address            |    |
+	|                      (32)                     |   /
+	+-----------------------------------------------+  /
+	<                     Options                   >
+	>                     (if any)                  <
+	+-----------------------------------------------+
+	>                                               <
+	<                      Data                     >
+        >                                               <
+
+
+
+	Version (4 bits):
+			Version field is used to specify Internet
+		Protocol version, usually  IpV4 since IpV6 hasn't
+		been released officially yet.
+
+
+	IHL (Internet Header Length, 4 bits):
+			Ihl's the length, in  32 bits words, of the
+		Ip header.  When using no options, the  value  by
+		default should be 5.
+
+
+	TOS (Type Of Service, 8 bits):
+			Tos is  used to  specify  services needs.
+
+		There's 4 options for TOS:
+
+			*NAME*              *Hex value*
+
+		1- Minimize delay	      	0x10
+		2- Maximize throughput	      0x08
+		3- Maximize reliability	      0x04
+		4- Minimize monatary cost     0x02
+
+		 1: This is  used by  application  who  transfert
+		    small  ammounts  of  data  and   needs a fast
+		    reponse.
+
+		 2: In oposite, this is  used  by  an application
+		    transfering   lots  of  data  and   wants  to
+		    increased his data throughput.
+
+		 3: I don't know about it, will be explained next
+		    paper.
+
+		 4: I don't know about it, will be explained next
+		    paper.
+
+		Since TOS is an experimantal  feature  of  IP, we
+		won't discuss further about  it  in  this  paper,
+		next paper  could  eventually go deeper  into Tos
+		theory.
+
+
+	Total Length (8 bits):
+			This's to specify datagrams size, headers
+		+ data. For example:
+		We got a  (ip header + tcp header[syn])  without
+		data. Size of  ip header's 20 and tcps size too,
+		then tot_len field will be 40.
+
+
+	Identification (16 bits):
+			Id is used to   identify   fragments. When
+		datagrams  aren't  fragmented   this   field  is
+		useless.Id usually increments from from datagram
+		to datagram.  Each fragment haves the same id as
+		the first datagram.
+
+
+	Flags (3 bits):
+			This field of Ip is used by fragmentation.
+		There is 4 flags:
+
+			*NAME*		*Hex value*
+
+		 No flags				0x00
+		 More fragment			0x01
+		 Don't fragment			0x02
+		 More and Dont't frag		0x03
+
+		More frag means that there is more fragment  after
+		this dgram, don't frag  tells not to fragment that
+		piece and the last  do both.  When you  fragment a
+		dgram,the last packet doesn't haves MF (More Frag)
+		set.
+
+
+	Fragment Offset (13 bits):
+			This is  the  offset  within   the  packet
+		calculated.  The  first   dgram   gets  offset 0.
+		This  field  is   calculated  in   64 bits.  When
+		calculating,last offset will be equal to tot_len.
+
+
+	TTL (Time To Live, 8 bits):
+			This field is  used  to  specify   how many
+		hops the dgram will be  able  to go through. It's
+		decreased each time forwarded. When the TTL reach
+		0 the hop discard dgram  and  send  back  an icmp
+		message  TIME EXCEED to  the   source. This is to
+		avoid  infinit loop of dgram in a network.
+
+
+	Protocol (8 bits):
+			This specify  the  protocol for  transport
+		layer.  The value can be:
+
+		*NAME*			*Hex value*
+
+		IPPROTO_TCP		   	   0x06
+		IPPROTO_UDP		   	   0x11
+		IPPROTO_ICMP		   0x01
+
+		There's more protocol but they won't be covered in
+		this paper.  For more  information take  a look at
+		this header who defines all constants.
+		'/usr/include/linux/in.h'
+
+
+	Header CheckSum (16 bits):
+			The checksum's used to verify datagrams
+		integrity.  If data  gets corrupted or modified
+		during transport, then it can be detected  with
+		checksum.  If checksum  doesn't match dgram, it
+		is hardly discared  without  warnings.  This is
+		annoying under coding point   of view.  Look at
+		Appendix  A  for    the    checksum    function
+		( in_cksum() ).
+
+
+	Source Ip (32 bits):
+			The source  ip  of the host  sending  the
+			datagram.
+
+	Destination Ip (32 bits):
+			The  destination ip  for  this   datagram.
+
+
+
+	Options (Variable):
+			Options  field  will  not be  covered   in
+		this paper, but a next version should.
+
+
+
+		Under programming point  of  view, building  a  Ip
+	Header is simply filling  a  structure.  Since  i'm  using
+	Linux, all reference made  to headers  and  syscalls  will
+	be based on linux 2.2.13.
+
+
+
+
+---[ Fragmentation
+
+
+		Basicly fragmentation is when  the MTU (Maximum
+	Transfert Unit) is lower  then the  dgram total length.
+	So we must break it into few  pieces and send it,  once
+	at   destination    it   rebuild    the    dgram.  When
+	fragmenting, we need specific field  set in  Ip header.
+	Flag MF must be set to all  fragment  except the  last.
+	Offset for the first packet must  be  zero.  Id must be
+	the same for each fragment to identify  which  fragment
+	belongs to what serie of datagram  piece.  If Ip header
+	is modified   in    a   fragment, checksum    must   be
+	recalculated.  First   fragments  total length gets the
+	value of MTU and so on...
+
+
+
+
+---[ Checksum
+
+
+		Well, calculating a header checksum isn't hard,
+	take a look  at  the  Appendix A to  see  the  function
+	responsible   of   calculating   checksum. Here's   the
+	prototype:
+
+	 unsigned short in_cksum(unsigned short *addr, int len);
+
+    - unsigned short *addr : This is a pointer to your ip header.
+    - int len :	           This is the  length  of  your ip header.
+
+		Basicly here is what the function do:
+
+	    /*
+	     * Our algorithm is simple, using a 32 bit accumulator (sum), we add
+	     * sequential 16 bit words to it, and at the end, fold back all the
+	     * carry bits from the top 16 bits into the lower 16 bits.
+	     */
+
+
+
+
+
+---[ Examples
+
+
+		The name tells explicitly what you'll find on that
+	section. We assume we are on a Little Endian cpu.
+
+
+
+/***********************************************************************/
+/*		Exile 2000 International Coding Team                   */
+/*		     (http://www.exile2k.org)                          */
+/*		   All rights reserved Exile Team                      */
+/*		    Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*                This function basicly build a IP header              */
+/*                       WITHOUT FRAGMENTATION                         */
+/*                                                                     */
+/***********************************************************************/
+
+void buildip_nf(){ /*** Function building a IP Header ***/
+
+	struct iphdr *ip;  
+		/*** A little step for a man, a big step for human kind ***/
+
+	ip = (struct iphdr *) malloc(sizeof(struct iphdr));    
+		/*** Allocating dynamic memory ***/
+
+	ip->ihl     = 5;	/*** IP Header Length in bytes ***/
+	ip->version = 4;	/*** IP Version ***/
+	ip->tos     = 0;	/*** Experimental (See higher for details) ***/
+	ip->tot_len = sizeof(struct iphdr) + 452/*** Total length of packet ***/
+						      
+
+	ip->id      = htons(getuid()); 
+		/*** Identification of the packet, useless
+					    for us ***/
+
+	ip->ttl      = 255;		/*** The packet can pass up
+						 to 255 hop ***/
+	ip->protocol = IPPROTO_TCP; /*** If we use tcp at TRANSPORT layer***/
+	ip->saddr    = inet_addr("127.0.0.1");	/*** Packet source ip ***/
+	ip->daddr    = inet_addr("127.0.0.1");	/*** Packet destination ip ***/
+
+	ip->check    = in_cksum((unsigned short *)ip, sizeof(struct iphdr)); 
+				  /*** Checksum ***/
+
+} 
+
+
+
+
+/***********************************************************************/
+/*		Exile 2000 International Coding Team                       */
+/*		     (http://www.exile2k.org)                              */
+/*		   All rights reserved Exile Team                          */
+/*		    Copyright 2000 (C) Nitr0gen                      	     */
+/*                                                                     */
+/*                This function basicly build a IP header              */
+/*                       FRAGMENTATION of ip                           */
+/*                    datagram into 2 fragments                        */
+/*                         MTU = 280 bytes                             */
+/*                                                                     */
+/***********************************************************************/
+
+
+
+void buildip_f(){ /*** Function building a fragmented IP Header ***/
+
+	struct iphdr *ipf;
+
+	ipf = (struct iphdr *) malloc(sizeof(struct iphdr));
+
+/**** FIRST FRAGMENT ***/
+        ipf->ihl     = 5; /*** Length of header in 32 bits word */
+        ipf->version = 4; /*** Ip version */
+        ipf->tos     = 0; /*** Type of service unused */
+        ipf->tot_len = sizeof(struct iphdr) + 256; /* Length of first frag */
+        ipf->id      = htons(1); /*** To identify our 2 frag */
+        ipf->ttl     = 255;	/*** Datagram can pass up to 255 hops */
+        ipf->protocol = IPPROTO_TCP; /*** using TCP protocol.. *whatever* */
+        ipf->saddr    = inet_addr("127.0.0.1"); /*** Sending from localhost */
+        ipf->daddr    = inet_addr("127.0.0.1"); /*** Sending to localhost */
+        ipf->frag_off = htons(0x2000); /*** Fragment 0 and MF */
+        ipf->check    = in_cksum((unsigned short *)ipf,sizeof(struct iphdr)+256);
+		/*** Computing checksum */
+
+
+	/**** We should send the first fragment here ***/
+
+
+/**** SECOND FRAGMENT ***/
+        ipf->tot_len = sizeof(struct iphdr) + 196; /*** Updating dgrams length */
+        ipf->frag_off = htons(32); /*** Fragment offset ***/
+        ipf->check    = in_cksum((unsigned short *)ipf,sizeof(struct iphdr)+196);
+		/*** Recomputing checksum since we have changed some field */
+
+        /**** We should send the second fragment here ***/
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ CHAPTER 2 ]
+				(TCP  HEADER)
+
+
+
+
+---[ Theory
+
+
+		From now on lets take a look  at tcps  header.
+	Since this is  a  reliable  transmission  mode,  you
+	have to  make  a  connection   before   transmitting
+	streams.  Actually,  what  is   a  connection?  With
+	tcp we call it  an  Handshake  which  investigate  3
+	steps.  The  first  peer  have  to  send  a tcp  SYN
+	segment to  SYNchronize the  acknowledgment   number
+	then  the second peer have to ACKnowledge the syn to
+	make  sure it has  been  received.  If  the  SYN_ACK
+	isn't  received   from  first  peer  then the  tcp's
+	connection state stay  on SYN_SENT and keep  sending
+	SYN to the second peer  until he gets it.  After SYN
+	reception has  been  confirmed  by SYN_ACK  we  send
+	back a ACK  to  confirm  the  reception  of SYN_ACK.
+	Theorycally a  connection is made between both  host
+	but  if  second   host  gets   disconnected   before
+	receiving  our  last  ACK, we think we are connected
+	but we aren't.  This  is one  of  tcp's problem. Tcp
+	as Ip has a data integrity checksum  using  a pseudo
+	header which will  be  discussed  later.  To be sure
+	a segment comes from the source it claims, tcp added
+	a Sequence  number  feature which  means  that  when
+	doing the handshake, first  peer gives a Seq  Number
+	then second peer ACK the SYN with her seq number set
+	has the first peer sended it. Second host expect the
+	next incoming  segment  to  have his  seq number  as
+	specified in Acknowledgment  field  in last  segment
+	sent. This method prevents misintentionned user from
+	hijacking connection. Take for example:
+
+		Host A < ---- TCP CONNECTION ----> HOST B
+
+			     ^---- HOST X (Misintentionnned user)
+
+		If there wasn't sequence  number, HOST X could
+		send segment to  HOST B  claiming  he's HOST A
+		and    reset     the  connection.  Last   year
+		approximatly, this  technique   was    in use.
+		But now, seq  number a   praticly random, it's
+		then impossible to guess.
+
+	This protocol got  more security options playing with
+	IP options, but i'll not  cover them  on this version
+	of the paper.  Tcp allow a  good  multiplexing way of
+	managing his incoming and outgoing  segment.  Because
+	of destination and source  port, lot  of  process can
+	communicate   together at  the  same   time. I didn't
+	covered all   the tcps feature   because this's not a
+	tcp/ip guide  but a programming  paper but  im pretty
+	sure you know that the protocol has  good features to
+	keep data integrity, security   and   multiplexing...
+	These options have  to cause a disadvantage somewhere
+	and it  hurts  the  speed of  transmissions.  Did you
+	ever ask youself about what  is a  socket?  Well  the
+	term socket is  oftenly used in tcps world.  A socket
+	is simply a Ip Addresse combined with  a Port  number
+	and a socket pair  is  the  combination of  Source Ip
+	Addresse +  Source Port + Destination Ip  Addresse  +
+	Destination port.
+
+		Tcp offer 6 major functions:
+
+
+		URG:	Send urgent data to desintation peer.
+
+		ACK:	Acknowledgement of the data.  This is
+			keep  datas  integrity  as  explained
+			higher.
+
+		PSH:	Push data to destination peer.
+
+		RST:	Resets a connection.
+
+		SYN:	Synchronize the Seq Number.
+
+		FIN:	No more data to send from source host.
+		
+
+
+
+
+
+
+
+	TCP Header Scheme:
+
+	0                     15-16                    31
+	+-----------------------+-----------------------+ \
+	|      Source Port      |    Destination Port   |  \
+	|        (16b)          |         (16b)         |  |
+	+-----------------------+-----------------------+  |
+	|                Sequence Number                |  |
+	|                     (32b)                     |  |
+	+-----------------------------------------------+  |
+	|                 Acknowledgement               |  |
+	|                     (32b)                     |  |
+	+-------+------+--------+-----------------------+  20 Bytes
+	| D_Off | Res  | Flags  |       Windows         |  |
+	|  (4b) | (6b) |  (6b)  |        (16b)          |  |
+	+-------+------+--------+-----------------------+  |
+	|       Checksum        |    Urgent Pointer     |  |
+	|         (16b)         |        (16b)          |  |
+	+-----------------------+------------+----------+  |
+	|               Options              | Padding  |  |
+	|                (24b)               |  (8b)    |  /
+	+------------------------------------+----------+ /
+	>                      DATA                     <
+	<                                               >
+
+
+
+
+	Source Port (16 bits):
+			The  source port of  this segment.
+		Returning  segment  will be  received on
+		this port.
+
+	Destination Port (16 bits):
+			The  segments   destination  port.
+		The segment  will be  received from  the
+		outgoing interface on that port.
+
+	Sequence number (32bits):
+			Sequence   number  is  a  good tcp
+		security  feature.  When   a sement   is
+		received, kernel tcp  module   verify if
+		the number  is right.  If  it's  not  it
+		discard the segment. This  is  to  avoid
+		misintentionned   kids   hijacking   tcp
+		connections as i said previously.
+
+
+
+
+	Acknowledgment (32 bits):
+			When ACK flag's  set,  the   value
+		of this  field  is set  to the  new  Seq
+		number expecting  to  receive from  next
+		segment of the other peer.
+
+
+	Data Offset (4 bits):
+			The   data    offset   within   the
+		header   expressed  in   32  bits  words.
+		If no options, default value is 5.
+
+
+	Reserved (6 bits):
+			Reserved  for  futur  use,  it  must
+		be 0.
+
+	Flags (6 bits):
+			There   is   6   flags  in  a  tcp
+		segment. Here the are:
+
+
+		URG:	Urgent Pointer
+		ACK:	Acknowledge
+		PSH:	Push
+		RST:	Reset
+		SYN:	Synchronize Seq Number
+		FIN:	No more data to send from source
+
+
+	Windows (16 bits):
+			This is to specify the  next  maximum
+		segment  size. If segment exceed this value,
+		it must be fragmented.
+
+
+	Checksum (16 bits):
+			The checksum to keep  data  integrity.
+		The   checksum   is   calculating   with   a
+		Pseudo-Header which  i'lll explain.  Here is
+		the structure, stolen  from Tcp/Ip  Volume 1
+		(The protocol) by W. Richard Stevens. Please
+		give 1 minute of silence for this incredible
+		man  that  have  died, he  was   a   awesome
+		writer.
+
+		Here's the struct:
+
+			struct pseudohdr {
+			        unsigned long saddr;
+			        unsigned long daddr;
+			        char useless;
+			        unsigned char protocol;
+			        unsigned short length;
+			};
+
+		The header holds the source  and   destination
+		ip addresse  to   avoid   misrouted   segment.
+		The "useless" character   is   to   respect 32
+		bits boundary.  Its contains   the   protocol,
+		in this  case IPPROTO_TCP   and   the   length
+		of the segment.
+
+		The checksum is calculated as the Ip header:
+
+
+-------------- CUT HERE -----------------
+
+  #define PSEUDO sizeof(struct pseudohdr)
+  #define TCPHDR sizeof(struct tcphdr)
+
+   struct pseudohdr pseudo;
+   struct tcphdr tcp;
+
+   pseudo.saddr    = inet_addr("127.0.0.1");
+   pseudo.daddr    = inet_addr("127.0.0.1");
+   pseudo.useless  = htons(0);
+   pseudo.protocol = IPPROTO_TCP;
+   pseudo.length   = TCPHDR + data;
+
+   tcp->check    = in_cksum((unsigned short *)&pseudo, PSEUDO+TCPHDR); 
+
+-------------- CUT HERE ----------------
+
+
+
+	Urgent Pointer (16 bits):
+			This field is  only signifiant if  URG flag
+		is set.  It points to a data area  and this makes
+		the data urgent from  destination  peer  point of
+		view.
+
+
+	Options (24 bits):
+			Options fields will not be covered in this
+		version of the paper.
+
+
+	Padding (8 bits):
+			The padding field  is filled with 0. It  is
+		to respect 32 bits  boundary, it starts  with  32
+		bits and ends with 32 bits.
+
+
+---[ Example
+
+
+
+/***********************************************************************/
+/*              Exile 2000 International Coding Team                   */
+/*                   (http://www.exile2k.org)                          */
+/*                 All rights reserved Exile Team                      */
+/*                  Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*                This function basicly build a TCP header             */
+/*                       With SYN flag setted                          */
+/*            It requests for a telnet connection on localhost         */
+/*                                                                     */
+/***********************************************************************/
+
+
+
+
+#define TCPHDR		sizeof(struct tcphdr)
+#define PSEUHDR		sizeof(struct iphdr)
+
+
+void build_tcp(){
+
+        struct tcphdr *tcp;	   /*** Tcp header ***/
+        struct pseudohdr *pseudo;  /*** Pseudo header ***/
+
+        if ((tcp = (struct tcphdr *) malloc(TCPHDR)) == NULL){
+                perror("malloc()");   /*** Allocating dynamic memory ***/
+                return -1;
+        }
+
+        if ((pseudo = (struct pseudohdr *) malloc(PSEUDOHDR)) == NULL){
+                perror("malloc()");   /*** Allocating dynamic memory ***/
+                return -1;
+        }
+
+        memset(tcp,'\0',TCPHDR);     /*** Initializing memory to \0 char ***/
+        memset(pseudo,'\0',PSEUDOHDR);
+
+
+        pseudo->saddr    = inet_addr("127.0.0.1"); /*** Source Ip ***/
+        pseudo->daddr    = inet_addr("127.0.0.1"); /*** Destination Ip ***/
+        pseudo->useless  = 0;      /*** Space reserved to respect bundary ***/
+        pseudo->protocol = IPPROTO_TCP; /*** We use tcp ***/
+        pseudo->length   = htons(TCPHDR); /*** Since we don't have any
+				               data, the length is the
+					       tcp header only. ***/
+
+
+        tcp->source  = htons(5000); /*** Sending from port 5000 ***/
+        tcp->dest    = htons(23);   /*** Sendting to telnetd ***/
+        tcp->seq     = htonl(31337); /*** Initial sequence number ***/
+        tcp->ack_seq = htonl(0);     /*** Only signifiant if ack flag set ***/
+        tcp->doff    = 5;  /*** Offset of tcp header in 32 bits word ***/
+        tcp->fin     = 0;  /*** FIN flag not set during handshake ***/
+        tcp->syn     = 1;  /*** SYN flag set, the first step of a handshake ***/
+        tcp->rst     = 0;  /*** RST flag not set during handshake ***/
+        tcp->psh     = 0;  /*** PSH flag not set during handshake ***/
+        tcp->ack     = 0;  /*** ACK flag not set during handshake ***/
+        tcp->urg     = 0;  /*** URG flag not set during handshake ***/
+        tcp->window  = htons(4000); /*** Maximum of next segments length ***/
+        tcp->urg_ptr = htons(0);  /*** Only signifiant if urg flag set ***/
+
+        tcp->check   = in_cksum((unsigned short *)pseudo,TCPHDR+PSEUDOHDR);
+	  /*** Calculating tcp checksum to avoid data corruption ***/
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ CHAPTER 3 ]
+			        (UDP  HEADER)
+
+
+
+
+---[ Theory
+
+
+		So far now, you've  pass the  hardcore section.
+	Udp  is less  complex  rather  then  tcp.  It doesn't
+	have security features, no   reliability   but  haves
+	the  same multiplexing    as    tcp.  Udp   haves   a
+	higher transfert  rate  then  tcp,  which   make   it
+	useful.  Like  tcp,  udp   got  a  checksum  too  and
+	needs a pseudo header to calculate it.
+
+
+	UDP Header Scheme:
+
+
+	0                     15-16                    31
+	+-----------------------+-----------------------+
+	|     Source Port       |   Destination Port    |
+	|       (16 b)          |       (16 b)          |
+	+-----------------------+-----------------------+
+	|       Length          |       Checksum        |
+	|       (16 b)          |        (16 b)         |
+	+-----------------------+-----------------------+
+	>                     DATA                      <
+	<                                               >
+
+
+
+	Source Port (16 bits):
+			The  source port  of  this datagram.
+		Returning  segment  will  be  received  on
+		this port.
+
+
+	Destination Port (16 bits):
+			The  datagrams   destination   port.
+		The  dgram  will  be  received   from  the
+		outgoing interface on that port.
+
+
+	Length (16 bits):
+			Holds the udp datagrams  length in
+		octets, usualy 8.
+
+
+	Checksum (16 bits):
+			Contains the datagrams checksum to
+		keep it's data  integrity  and to ensure
+		that it wasn't misrouted.
+
+		If you're curious  about  the  structure,
+		take a look at Apendix A.
+
+
+
+
+
+---[ Example
+
+
+
+
+/***********************************************************************/
+/*              Exile 2000 International Coding Team                   */
+/*                   (http://www.exile2k.org)                          */
+/*                 All rights reserved Exile Team                      */
+/*                  Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*                This function basicly build a UDP header             */
+/*                                                                     */
+/***********************************************************************/
+
+
+void build_udp(){
+
+        struct udphdr *udp;        /*** Variable declarations ***/
+        struct pseudohdr pseudo;
+
+	if ((udp = (struct udphdr *) malloc(sizeof(struct udphdr))) == NULL){
+		perror("Memory exhausted"); /*** Dynamic memory alloc. ***/
+		return ;
+	}
+
+
+/*** Pseudo-Header's used to avoid misrouted datagrams ***/
+
+	pseudo.saddr    = inet_addr("127.0.0.1"); /* Sending from localhost **/
+	pseudo.daddr    = inet_addr("127.0.0.1"); /* Sending to localhost **/
+	pseudo.useless  = htons(0);         /* To respect 32 bits boundaries */
+	pseudo.protocol = IPPROTO_UDP;      /* Using UDP protocol */
+	pseudo.length   = sizeof(struct udphdr); /* The sizeof udphdr struct */
+
+        udp->source = htons(5000);  /** Sending from port 5000 */
+        udp->dest   = htons(7);     /** Sending to echo server (port=7) */
+        udp->len    = htons(sizeof(struct udphdr)); /* Length of udphdr
+							and using htons()
+							for bytes ordering
+							purposes */
+
+        udp->check  = in_cksum((unsigned short *)&pseudo,sizeof(struct udphdr));
+			/*** Calculating checksum ***/
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ CHAPTER 4 ]
+				(ICMP HEADER)
+
+
+
+
+---[ Theory
+
+
+			Basicly  Internet  Control  Message  Protocol
+		(ICMP) is used to report errors such as destination
+		unreachable, time  exceed (Time to live expired) or
+		source quench  which means that there's not  enough
+		memory to  forward  the datagram  in  question.  To
+		avoid  infinit  loop  over  a  network, there's  no
+		icmp message about icmp message.
+
+
+
+	ICMP Header Scheme:
+
+
+	0                     15-16                    31
+	+-----------+-----------+-----------------------+
+	|   Type    |   Code    |       Checksum        |
+	|   (8 b)   |   (8 b)   |        (16 b)         |
+	+-----------+-----------+-----------------------+
+	|		      UNUSED                  	|
+	|                     (32 b)                    |
+	+-----------------------------------------------+
+	|       Internet Header + 64 bits of Data       |
+	|                     (32 b)                    |
+	+-----------------------------------------------+
+
+			This is the standard format for the icmp header.
+		But  as the Types and  Codes changes the  unused field
+		become used.  If  unused stay  unused,  set  it  as 0.
+		Depending on which icmp message it is, some ip headers
+		field can change.
+
+
+
+	ECHO REQUEST or ECHO REPLY
+	--------------------------
+
+			Commonly called PING.  To generate  a  reply, the
+		stack reverse source  and destination  ip addresse from
+		ip header.  UNUSED  field  is separated  into to 8 bits
+		field respectivly called Identifier and Sequence number
+		which  i'll describe below.
+
+
+		TYPE (8 bits):
+				0	For echo reply
+				8	For echo request
+
+		CODE (8 bits):
+				0	Field unused for this type of message
+
+		CHECKSUM (16 bits):
+				The  checksum is  calculated as  the  other
+			headers, but  the checksum field must be 0 before
+			calculating.  To respect 32 bits  boundaries, the
+			kernel can pad the message if his total length is
+			odd.
+
+		Identifier (16 bits):
+				This field acts the  same as  ip headers ID,
+			but for  echo and reply.  It helps  identify which
+			echo reply belongs to which echo request.
+
+		Sequence Number (16 bits):
+				This field acts the  same as  ip headers ID,
+			but for  echo and reply.  It helps  identify which
+			echo reply belongs to which echo request.
+
+		Data can be inserted in echo request but must be replied
+		by the  host.  Personally  i don't get  the point to put
+		some data into a echo request but...
+
+
+
+
+	DESTINATION UNREACHABLE
+	-----------------------
+
+			This message  is used  to indicate a  host or
+		network is down, a service isn't running, the stack
+		isn't  supporting a  protocol, a  fragmentation  is
+		needed but don't fragment (DF) is set and there was
+		a error when routing  the packet.  The field UNUSED
+		stay unused and should be set to 0.
+
+
+		TYPE (8 bits):
+			3	Destination Unreachable
+
+
+		CODE (8 bits):
+			0	Network Unreachable
+			1	Host Unreachable
+			2	Protocol Unreachable
+			3	Port Unreachable
+			4	Fragmentation need but DF set
+			5	Source route failed
+
+
+
+		CHECKSUM (16 bits):
+				The checksum is calculated as the
+			last message.
+
+
+		UNUSED (32 bits):
+                        Stay unused by this icmp message.
+	
+
+		INTERNET HEADER + 64 BITS OF DATA DGRAM:
+				The topic  is  explicit.  Used  by
+			higher level protocol, if there's a port
+			to identify or any other field.
+
+
+
+	SOURCE QUENCH
+	-------------
+
+			Source  Quench error  message  happens
+		when a  host or gateway  doesn't have enough
+		buffer  space to queue the  received  packet
+		to forward it. To warn the host it generates
+		a source quench icmp.
+
+
+		TYPE (8 bits):
+			4	Source Quench
+
+
+		CODE (8 bits):
+			0	Unused
+
+
+                CHECKSUM (16 bits):
+                                The checksum is calculated as the
+                        last message.
+
+
+                UNUSED (32 bits):
+                        Stay unused by this icmp message.
+
+
+                INTERNET HEADER + 64 BITS OF DATA DGRAM:
+                                The topic is explicit.  Used  by
+                        higher level protocol, if there's a port
+                        to identify or any other field.
+
+
+
+	REDIRECT
+	--------
+
+			A  redirect  message i  sended  when  there's
+		a shorter path to arrive at a specify destionation.
+		Take for example:
+
+			Johnny  sends  a  packet to N  network.  It's
+			route table  tells by d efault to  send it to
+			Gateway #1  but when  gateway1   receives the
+			packet it finds  a  shorter   way   to arrive
+			at    destination.  It   sends   a   REDIRECT
+			to the  source placing the new   gateway   ip
+			into the UNUSED field.
+
+
+		There's  one  exeption, when  IP source  routing is
+		enabled in ip header  but i didn't talked  about ip
+		options so i'll myself to this.
+
+
+		TYPE (8 bits):
+			5	Redirect
+
+
+		CODE (8 bits):
+			0	Redirect datagrams for a Network
+			1	Redirect datagrams for a Host
+			2	Redirect datagrams for a TOS and Network
+			3	Redirect datagrams for a TOS and Host
+
+
+		CHECKSUM (16 bits):
+                                The checksum is calculated  as  the
+                        last message.
+
+
+		GATEWAY INTERNET ADDRESS (32 bits):
+				Ip address of the  a nearest  gateway
+			to send packet.
+
+
+		INTERNET HEADER + 64 BITS OF DATA DGRAM:
+                                The topic is  explicit.   Used   by
+                        higher  level  protocol, if there's a  port
+                        to identify or any other field.
+
+
+
+
+	TIME EXCEED
+	-----------
+
+			That message is  sent when a packets Time  To
+		Live(TTL) has expired or when the packet reassembly
+		time has exceed.
+
+
+		TYPE (8 bits):
+			11	Time Exceed
+
+
+		CODE (8 bits):
+			0	Time To Live Exceed (TTL)
+			1	Fragment reassembly time exceeded
+
+
+		CHECKSUM (16 bits):
+                                The checksum is calculated as the
+                        last message.
+
+
+		UNUSED (32 bits):
+                        Stay unused by this icmp message.
+
+
+		INTERNET HEADER + 64 BITS OF DATA DGRAM:
+                                The topic is explicit.  Used  by
+                        higher level protocol, if there's a port
+                        to identify or any other field.
+
+
+
+
+	PARAMETER PROBLEM
+	-----------------
+
+			Parameter problem  is sent back  when
+		a datagrams got bad  values in his options,
+		TOS or any invalid field.  A pointer to the
+		bad field replace the UNUSED field.
+
+
+		TYPE (8 bits):
+			12	Parameter problem
+
+
+		CODE (8 bits):
+			0	Pointer indicates the error
+
+
+		CHECKSUM (16 bits):
+				The checksum  is calculated as  the
+			last message.
+
+
+		POINTER (8 bits):
+				Only  signifiant  if  CODE = 0.  It
+			points to the area where the error is.
+
+
+		UNUSED (24 bits):
+				Stay unused by this icmp message.
+
+
+                INTERNET HEADER + 64 BITS OF DATA DGRAM:
+				The topic is  explicit.   Used   by
+                        higher  level  protocol, if there's a  port
+                        to identify or any other field.
+
+
+
+
+	TIMESTAMP REQUEST and TIMESTAMP REPLY
+	-------------------------------------
+
+			This is the  last  time the packet was touched
+		in seconds  since  midnight  UT.  When the  packet's
+		sent the  time is inserted  and  when  replied,  the
+		time is inserted  after the  first  timestamp.  This
+		way we can identify how far the peer is from us.
+
+
+		TYPE (8 bits):
+			13	Timestamp Request
+			14	Timestamp Reply
+
+
+		CODE (8 bits):
+			0	Make ID and Seq Num signifiant
+
+
+		CHECKSUM (16 bits):
+                              The checksum  is calculated as  the
+                        last message.
+
+		IDENTIFIER (16 bits):
+				Only signifiant if Code = 0.  It
+			helps match reply with request.
+
+
+		SEQUENCE NUMBER (16 bits):
+				Only signifiant if Code = 0.  It
+                        helps match reply with request.
+
+
+
+	NETMASK REQUEST and NETMASK REPLY
+	---------------------------------
+
+			This icmp message returns the network mask
+		of the  host   sending the message.  To generate a
+		reply,  it  reverse  source   and   destinaiton ip
+		address,  insert the subnet   mask into the field,
+		recompute  the checksum   and send  back.  If  the
+		sender  doesn't know  his own ip, he  puts 0  into
+		the  source  ip address  field and  the reply will
+		be broadcast. 
+
+
+
+		TYPE (8 bits):
+			17	Netmask Request
+			18	Netmaks Reply
+
+
+		CODE (8 bits):
+			0	Make ID and Seq Num signifiant
+
+
+		CHECKSUM (16 bits):
+                              The checksum  is calculated as  the
+                        last message.
+
+		IDENTIFIER (16 bits):
+				Only signifiant if Code = 0.  It
+			helps match reply with request.
+
+
+		SEQUENCE NUMBER (16 bits):
+				Only signifiant if Code = 0.  It
+                        helps match reply with request.
+
+
+
+
+
+
+
+---[ Example
+
+
+
+
+/***********************************************************************/
+/*                                                                     */
+/*              Exile 2000 International Coding Team                   */
+/*                   (http://www.exile2k.org)                          */
+/*                 All rights reserved Exile Team                      */
+/*                  Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*            This function basicly build a ICMP message (PING)        */
+/*                                                                     */
+/***********************************************************************/
+
+
+
+void icmp_build(){
+
+	struct icmphdr *icmp;
+
+	icmp = (struct icmphdr *) malloc(sizeof(struct icmphdr));
+
+        icmp->type = ICMP_ECHO;	/*** ECHO REQUEST */
+        icmp->code = 0;		/*** Id and Sequence field signifiant */
+        icmp->un.echo.id = 0;	/*** To identify ping reply */
+        icmp->un.echo.sequence = 0; /*** To identify ping reply */
+        icmp->checksum = 0;	/*** Checksum field must be 0 before calculating */
+
+        icmp->checksum = in_cksum((unsigned short *)icmp,sizeof(struct icmphdr));
+		/*** Computing checksum */
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ CHAPTER 5 ]
+                             (THE IMPLEMENTATION)
+
+
+---[ Theory
+
+                        After all this theory about protocol
+                headers, we  must  leave  the books and   go
+                through the  implementation.  Basicly what i
+                describe  here is  how  to  create  a socket
+                using raw level, filling the  good structure
+                for the socket  and  communicating  at  this
+                low level.
+
+                        First, we  will go  through a source
+                and i'll explain every lines.  Let's go:
+
+
+        int sock, optval;        /***   Socket file descriptor  ***/
+        struct sockaddr_in peer; /*** Structure used by sendto() ***/
+
+
+                So far, if  you  don't understand you better
+                get a book about  socket  programmin g under
+                unix environment.
+
+        if ((sock = socket(AF_INET,SOCK_RAW,IPPROTO_TCP)) == -1){
+                perror("Failed to cook socket");
+                return -1;
+        }
+
+
+                These  lines   build   a   socket using TCP
+                protocol for transport  layer.  The  socket
+                is  SOCK_RAW     to  permit   raw   access.
+                AF_INET is because  we are on the internet.
+                So from now, if  socket()  returns a error,
+                perror() display  the content of  errno and
+                return the function.
+
+        setsockopt(sock,IPPROTO_IP,IP_HDRINCL,&optval,sizeof(int));
+
+
+
+                This  function  tells  the  socket  that we
+                work at  IPPROTO_IP  level  and  the  we'll
+                include  the  ip  header (IP_HDRINCL)  into
+                the packet sent.  optval  and   sizeof(int)
+                isn't signifiant for this option so i won't
+                discuss about it.
+
+
+        peer.sin_family      = AF_INET;
+        peer.sin_port        = htons(23);
+        peer.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+
+                Here we fill up  the  sockaddr_in structure
+                used  by  sendto().  We  tell  that  its  a
+                Internet  family  protocol (AF_INET).   The
+                destination port  is  23.  Again  we  do  a
+                htons() for  byte  ordering.  Then  we  set
+                the destination  address  using inet_addr()
+                to convert address into binary.
+
+                And  at  this  point  we  should  build our
+		packet.  I'll take for asset that after all
+		this theory  you're able, so it's a kind of
+                exercise.
+
+
+        sendto(sock, packet, strlen(packet),0,(struct sockaddr *)&peer,sizeof(struct sockaddr));
+
+
+
+		We   then   send  the  packet  on  sock for
+		strlen(packet) length.  After we  got the 0
+		because we don't specify any flags. There's
+		4 flags:
+
+		MSG_OOB		This send  a  Out  Of Bound
+				packet    increasing    his
+				priority.
+
+		MSG_DONTROUTE	Don't   look  at  the route
+				table and send directly  to
+				the interface.
+
+		MSG_DONTWAIT	Normally snedto() can block
+				But when  specified, sendto
+				will  not block  and return
+				EAGAIN.
+
+		MSG_NONSIGNAL	Asks to n ot  send  SIGPIPE
+				signal   when   a    stream
+				oriented  connection  fails
+				or disconnects.
+
+
+		Then  we  put  peer  to  specify  protocols
+		family, destination  port  and  destination
+		addresse. We cast it because sendto expects
+		to have a  pointer of struct sockaddr. Then
+		we specify the  struct  sockaddr length and
+		the datagram's sent!
+
+		To make sure you understand, write this
+		example and try to get back the packet
+		and print the result.  I've done a source
+		code to look if you've got problems.
+
+		Hint:     man recv
+
+			good luck
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----[ Conclusion ]---
+
+
+
+
+                From now on, i've  done  the  best  as i  can
+        to build a complete and good paper about the subject.
+        i hope you  enjoyed this  text and  for sure that  it
+        learned  you  how  to  code  using  raw socket.  That
+        documentation  helped  me  understands  some things i
+        wasn't sure  about  or  even  things that i had never
+        heard  before.  Finally  i  would  like  to profit of
+        this  moment  to notice  that i am officially telling
+        publicly  that  in  short  time  i'll release  a nmap
+        like   portscanner.  I'm  trying   to  improve  speed
+        and coding style to  make  it  readable  to  ordinary
+        people like me.  This  project  is  named  ESCAN  and
+        include many features  like, connect  scan,  stealth,
+        half open,  decoys,  logging.  A Beta  version should
+        be  released as  soon as  i   can.  To   follow   the
+        development   http://www.exile2k.org
+
+
+               c0de c0de c0de and c0de again people!!!!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ Appendix A ]
+			  (Structures and Functions)
+
+
+
+
+
+
+---[ IP HEADER STRUCT
+
+
+
+	struct iphdr {
+
+	#if __BYTE_ORDER == __LITTLE_ENDIAN
+	    unsigned int ihl:4;
+	    unsigned int version:4;
+	#elif __BYTE_ORDER == __BIG_ENDIAN
+	    unsigned int version:4;
+	    unsigned int ihl:4;
+	#else
+	# error	"Please fix <bits/endian.h>"
+	#endif
+	    u_int8_t tos;
+	    u_int16_t tot_len;
+	    u_int16_t id;
+	    u_int16_t frag_off;
+	    u_int8_t ttl;
+	    u_int8_t protocol;
+	    u_int16_t check;
+	    u_int32_t saddr;
+	    u_int32_t daddr;
+	    /*The options start here. */
+	};
+
+
+
+
+
+
+---[ PSEUDO HEADER STRUCTURE
+
+
+
+	struct pseudohdr {
+	        unsigned long saddr;
+	        unsigned long daddr;
+	        char useless;
+	        unsigned char protocol;
+	        unsigned short length;
+	};
+
+
+
+
+
+---[ TCP HEADER STRUCTURE
+
+
+
+
+	struct tcphdr {
+		__u16	source;
+		__u16	dest;
+		__u32	seq;
+		__u32	ack_seq;
+	#if defined(__LITTLE_ENDIAN_BITFIELD)
+		__u16	res1:4,
+			doff:4,
+			fin:1,
+			syn:1,
+			rst:1,
+			psh:1,
+			ack:1,
+			urg:1,
+			res2:2;
+	#elif defined(__BIG_ENDIAN_BITFIELD)
+			__u16	doff:4,
+			res1:4,
+			res2:2,
+			urg:1,
+			ack:1,
+			psh:1,
+			rst:1,
+			syn:1,
+			fin:1;
+	#else
+	#error	"Adjust your <asm/byteorder.h> defines"
+	#endif	
+		__u16	window;
+		__u16	check;
+		__u16	urg_ptr;
+	};
+
+
+
+
+
+---[ UDP HEADER STRUCTURE
+
+
+
+	struct udphdr {
+		__u16	source;
+		__u16	dest;
+		__u16	len;
+		__u16	check;
+	};
+
+
+
+
+
+---[ ICMP HEADER STRUCTURE
+
+
+
+
+	struct icmphdr {
+	  __u8          type;
+	  __u8          code;
+	  __u16         checksum;
+	  union {
+	        struct {
+	                __u16   id;
+	                __u16   sequence;
+	        } echo;
+	        __u32   gateway;
+	        struct {
+	                __u16   __unused;
+	                __u16   mtu;
+	        } frag;
+	  } un;
+	};
+
+
+
+
+
+---[ CHECKSUM CALCULATING FUNCTION
+
+
+
+
+	/*
+	 * in_cksum --
+	 *      Checksum routine for Internet Protocol
+	 *	family headers (C Version)
+	 */
+	unsigned short in_cksum(unsigned short *addr, int len)
+	{
+	    register int sum = 0;
+	    u_short answer = 0;
+	    register u_short *w = addr;
+	    register int nleft = len;
+
+	    /*
+	     * Our algorithm is simple, using a 32 bit accumulator (sum), we add
+	     * sequential 16 bit words to it, and at the end, fold back all the
+	     * carry bits from the top 16 bits into the lower 16 bits.
+	     */
+	    while (nleft > 1)
+	      {
+		  sum += *w++;
+		  nleft -= 2;
+	      }
+
+	    /* mop up an odd byte, if necessary */
+	    if (nleft == 1)
+	      {
+		  *(u_char *) (&answer) = *(u_char *) w;
+		  sum += answer;
+	      }
+	    /* add back carry outs from top 16 bits to low 16 bits */
+	    sum = (sum >> 16) + (sum & 0xffff);		/* add hi 16 to low 16 */
+	    sum += (sum >> 16);		/* add carry */
+	    answer = ~sum;		/* truncate to 16 bits */
+	    return (answer);
+	}
+
+
+
+
+
+
+
+----[ Sources
+
+
+/***********************************************************************/
+/*                                                                     */
+/*              Exile 2000 International Coding Team                   */
+/*                   (http://www.exile2k.org)                          */
+/*                 All rights reserved Exile Team                      */
+/*                  Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*            This function basicly build a ICMP message (PING)        */
+/*                          including Ip header                        */
+/*                                                                     */
+/*            Your almost done! Compile the example and enjoy          */
+/*                    understanding my rustic code                     */
+/*                                                                     */
+/***********************************************************************/
+
+
+#include <stdio.h>
+
+#include <linux/ip.h>
+#include <linux/icmp.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+
+
+
+unsigned short in_cksum(unsigned short *addr, int len);
+
+
+int main(){
+
+	int sock, optval;
+	char *packet, *buffer;
+
+	struct icmphdr *icmp;
+
+	struct sockaddr_in peer;
+        struct iphdr *ip;
+
+
+        ip = (struct iphdr *) malloc(sizeof(struct iphdr));
+        icmp     = (struct icmphdr *) malloc(sizeof(struct icmphdr));
+        packet  = (char *) malloc(sizeof(struct iphdr) + sizeof(struct icmphdr));
+        buffer  = (char *) malloc(sizeof(struct iphdr) + sizeof(struct icmphdr));
+
+
+	ip = (struct iphdr *) packet;
+        icmp = (struct icmphdr *) (packet + sizeof(struct iphdr));
+
+
+        ip->ihl     = 5;
+        ip->version = 4;
+        ip->tos     = 0;
+        ip->tot_len = sizeof(struct iphdr) + sizeof(struct icmphdr);
+	ip->id      = htons(getuid());
+	ip->ttl      = 255;
+	ip->protocol = IPPROTO_ICMP;
+	ip->saddr    = inet_addr("127.0.0.1");
+	ip->daddr    = inet_addr("127.0.0.1");
+
+
+	sock = socket(AF_INET,SOCK_RAW,IPPROTO_ICMP);
+	setsockopt(sock,IPPROTO_IP,IP_HDRINCL,&optval,sizeof(int));
+
+	icmp->type = ICMP_ECHO;
+	icmp->code = 0;
+	icmp->un.echo.id = 0;
+	icmp->un.echo.sequence = 0;
+	icmp->checksum = 0;
+
+	icmp->checksum = in_cksum((unsigned short *)icmp,sizeof(struct icmphdr));
+
+        ip->check    = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
+
+
+
+	peer.sin_family = AF_INET;
+	peer.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+	sendto(sock,packet,ip->tot_len,0,(struct sockaddr *)&peer,sizeof(struct sockaddr));
+
+	recv(sock,buffer,sizeof(struct iphdr)+sizeof(struct icmphdr),0);
+	printf("Received the ECHO REPLY\n");
+
+	close(sock);
+	return 0;
+}
+
+
+
+
+
+
+
+
+/***********************************************************************/
+/*                                                                     */
+/*              Exile 2000 International Coding Team                   */
+/*                   (http://www.exile2k.org)                          */
+/*                 All rights reserved Exile Team                      */
+/*                  Copyright 2000 (C) Nitr0gen                        */
+/*                                                                     */
+/*                This function basicly build a UDP datagram           */
+/*          including Ip header and send it to local echo server       */
+/*                                                                     */
+/*    To make the lab successful please enable echo server:            */
+/*                                                                     */
+/*       - pico /etc/inetd.conf                                        */
+/*       - Uncomment the echo server (udp one)                         */
+/*       - killall -HUP inetd                                          */
+/*                                                                     */
+/*            Your almost done! Compile the example and enjoy          */
+/*                    understanding my rustic code                     */
+/*                                                                     */
+/***********************************************************************/
+
+
+#include <stdio.h>
+
+#include <linux/ip.h>
+#include <linux/udp.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+
+
+
+unsigned short in_cksum(unsigned short *addr, int len);
+
+
+
+int main(){
+
+	int sock, optval;
+	char *packet, *buffer;
+
+	struct udphdr *udp;
+        struct pseudohdr {
+                unsigned long saddr;
+                unsigned long daddr;
+                char useless;
+                unsigned char protocol;
+                unsigned short length;
+        }pseudo;
+
+	struct sockaddr_in peer;
+        struct iphdr *ip;
+
+
+        ip = (struct iphdr *) malloc(sizeof(struct iphdr));
+        udp     = (struct udphdr *) malloc(sizeof(struct udphdr));
+        packet  = (char *) malloc(sizeof(struct iphdr) + sizeof(struct udphdr) + 12);
+        buffer  = (char *) malloc(sizeof(struct iphdr) + sizeof(struct udphdr) + 12);
+
+
+	ip = (struct iphdr *) packet;
+        udp = (struct udphdr *) (packet + sizeof(struct iphdr));
+
+
+        ip->ihl     = 5;
+        ip->version = 4;
+        ip->tos     = 0;
+        ip->tot_len = sizeof(struct iphdr) + sizeof(struct udphdr) +12;
+	ip->id      = htons(getuid());
+	ip->ttl      = 255;
+	ip->protocol = IPPROTO_UDP;
+	ip->saddr    = inet_addr("127.0.0.1");
+	ip->daddr    = inet_addr("127.0.0.1");
+
+
+	sock = socket(AF_INET,SOCK_RAW,IPPROTO_UDP);
+	setsockopt(sock,IPPROTO_IP,IP_HDRINCL,&optval,sizeof(int));
+
+	pseudo.saddr    = inet_addr("127.0.0.1");
+	pseudo.daddr    = inet_addr("127.0.0.1");
+	pseudo.useless  = htons(0);
+	pseudo.protocol = IPPROTO_UDP;
+	pseudo.length   = sizeof(struct udphdr) + 12;
+
+
+	udp->source = htons(5000);
+	udp->dest   = htons(7);
+	udp->len    = htons(sizeof(struct udphdr) + 12);
+	udp->check  = in_cksum((unsigned short *)&pseudo,sizeof(struct udphdr) + sizeof(struct pseudohdr) + 12);
+
+        ip->check    = in_cksum((unsigned short *)ip, sizeof(struct iphdr));
+
+
+	strcpy((packet+sizeof(struct iphdr) + sizeof(struct udphdr)),"Hello World");
+
+	peer.sin_family = AF_INET;
+	peer.sin_addr.s_addr = inet_addr("127.0.0.1");
+	peer.sin_port = htons(7);
+
+	sendto(sock,packet,ip->tot_len,0,(struct sockaddr *)&peer,sizeof(struct sockaddr));
+
+	recv(sock,buffer,sizeof(struct iphdr)+sizeof(struct udphdr)+13,0);
+
+	buffer += (sizeof(struct iphdr)+sizeof(struct udphdr));
+	printf("Reply from Echo server:\t%s\n",buffer);
+
+	close(sock);
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ References ]
+
+
+
+	Tcp/Ip Illustrated Volume 1 (The Protocol)
+	By W. Richard Stevens (Addison Wesley)
+
+	Tcp/Ip Illustrated Volume 2 (The implementation)
+	By Gary R. Wright and W. Richard Stevens (Addition Wesley)
+
+	Take a look at:
+		http://www.exile2k.org		Exile Team home page
+		http://www.hexedit.com		HNS home page
+		http://www.eEyes.com		eEyes home page
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				[ Greetings ]
+
+
+
+	Special thanx to:
+		My Exile team bro's: Mayhem(Tutu rose emulator),
+					   Rix(Assembly wh0re),
+					   Kraken(Saleter dhypee),
+					   Ehoba(Pas toi!!!),
+					   Liks(Erm...)
+
+			or Europeen wh0res kinda synonyms =]
+			 ---> keep it kool guys!
+
+		#rhino9 peeps: Colonwq(Gotta learn you howto drink),
+			       Hexedit(Lucky to be yourself),
+			       Binf(Mon mentor de hacking y0),
+			       Klog(Bleh j00),
+			       zorkeres(Still sickshit addict?),
+			       RcLocal(The french skill0rz),
+			       and others
+
+		People who supported me even if i was newbie: Utopiste,
+							      Wyzeman...
+
+	~ My parents who made it possible during 1982's night... ~
+
+			God bless people i forget...
+
+
+
+
+
+		Nitr0gen     Exile Team 2000     Rock on!
+			 nitr0gen@hackersnews.com

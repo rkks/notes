@@ -1,0 +1,26 @@
+Q. How can I tell if my cronjobs are running ok since they don't produce any output?
+
+A. Check the following file:
+
+	/var/cron/log 		(cron history information)
+	/var/cron/olog		(moves log file to /var/cron/olog if log file exceeds system ulimit)
+
+The file looks something like this:
+! *** cron started ***   pid = 260 Tue Jun  4 00:30:56 2002
+>  CMD: [ -x /usr/sbin/rtc ] && /usr/sbin/rtc -c > /dev/null 2>&1
+>  root 429 c Tue Jun  4 02:01:00 2002
+<  root 429 c Tue Jun  4 02:01:00 2002 rc=1
+>  CMD: /usr/sbin/logadm
+>  root 440 c Tue Jun  4 03:10:00 2002
+<  root 440 c Tue Jun  4 03:10:00 2002
+>  CMD: [ -x /usr/lib/gss/gsscred_clean ] && /usr/lib/gss/gsscred_clean
+>  root 452 c Tue Jun  4 03:30:00 2002
+<  root 452 c Tue Jun  4 03:30:00 2002
+
+
+It provides the following:
+a) the CMD is the command that was run
+b) next entry is the time the job started
+c) next is the time the job finished
+d) rc is the return code from the job
+

@@ -1,0 +1,205 @@
+========================================================
+Setting the scsi-initiator-id on PCI systems (E250/E450)
+========================================================
+
+NOTE WELL:  THIS DOCUMENT IS ONLY SUPPORTED WHEN USED IN CONJUNCTION WITH 
+            THE SUN-CLUSTER PRODUCT.  THE PROCEDURES DEFINED HEREIN ARE NOT
+            SUPPORTED BY SUN MICROSYSTEMS WITH ANY OTHER CONFIGURATION.
+
+Why Change scsi-initiator-id
+============================ 
+
+Shared storage in clusters uses the Multi-Initiator capability of the SCSI
+specification.  PCI systems use PCI host adapter cards for the SCSI interface.
+Otherwise, the operation is the same as in SBus systems.  The scsi-initiator-id
+must be changed because you cannot have two controllers (or SCSI devices) with
+the same SCSI ID on the same SCSI chain.  This is true for all shared storage.
+
+However, the scsi-initiator-id of controllers that link private storage should
+be returned to 7 or it will conflict with the SCSI ID 6 of the CD-ROM.  Also,
+for 6-slot MultiPacks you must change the SCSI IDs to the 9-14 range.  Use the
+switch on the back of the MultiPack to change this.
+
+The normal documented procedure for setting up dual-hosted MultiPacks is to set
+the scsi-initiator-id for one node to 6 and then reset specific SCSI adapters 
+(the ones that are not attached to the dual-hosted disks) to 7.  The 
+scsi-initiator-id for the other node attached to the disk must be left at the
+default setting (7). This approach may be somewhat ERROR-PRONE because you can
+get SCSI errors if you do not reset ALL of the adapters that are NOT attached to
+the dual-hosted disks to 7.
+
+A method that works well is to leave the scsi-initiator-id for both nodes at 7.
+Then, set the scsi-initiator-id for ONLY the adapters that are connected to the
+dual-hosted disk to 6 on one of the nodes (normally the second node). 
+
+Which scsi-initiator-id to Change and What to Set It To
+=======================================================
+
+Leave the scsi-initiator-id of one node set to the default (7) and change the
+scsi-initiator-id to 6 for the other node. Do NOT change jumper settings on
+any SCSI device (CD-ROM).
+
+CAUTION:  Do NOT change the scsi-initiator-id to 8 because it WILL cause a
+conflict with some other storage devices (D1000).
+
+When to Change scsi-initiator-id
+================================
+
+You must change the scsi-initiator-id BEFORE connecting the shared storage.
+If the storage has already been connected, disconnect it first.
+
+How to Change the scsi-initiator-id
+===================================
+
+Only change the scsi-initiator-id on one node in the chain of the dual-hosted
+SCSI device. At the ok (OBP) prompt, use the probe-scsi-all command to
+identify the controllers connected to shared storage and those connected to
+private storage. You have to first set auto-boot to false then reset-all before
+the probe-scsi-all command will work. Depending on your configuration, there are
+two methods of doing this.
+
+
+NOTE:  Use Method 1 if your system is an E450.
+
+
+First, identify the SCSI adapters by entering the following from the boot PROM:
+
+
+      ok  setenv auto-boot? false
+      ok  reset-all
+      ok  probe-scsi-all
+      /pci@6,4000/scsi@3,
+      /pci@6,4000/scsi@3
+      Target 2
+          Unit 0        Disk    SEAGATE ST32171W SUN2.1G7462
+      Target 3
+          Unit 0        Disk    SEAGATE ST32171W SUN2.1G7462
+        
+      /pci@6,4000/scsi@2,1
+      Target 2
+          Unit 0        Disk    SEAGATE ST32171W SUN2.1G7462
+      Target 3
+          Unit 0        Disk    SEAGATE ST32171W SUN2.1G7462
+
+
+Method 1
+========
+
+If more controllers are connected to the private storage than controllers
+connected to shared storage, more scsi-initiator-id 7s than scsi-initiator-id 6s,
+or more private storage controllers than shared storage controllers:
+
+NOTE:  Steps 1 through 5 should be done on one of the nodes attached to the disk.
+       Step 6 needs to be done on both nodes (assuming you are not using Ultra SCSI).
+
+1.  Edit or create the nvramrc to set the scsi-initiator-id to 6 for these devices.
+    From the OBP enter:
+    
+      ok  nvedit
+      0:  probe-all install-console banner
+      1:  cd /pci@6,4000/scsi@3
+      2:  6 " scsi-initiator-id" integer-property
+      3:  device-end
+      4:  cd /pci@6,4000/scsi@2,1
+      5:  6 " scsi-initiator-id" integer-property
+      6:  device-end
+      7:  banner (Control C)
+      
+2.  Do a ctrl-c, and store the nvramrc:
+
+      ok  nvstore
+      
+3.  Set the system to use the nvramrc and reset auto-boot:
+
+      ok  setenv use-nvramrc? true
+      ok  setenv auto-boot? true
+      
+4.  Do a reset:
+
+      ok  reset-all
+
+5.  Edit the /etc/system file (on both nodes) and add the following line to set
+    fast/wide SCSI (disable Ultra SCSI):
+    
+      set scsi_options=0x3f8
+      
+6.  Boot both systems and verify that you can see the multi-hosted disks from
+    both nodes.
+    
+
+Method 2
+========
+
+If your system is not an E450, and there are more controllers connected to
+shared storage than controller connected to private storage, more scsi-initiator-id6s
+than scsi-initiator-id 7s, or more shared storage controllers than private
+storage controllers, then:
+
+1.  Set the global scsi-initiator-id to 6:
+
+      ok  setenv scsi-initiator-id 6
+      scsi-initiator-id = 6
+      
+2.  Edit or create the nvramrc script and set the scsi-initiator-id of the 
+    controllers connected to private storage to 7.  The line numbers (0:, 1:,
+    and so on) are printed by the OBP, for example:
+    
+CAUTION!  Insert EXACTLY one space after the double quote and before
+scsi-initiator-id.
+
+      ok  nvedit
+      0:  probe-all
+      1:  cd /sbus@70,0/SUNW,fas@1,8800000
+      2:  7 encode-int " scsi-initiator-id" property
+      3:  device-end
+      4:  cd /sbus@70,0/QLGC,isp@0,10000
+      5:  7 encode-int " scsi-initiator-id" property
+      6:  device-end
+      7:  cd /sbus@50,0/SUNW,fas@1,8800000
+      8:  7 encode-int " scsi-initiator-id" property
+      9:  device-end
+      10:  install-console
+      11:  banner (Control C)
+      ok
+      
+In this example you have set three controller scsi-initiator-ids to 7. Your script
+may be different because you will be resetting controllers that were listed by the probe-scsi-all command.
+
+The following is an example of the internal/external controllers in an E250/E450:
+
+      ok  setenv auto-boot? false
+      ok  reset-all
+      ok  probe-scsi-all
+      /pci@1f,4000/scsi@3 (internal controller)
+      /pci@1f,4000/pci@4/SUNW,isptwo@4 (external controller)
+      /pci@1f,4000/scsi@5 (external controller)
+      
+3.  Store or discard the changes.
+
+    The changes you make through the nvedit command are done on a temporary
+    copy of the nvramrc script. You can continue to edit this copy without risk.
+    Once you have completed your edits, save the changes. If you are not sure about
+    the changes, discard them.
+    
+    To store the changes, enter:
+    
+      ok  nvstore
+      ok
+      
+    To discard the changes, enter:
+    
+      ok  nvquit
+      ok
+      
+4.  Enter the nvedit command to create and store an nvramrc script, also, reset
+    auto-boot back to the default of true.
+
+      ok  setenv use-nvramrc? true
+      ok  setenv auto-boot? true
+      
+5.  Connect the shared storage devices and then enter:
+
+      ok  boot -r                                            
+
+
+-Contributed by Tim Lavin

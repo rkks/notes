@@ -1,0 +1,11 @@
+Q. How can I figure out what the SCSI ID is for a particular device is?
+
+A. Use file as root.
+
+Example:
+        server# file /dev/rrz0c
+        /dev/rrz0c: character special (8/2) SCSI #0 RZ24 disk #0 (SCSI ID #0)
+
+You can also use some wildcards here:
+	server# file /dev/rrz*c
+	server# file /dev/rrz?c

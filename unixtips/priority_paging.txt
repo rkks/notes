@@ -1,0 +1,51 @@
+INFODOC ID: 17946 
+SYNOPSIS: New Kernel Tunables in 2.5.1+ for priority paging 
+DETAIL DESCRIPTION: 
+
+Solaris 2.6 kernel patch 105181-09, the equivalent x86 patch 105182-09,
+Solaris 2.5.1 kernel patch 103640-25 and the equivalent x86 patch 103641-25 
+introduced 2 new tunables:
+
+        cachefree
+        priority_paging
+
+These tunables provide a mechanism to allow priority paging, whereby
+filesystem pages will be paged out before application, executable, and/or
+shared library pages.  This can provide a significant performance benefit
+when using applications which perform frequent, random access to filesystem
+data which is used once and then no longer required, by flushing filesystem
+pages in preference to other types of pages.
+
+By default, priority paging is disabled (priority_paging = 0).  It is
+enabled by adding the following line to the /etc/system file and rebooting:
+
+        set priority_paging=1
+
+The default value of cachefree depends on the value of the priority_paging
+tunable.  If priority_paging is 0, then cachefree is set equal to lotsfree.
+If priority_paging=1, then cachefree is set to 2 times lotsfree.
+
+When priority paging is enabled and free memory drops below cachefree, the
+page scanner will start to run, but will only mark pages used for
+filesystem data for pageout.  If freemem drops below lotsfree, the
+scanning algorithm performs just as it did before this patch, regardless of
+the setting of priority_paging.
+
+cachefree can be adjusted by setting it in the /etc/system file;  if the
+value specified in /etc/system is less than lotsfree, it will be set to
+lotsfree instead.  Setting cachefree equal to lotsfree is equivalent to
+not having priority paging enabled.
+
+Priority paging, as described here, is implemented in Solaris 7 FCS.      
+
+Priority paging will not help systems running applications which perform
+sequential access to filesystem data, since sequential access performs page
+free-behind by default.
+
+Enabling priority paging may cause scan rates well in excess of those which
+would previously have considered a problem (300+); the new algorithm causes
+the page scanner to start sooner, and when freemem is in the range between
+lotsfree and cachefree, it has to scan more pages because some are not
+eligible for removal.      
+
+APPLIES TO: Hardware, Operating Systems/Solaris/Solaris 2.x, AFO Vertical Team Docs, AFO Vertical Team Docs/Kernel 

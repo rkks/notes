@@ -1,0 +1,86 @@
+Questions and Answers
+SysAdmin Magazine - July 2006
+
+by Amy Rich
+
+
+Q. 
+
+We have an old Alpha that we’re trying to decommission, which is running Digital Unix 5.1. Our plan is to move all of the people on it to an existing Solaris 8 server, but Digital Unix stores its passwords in a database instead of a flat file. Is there an easy way to pull the hashed password out of the database for each user so we can just migrate their current passwords over, or do we have to make everyone log in and set new passwords on the new machine?
+
+
+
+A. 
+
+The answer to your question depends on whether your Digital Unix machine is using 3DES passwords or an extended password format for extra security. If your users’ passwords are all 3DES, then you can pull the necessary information out of the Digital Unix password database. If you’re using something other than 3DES, there’s no way (that I know of) to migrate from that format back to 3DES.
+
+There are two files that hold password hashes:
+
+/tcb/files/auth.db
+  Enhanced security password database for system accounts.
+/var/tcb/files/auth.db
+  Enhanced security password database for user accounts. 
+  
+
+So, assuming you’re using 3DES, you can either try to parse each of those files using a script, or you can whip up a short C program to use the getespwuid() call. Here’s a quick and dirty example of a C program that will do what you want (minus decent error checking):
+
+/********************************************************************
+** getshadow.c
+**
+** Retrieve crypted passwd hash of specified UID from protected password
+** databases on Digital Unix 5.1.
+**
+** Compile as cc getshadow.c -lsecurity -ldb -laud -lm -o getshadow
+********************************************************************/
+
+#include <sys/types.h>
+#include <stdio.h>
+#include <sys/security.h>
+#include <prot.h>
+
+main (argc, argv)
+int        argc;
+char      *argv[];
+{
+  struct es_passwd *acct;
+  int uidnum;
+  int i;
+
+  uidnum = atoi (argv[1]);
+  set_auth_parameters(argc, argv);
+  initprivs();
+
+  /* print out a Solaris style /etc/shadow entry for a valid UID */
+
+  if (acct->ufld->fd_encrypt == NULL) {
+    printf("BADENTRY:%d:NP:6445:::::: \n", uidinput);
+  }
+  else if (strlen (acct->ufld->fd_encrypt) != 13) {
+    printf("%s:NP:6445::::::\n", acct->ufld->fd_name);
+  }
+  else {
+    printf("%s:%s:6445::::::\n", acct->ufld->fd_name,
+    acct->ufld->fd_encrypt);
+  }
+}
+ 
+
+To create an entire /etc/shadow file for a Solaris machine, you’d run the above program, feeding it the input of all the UIDs in the /etc/passwd file:
+
+touch /tmp/shadow
+chmod 600 /tmp/shadow
+for i in `awk -F: '{print $3}' /etc/passwd`; do
+  ./getshadow $i >> /tmp/shadow
+done
+ 
+
+The above program makes sure that the crypted password entries are all 13 characters to verify that you’re using 3DES passwords. For those accounts that have more or less than 13 characters, including NOLOGIN, as their crypted password hash, the program gives them a NP (No Password) entry. You may want to change this to *LK* (Locked), depending on whether you want these accounts to be able to run cron jobs.
+
+If you’re instead parsing the output of edauth -g <username>, you’ll want the u_pwd= field. If it’s a 3DES password, you can match it in perl with something like the following:
+
+open (AUTH, "edauth -g $username |") || die or die "Cannot open \
+  edauth -g $username\n";
+while (<AUTH>) {
+  if (/u_pwd=/) {
+    $_ =~ s/.*u_pwd=([\w\.\/]*):.*/$1/e;
+    chomp; 

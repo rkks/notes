@@ -1,0 +1,242 @@
+___________________________________________________________
+
+GUIDE TO (mostly) HARMLESS HACKING
+
+Beginners' Series #2, Section One.
+
+Hacking from Windows 95! 
+____________________________________________________________
+
+Important warning: this is a beginners lesson. BEGINNERS. Will all you super
+k-rad elite haxors out there just skip reading this one, instead reading it
+and feeling all insulted at how easy it is and then emailing me to bleat
+"This GTMHH iz 2 ezy your ****** up,wee hate u!!!&$%" Go study something
+that seriously challenges your intellect such as "Unix for Dummies," OK?
+
+Have you ever seen what happens when someone with an America Online account
+posts to a hacker news group, email list, or IRC chat session? It gives you
+a true understanding of what "flame" means, right?
+
+Now you might think that making fun of dumb.newbie@aol.com is just some
+prejudice. Sort of like how managers in big corporations don't wear
+dreadlocks and fraternity boys don't drive Yugos.
+
+But the real reason serious hackers would never use AOL is that it doesn't
+offer Unix shell accounts for its users. AOL fears Unix because it is the
+most fabulous, exciting, powerful, hacker-friendly operating system in the
+Solar system... gotta calm down ... anyhow, I'd feel crippled without Unix.
+So AOL figures offering Unix shell accounts to its users is begging to get
+hacked.
+
+Unfortunately, this attitude is spreading. Every day more ISPs are deciding
+to stop offering shell accounts to their users. 
+
+But if you don't have a Unix shell account, you can still hack. All you need
+is a computer that runs Windows 95 and just some really retarded on-line
+account like America Online or Compuserve.
+
+In this Beginner's Series #2 we cover several fun things to do with Windows
+and even the most hacker-hostile Online services. And, remember, all these
+things are really easy. You don't need to be a genius. You don't need to be
+a computer scientist. You don't need to won an expensive computer. These are
+things anyone with Windows 95 can do.
+
+Section One: Customize your Windows 95 visuals. Set up your startup,
+background and logoff  screens so as to amaze and befuddle your non-hacker
+friends.
+
+Section Two: Subvert Windows nanny programs such as Surfwatch and the setups
+many schools use in the hope of keeping kids from using unauthorized
+programs. Prove to yourself -- and your friends and coworkers -- that
+Windows 95 passwords are a joke.
+
+Section Three: Explore other computers -- OK, let's be blatant -- hack --
+from your Windows home computer using even just AOL for Internet access.
+
+HOW TO CUSTOMIZE WINDOWS 95 VISUALS
+
+OK, let's say you are hosting a wild party in your home. You decide to show
+your buddies that you are one of those dread hacker d00dz. So you fire up
+your computer and what should come up on your screen but the logo for
+"Windows 95." It's kind of lame looking, isn't it? Your computer looks just
+like everyone else's box. Just like some boring corporate workstation
+operated by some guy with an IQ in the 80s.
+
+Now if you are a serious hacker you would be booting up Linux or FreeBSD or
+some other kind of Unix on your personal computer. But your friends don't
+know that. So you have an opportunity to social engineer them into thinking
+you are fabulously elite by just by customizing your bootup screen.
+
+Now let's say you want to boot up with a black screen with orange and yellow
+flames and the slogan " K-Rad Doomsters of the Apocalypse." This turns out
+to be super easy.
+
+Now Microsoft wants you to advertise their operating system every time you
+boot up. In fact, they want this so badly that they have gone to court to
+try to force computer retailers to keep the Micro$oft bootup screen on the
+systems these vendors sell. 
+
+So Microsoft certainly doesn't want you messing with their bootup screen,
+either. So M$ has tried to hide the bootup screen software. But they didn't
+hide it very well. We're going to learn today how to totally thwart their plans.
+
+***********************************************
+Evil Genius tip: One of the rewarding things about hacking is to find hidden
+files that try to keep you from modifying them -- and then to mess with them
+anyhow. That's what we're doing today.
+
+The Win95 bootup graphics is hidden in a file named c:\logo.sys. To see this
+file, open File Manager, click "view", then click "by file type," then check
+the box for "show hidden/system files." Then, back on "view," click "all
+file details." To the right of the file logo.sys you will see the letters
+"rhs." These mean this file is "read-only, hidden, system." 
+
+The reason this innocuous graphics file is labeled as a system file -- when
+it really is just a graphics file -- is because Microsoft is afraid you'll
+change it to read something like "Welcome to Windoze 95 -- Breakfast of
+Lusers!" So by making it a read-only file, and hiding it, and calling it a
+system file as if it were something so darn important it would destroy your
+computer if you were to mess with it, Microsoft is trying to trick you into
+leaving it alone.
+***********************************************
+
+Now here's the easy way to thwart Micro$oft and get the startup logo of your
+choice. We start by finding the MSPaint program. It's probably under the
+accessories folder. But just in case you're like me and keep on moving
+things around, here's the fail-safe program finding routine:
+
+1) Click "Start" on the lower left corner of your screen.
+2) Click "Windows Explorer"
+3) Click "Tools"
+4) Click "Find"
+5) Click "files or folders"
+6) After "named" type in "MSPaint" 
+7) After "Look in" type in 'C:"
+8) Check the box that says "include subfolders"
+9) Click "find now"
+10) Double click on the icon of a paint bucket that turns up in a window.
+This loads the paint program.
+11) Within the paint program, click "file"
+12) Click "open"
+
+OK, now you have MSPaint. Now you have a super easy way to create your new
+bootup screen:
+
+13) After "file name" type in c:\windows\logos.sys. This brings up the
+graphic you get when your computer is ready to shut down saying "It's now
+safe to turn off your computer." This graphic has exactly the right format
+to be used for your startup graphic. So you can play with it any way you
+want (so long as you don't do anything on the Attributes screen under the
+Images menu) and use it for your startup graphic.
+
+14) Now we play with this picture. Just experiment with the controls of
+MSPaint and try out fun stuff. 
+
+15) When you decide you really like your picture (fill it with frightening
+hacker stuph, right?), save it as c:\logo.sys. This will overwrite the
+Windows startup logo file. From now on, any time you want to change your
+startup logo, you will be able to both read and write the file logo.sys. 
+
+16. If you want to change the shut down screens, they are easy to find and
+modify using MSPaint. The beginning shutdown screen is named
+c:\windows\logow.sys. As we saw above, the final  "It's now safe to turn off
+your computer" screen graphic is named c:\windows\logos.sys. 
+
+17. To make graphics that will be available for your wallpaper, name them
+something like c:\windows\evilhaxor.bmp (substituting your filename for
+"exilhaxor" -- unless you like to name your wallpaper "evilhaxor.")
+
+********************************************************
+Evil Genius tip: The Microsoft Windows 95 startup screen has an animated bar
+at the bottom. But once you replace it with your own graphic, that animation
+is gone. However, you can make your own animated startup screen using the
+shareware program BMP Wizard. Some download sites for this goodie include:
+http://www.pippin.com/English/ComputersSoftware/Software/Windows95/graphic.htm
+http://search.windows95.com/apps/editors.html
+http://www.windows95.com/apps/editors.html
+********************************************************
+
+Now the trouble with using one of the existing Win95 logo files is that they
+only allow you to use their original colors. If you really want to go wild,
+open MSPaint again. First click "Image," then click "attributes." Set width
+320 and height to 400. Make sure under Units that Pels is selected. Now you
+are free to use any color combination available in this program. Remember to
+save the file as c:\logo.sys for your startup logo, or  c:\windows\logow.sys
+and or c:\windows\logos.sys for your shutdown screens.
+
+But if you want some really fabulous stuff for your starting screen, you can
+steal graphics from your favorite hacker page on the Web and import them
+into Win95's startup and shutdown screens. Here's how you do it.
+
+1) Wow, kewl graphics! Stop your browsing on that Web page and hit the
+"print screen" button.
+
+2) Open MSPaint and set width to 320 and height to 400 with units Pels.
+
+3) Click edit, then click paste. Bam, that image is now in your MSPaint program.
+
+4) When you save it, make sure attributes are still 320X400 Pels. Name it
+c:\logo.sys, c:\windows\logow.sys, c:\windows\logos.sys, or
+c:\winodws\evilhaxor.bmp depending on which screen or wallpaper you want to
+display it on.
+
+Of course you can do the same thing by opening any graphics file you choose
+in MSPaint or any other graphics program, so long as you save it with the
+right file name in the right directory and size it 320X400 Pels.
+
+Oh, no, stuffy Auntie Suzie is coming to visit and she wants to use my
+computer to read her email!  I'll never hear the end of it if she sees my
+K-Rad Doomsters of the Apocalypse startup screen!!!
+
+Here's what you can do to get your boring Micro$oft startup logo back. Just
+change the name of c:logo.sys to something innocuous that Aunt Suzie won't
+see while snooping with file manager. Something like logo.bak. Guess what
+happens? Those Microsoft guys figured we'd be doing things like this and hid
+a copy of their boring bootup screen in a file named "io.sys." So if you
+rename or delete their original logo.sys, and there is no file by that name
+left, on bootup your computer displays their same old Windows 95 bootup screen.
+
+**************************************
+Evil genius tip: Want to mess with io.sys or logo.sys? Here's how to get
+into them. And, guess what, this is a great thing to learn in case you ever
+need to break into a Windows computer -- something we'll look at in detail
+in the next section.
+
+Click "Start" then "Programs" then "MS-DOS." At the MS_DOS prompt enter the
+commands:
+
+ATTRIB -R -H -S C:\IO.SYS
+ATTRIB -R -H -S C:\LOGO.SYS
+
+Now they are totally at your mercy, muhahaha!
+**************************************
+
+OK, that's it for now.  You 31337 hackers who are feeling insulted by
+reading this because it was too easy, tough cookies. I warned you. But I'll
+bet my box has a happier hacker logon graphic than yours does. K-Rad
+Doomsters of the apocalypse, yesss!
+_________________________________________________________
+Want to see back issues of Guide to (mostly) Harmless Hacking? See either
+http://www.tacd.com/zines/gtmhh/ or 
+http://ra.nilenet.com/~mjl/hacks/codez.htm or
+http://www3.ns.sympatico.ca/loukas.halo8/HappyHacker/
+Subscribe to our email list by emailing to hacker@techbroker.com with
+message "subscribe" or join our Hacker forum at
+http://www.infowar.com/cgi-shl/login.exe.
+Chat with us on the Happy Hacker IRC channel. If your browser can use Java,
+just direct your browser to www.infowar.com, click on chat, and choose the
+#hackers channel.
+Want to share some kewl stuph with the Happy Hacker list? Correct mistakes?
+Send your messages to hacker@techbroker.com.  To send me confidential email
+(please, no discussions of illegal activities) use cmeinel@techbroker.com
+and be sure to state in your message that you want me to keep this
+confidential. If you wish your message posted anonymously, please say so!
+Direct flames to dev/null@techbroker.com. Happy hacking! 
+Copyright 1997 Carolyn P. Meinel. You may forward  or post on your Web site
+this GUIDE TO (mostly) HARMLESS HACKING as long as you leave this notice at
+the end..
+________________________________________________________
+Carolyn Meinel
+M/B Research -- The Technology Brokers
+
+

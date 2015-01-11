@@ -1,0 +1,82 @@
+How to set your NIC to 10/100 half/full duplex
+----------------------------------------------
+
+Set hme0 to 100 Mb half duplex					
+     ndd -set /dev/hme instance 0               <------------ 	Change this accoringly for multiple interfaces:
+     ndd -set /dev/hme adv_100T4_cap 0			    	Ex. hme0, hme1, hme2...
+     ndd -set /dev/hme adv_100fdx_cap 0			    
+     ndd -set /dev/hme adv_100hdx_cap 1
+     ndd -set /dev/hme adv_10fdx_cap 0
+     ndd -set /dev/hme adv_10hdx_cap 0
+     ndd -set /dev/hme adv_autoneg_cap 0
+     
+     
+Set hme0 to 100 Mb full duplex			
+     ndd -set /dev/hme instance 0              
+     ndd -set /dev/hme adv_100T4_cap 0		
+     ndd -set /dev/hme adv_100fdx_cap 1			    
+     ndd -set /dev/hme adv_100hdx_cap 0
+     ndd -set /dev/hme adv_10fdx_cap 0
+     ndd -set /dev/hme adv_10hdx_cap 0
+     ndd -set /dev/hme adv_autoneg_cap 0
+
+
+Set hme1 to 10 Mb half duplex
+     ndd -set /dev/hme instance 1
+     ndd -set /dev/hme adv_100T4_cap 0
+     ndd -set /dev/hme adv_100fdx_cap 0
+     ndd -set /dev/hme adv_100hdx_cap 0
+     ndd -set /dev/hme adv_10fdx_cap 0
+     ndd -set /dev/hme adv_10hdx_cap 1
+     ndd -set /dev/hme adv_autoneg_cap 0
+     
+     
+Set hme1 to 10 Mb full duplex
+     ndd -set /dev/hme instance 1
+     ndd -set /dev/hme adv_100T4_cap 0
+     ndd -set /dev/hme adv_100fdx_cap 0
+     ndd -set /dev/hme adv_100hdx_cap 0
+     ndd -set /dev/hme adv_10fdx_cap 1
+     ndd -set /dev/hme adv_10hdx_cap 0
+     ndd -set /dev/hme adv_autoneg_cap 0
+
+
+
+NOTE: ndd only modifies the current running session.  If you reboot, you will lose any changes you have made.  
+	Please set these in /etc/system or place them in a startup script (Ex. /etc/rc2.d/S99hme_config) 
+	if you want them to "live on" to the next reboot.
+
+
+If setting this in /etc/system, these settings will apply to all hme interfaces.
+
+Set all hme's to 100 Mb full duplex
+        set hme:hme_adv_autoneg_cap=0           
+        set hme:hme_adv_100T4_cap=0
+        set hme:hme_adv_100fdx_cap=1
+        set hme:hme_adv_100hdx_cap=0
+        set hme:hme_adv_10fdx_cap=0
+        set hme:hme_adv_10hdx_cap=0
+        
+        
+        
+Ok, what if I don't want to use the two options from above?  I love living dangerously...
+You can edit /kernel/drv/hme.conf.
+	
+Per Sun Infodoc 16070:
+	
+Create /kernel/drv/hme.conf ( see Manual ! 802-5333 or 801-3970 
+   "Platform Notes: The hme Fast Ethernet Device Driver Solaris ) 
+
+NOTE:  This is obviously more intrusive and should only be used by an
+       administrator with the experience necessary to follow through the
+       below steps.  The above steps should always be considered and
+       attempted first.
+
+Example of /kernel/drv/hme.conf to turn off autonegotiation, turn on 100
+Full, force 100BaseTX port, change Interpacket gap. (The reg= entries will
+be unique for each instance.) 
+                    
+     name="hme" class="sbus" 
+     reg=0xe,0x8c00000,0x00000108,0xe,0x8c02000,0x00002000,0xe, 
+     0x8c04000,0x00002000,0xe,0x8c06000,0x00002000,0xe,0x8c07000, 0x00000020 
+     adv_autoneg_cap=0 adv_100fdx_cap=1 use_int_xcvr=1 ipg1=10 ipg2=8;

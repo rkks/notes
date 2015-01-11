@@ -1,0 +1,61 @@
+INFODOC ID: 21571
+
+SYNOPSIS: Adding a Kernel Patch to a JumpStart Installation Boot Image
+
+DESCRIPTION 
+
+This document describes installing a Kernel Patch to a Net (JumpStart) Install Boot Image, and incorporating this
+patch to the completed installation of the OS which is automated once the patch is added as described below. Only
+a kernel patch can be installed because the SolStart script for installing patches does not support using a patch
+order file at this time. 
+
+When is this useful? 
+
+1) This will work when the "Operating Environment CDROM" and therefore the modify_install_server script is not
+available (See SRDB 20576). Also note that the modify_install_server script adds packages and patches for the
+PGX32 frame buffer, which may not be necessary in your particular instance. 
+
+2) This is also useful if you are JumpStarting Solaris 2.6 5/98 to an Enterprise Server with 400MHZ cpus with 8mb
+cache (See SRDB 20149). 
+
+Following are instructions with an example of this on a Solaris 2.6 5/98 install image at
+/export/Install/2.6_598/Solaris_2.6/Tools/Boot:: 
+
+1) Copy the kernel patch to the /tmp directory then patch the boot portion of the Install Image. 
+
+Example: 
+	#patchadd -C /export/Install/2.6_598/Solaris_2.6/Tools/Boot -M /tmp 105181-17 
+
+/export/Install/2.6_598 = Install Image Path (yours may differ) 
+
+Solaris_2.6 = Product Name Directory 
+
+105181-17 = 2.6 Kernel Patch 
+
+
+This will update the boot image patch directory as follows: 
+	/export/Install/2.6_598/Solaris_2.6/Tools/Boot/tmp/root/var/sadm/patch 
+
+The default patches in this directory are: 
+	105633-05 105654-03 105874-01 105924-03 
+
+After "patchadd -C" completes, the contents are: 
+	105181-17 105633-05 105654-03 105874-01 105924-03 
+
+2) Copy the kernel patch to the Patches directory of the install image: 
+
+Patches directory example: 
+	/export/Install/2.6_598/Solaris_2.6/Patches/105181-17 
+
+The default patches in this directory are: 
+	105570-01 105633-05 105654-03 105924-03 106040-03
+
+Notes: 
+------
+These patches will install in sequential order, so the kernel patch (105181-17) will install first. 
+This can be confirmed in the installation finish log in the /var/sadm/system/logs/finish.log_'date' file. 
+The patch_finish script is located in the 
+	./Solaris_2.6/Tools/Boot/usr/sbin/install.d/install_config 
+directory of the install image. 
+
+

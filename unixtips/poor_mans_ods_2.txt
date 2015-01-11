@@ -1,0 +1,54 @@
+/usr/bin/dd can also be your friend if you don't have a mirroring program
+		AND
+the disks are the same size.
+
+This will copy everything on a slice, or you can specify the whole disk.
+However, unless the disk is nearly full, you may want to break it down per slice
+as dd doesn't care if it is copying empty disk or real data.
+
+As a side note, if you want to copy the VTOC and bootblock, do the following:
+	dd if=/dev/rdsk/c0t0d0s2 of=/dev/rdsk/c0t1d0s2 count=16
+
+
+Step 1
+------
+First you want to choose a slice (/dev/rdsk/c0t0d0s1) 
+or the entire disk (/dev/rdsk/c0t0d0s2).
+
+NOTE: that we are using /dev/rdsk instead of the block device.
+
+
+Step 2
+------
+Now select your source and data slices.  
+
+**PLEASE** make sure you get this right.
+You can/will overwrite your good data with 0's if you do it wrong.
+
+Source = if (input file)
+	/dev/rdsk/c0t0d0s2
+
+Destination = of (output file)
+	/dev/rdsk/c0t1d0s2
+
+
+Step 3
+------
+Select your bs (block size) for copying.
+This will make a difference in how long it takes to copy.  You may
+reduce your time for an entire 9 GB disk from somthing like 8 hours to 2.
+
+I have used 8 MB in the past, but you can change this to match your 
+particular system's setup.
+	bs=8192k
+
+
+Step 4
+------
+You can add this to root's cron so it will run nightly or on the fly.
+
+	dd if=/dev/rdsk/c0t0d0s2 of=/dev/rdsk/c0t1d0s2 bs=8192k
+
+
+
+-Contributed by David Cashion

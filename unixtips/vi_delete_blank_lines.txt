@@ -1,0 +1,19 @@
+How to delete blank lines within vi?
+
+Just type this baby in:
+
+	<esc>:g/^$/d
+
+
+NOTE:  This means that all the lines that just have a 
+       carriage return on them (NO Spaces), will be removed.
+
+
+
+
+Ok, so I have some of those lines too.  How can I remove all of them as well?
+
+	<esc>:g/^ *$/d
+
+
+NOTE: There is a space after the '^' and before the '*'.

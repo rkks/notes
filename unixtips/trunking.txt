@@ -1,0 +1,108 @@
+Quad Fast Ethernet Trunking Software Setup
+
+NOTE:  There is a manual that came with this.  This is only a summary.
+	This DOES NOT "come with" the QFE card.  It is software that was purchased from Sun.
+
+Edit the file: /etc/opt/SUNWqfetr/bin/qfetr.sh
+
+
+An explanation of the settings you can use are included in the file below
+---------------------------------------------------------------------------------------
+#!/bin/sh
+#
+#pragma ident  "@(#)qfetr.sh	1.3 98/02/02 SMI"
+#
+# Copyright (c) 1994 by Sun Microsystems, Inc.
+#
+# Sample Sun Trunking configuration file
+#
+# Please edit this file by adding configuration entries at the
+# end of this file.
+#
+# Comments are represented by '#' at the beginning of the line.
+#
+BASEDIR=/etc//opt/SUNWqfetr
+BINDIR=$BASEDIR/bin
+PATH=$PATH:$BINDIR
+export PATH
+echo Configuring QFE trunking devices
+#
+# Please check your /etc/path_to_inst file to select an instance # to
+# be used as trunk head and this instance # must belong to a 4-port
+# qfe card.
+#
+#   Example: /etc/path_to_inst
+#
+#    "/sbus@1f,0/SUNW,qfe@3,8c30000" 3 "qfe"
+#    "/sbus@1f,0/SUNW,qfe@3,8c20000" 2 "qfe"
+#    "/sbus@1f,0/SUNW,qfe@3,8c10000" 1 "qfe"
+#    "/sbus@1f,0/SUNW,qfe@3,8c00000" 0 "qfe"
+#
+# Edit this file by adding qfetr(1M) commands that will set up
+# the trunk head, the number of links per trunk and the trunk policy.
+#
+# After modifying this file qfetr.sh, you must create
+# /etc/hostname.qfe entry(N is the instance #) for this trunk head and
+# reboot your system.
+#
+#	qfetr -setup head-instance [ links=<2|4> ] [ policy=<1..32> ]
+#                                  [ members=<instance,instance,.,.> ]
+#
+# 
+# If you want to change the trunk configuration once a trunk is configured,
+# you need to modify this file qfetr.sh and reboot the system.
+#
+# The following examples configure two trunks:
+#
+# The first qfetr command uses qfe instance #0 as trunk head, 
+# 4 links (default is 4) for this trunk and the default trunk policy is 1
+# which # is mac.
+#
+#qfetr -setup 0
+#	or
+#qfetr -setup 0 links=4 policy=1
+#
+# The second qfetr command uses qfe instance #4 as trunk head, 
+# 2 links for this trunk, the trunk policy is 2 which is round robin
+# and trunk members are 4 and 5 Trunk members are instance numbers
+# recorded in /etc/path_to_inst file.
+#
+#qfetr -setup 4 links=2 policy=2 members=4,5
+
+# Add Sun Trunking Configuration entries below.
+#
+# Details
+#--------
+# setup - trunk head, pick one of the instances
+# links - how many links will be in this config:
+#       4 - one 400mb virtual connection
+#       2 - two separate trunks ( two 200mb connections)
+# policy - MAC or roundrobin
+#       1 - MAC
+#       2 - roundrobin
+# members - the instance numbers that belong to this trunk
+
+qfetr -setup 0 links=2 policy=1 members=0,1
+
+# end of script
+----------------------------------------------------------------------
+
+The card is laid out as follows:
+	Port	Member #
+	 1	  0
+	 2	  1
+	 3	  2
+	 4	  3
+
+So then you need to add the /etc/hostname.qfex for the config you have chosen.
+If you have one 200Mb connection and 2-100Mb connections, you will have
+	hostname.qfe0, hostname.qfe2, hostname.qfe3
+
+You probably want to go to the boot prompt and set
+	local-mac-address?=true
+just incase you connect the server up twice to the same subnet with different IP's, each of them will have a different MAC.
+
+You may also want to 
+	touch /etc/notrouter
+to keep the server from routing between the interfaces.
+

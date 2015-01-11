@@ -1,0 +1,22 @@
+How to change the banner of the FTP daemon when logging in
+----------------------------------------------------------
+
+From the ftpd man page:
+
+The banner returned by in.ftpd in the parenthetical portion
+of  its greeting is configurable.  The default is equivalent
+to "`uname -sr`" and will be used if no  banner  is  set  in
+/etc/default/ftpd.   To  set  the  banner, add a line of the
+form
+
+BANNER="..."
+
+to /etc/default/ftpd.  Nonempty banner strings  are  fed  to
+shells  for  evaluation.   The  default  banner  may also be
+obtained by
+
+BANNER="`uname -s` `uname -r`"
+
+and no banner will be printed if /etc/default/ftpd contains
+
+BANNER=""

@@ -1,0 +1,308 @@
+{\rtf1\ansi\deff0\deftab720{\fonttbl{\f0\fswiss MS Sans Serif;}{\f1\froman\fcharset2 Symbol;}{\f2\froman\fprq2 Times New Roman;}{\f3\froman Times New Roman;}{\f4\fmodern\fprq1 Courier New;}{\f5\fmodern Courier New;}}
+{\colortbl\red0\green0\blue0;}
+\deflang1033\pard\qc\plain\f2\fs48\b raZZia\plain\f2\fs20\b 's \plain\f2\fs32\b  Tutorial on Key Generators
+\par \plain\f2\fs20\b 
+\par \pard\plain\f2\fs20 
+\par \pard\qc\plain\f2\fs20\b Tools!
+\par \pard\plain\f2\fs20 \tab For tools you need a minimum of debugger like SoftIce for Windows (hence WinIce), and a C compiler with Dos libraries.
+\par 
+\par 
+\par \pard\qc\plain\f2\fs20\b Content!
+\par \pard\li720\plain\f2\fs20 In this tutorial I will show how to make a key-gen for Ize and Swiftsearch. The protection that these programs use is the well known Enter-Name-and-Registration-Number method. After selecting 'register',  a window pops up where you can enter your name and your registration number.   The strategy here is to find out where in memory the data you enter is stored and then to find out what is done with it. Before you go on make sure you configure the SoftIce dat file according to the PWD tutorial #1. 
+\par \pard\plain\f2\fs20 
+\par 
+\par \pard\qc\plain\f2\fs20\b Part 1: Scanline Swiftsearch 2.0!
+\par \pard\plain\f2\fs20 
+\par \pard\li720\plain\f2\fs20  Swiftsearch is a useful little program that you can use to search on the web. I will explain step by step how to crack it.
+\par 
+\par \pard\plain\f2\fs20  step 1. Start the program :) 
+\par 
+\par \pard\li630\fi-630\plain\f2\fs20  step 2: Choose register from the menus. You will now get a window where you can enter your name and your  registration number.
+\par 
+\par \pard\plain\f2\fs20  step 3: Enter SoftIce (ctrl-d)
+\par 
+\par \pard\li630\fi-630\plain\f2\fs20  step 4: We will now set a breakpoint on functions like GetWindowText(a) and GetDlgItemText(a) to find out where in memory the data that we just entered is stored.  The function that is used by this program is GetDlgItemTexta (trial and error, just try yourself :) so, in SoftIce type BPX GetDlgItemTexta  and exit SoftIce with the g command.
+\par \pard\plain\f2\fs20 
+\par \pard\li630\fi-630\plain\f2\fs20 step 5: Now type a name and a registration number  (I used razzia and 12345) and press OK, this will put you  back in  SoftIce. Since you are now inside the GetDlgItemTexta function press F11 to get out of it.  You should see the following code:
+\par \pard\plain\f2\fs20 
+\par             \plain\f4\fs20 lea eax, [ebp-2C]          :<--- we are looking for this location
+\par      push eax                   
+\par      push 00000404
+\par      push [ebp+08]
+\par      call [USER32!GetDlgItemTextA]
+\par      mov edi, eax               :<--- eax has the length of the string                  
+\par                                  and is stored in edi for later usage.
+\par 
+\par \pard\li630\tx1440\plain\f2\fs20 \tab We see that EAX is loaded with a memory address and then pushed to the stack as a parameter for the function GetDlgItemTextA. Since the function GetDlgItemTextA is already been run we can look at EBP-2c (with ED EDP-2c) and see that the name we entered is there. Now we know where the name is stored in memory, normally it would be wise to write that address down, but we will see that in this case it wont be necessary. 
+\par \pard\li630\fi-630\plain\f2\fs20      \tab 
+\par \pard\li1440\plain\f2\fs20 So, what next? Now we have to allow the program to read the registration number we entered. Just type g and return and when  back in SoftIce press F11. You should see the following code:
+\par \pard\plain\f4\fs20 
+\par      push 0000000B
+\par      lea ecx, [ebp-18]         : <--So, ebp-18 is where the reg. number                                 
+\par      push ecx                  :    is stored. 
+\par      push 0000042A
+\par      push [ebp+08]
+\par      call [USER32!GetDlgItemTextA]
+\par      mov ebx, eax              : <--save the lenght of string in EBX
+\par      test edi, edi             : <--remember EDI had the lenght of the                                
+\par      jne 00402FBF              :    name we entered?
+\par \plain\f2\fs20              
+\par \pard\li630\plain\f2\fs20              We see that the registration number is stored at location EBP-18 , check it with ED EBP-18.  Again, normally it would be wise to note that address down.  Also we see that it is checked if the length of the name we gave was not zero. If it is not zero the  program will continue.
+\par \pard\plain\f2\fs20 
+\par \pard\li630\fi-630\plain\f2\fs20 Step 6: Ok, now we know where the data we entered is stored in memory. What next?
+\par              Now we have to find out what is DONE with it. Usually it would we wise to put breakpoints on those memory locations and find out where in the program they are read. But in this case the answer is just a few F10's away. Press F10 until you see the following code :
+\par \pard\plain\f2\fs20 
+\par           \plain\f4\fs20  cmp ebx, 0000000A       :<--remember EPX had the length of the 
+\par      je 00402FDE             :   registration code we entered? 
+\par     \plain\f2\fs20 
+\par \pard\li630\plain\f2\fs20              These two lines are important. They check if the length of the registration code we entered is equal  to 10. If not the registration number will be considered wrong already. The program wont even bother  to check it. Modify EBX or the FLAG register in the register window to allow the jump. Continue Pressing F10 until you get to the following code (note that the adresses you will see could be different) :\plain\f4\fs20 
+\par \pard\plain\f4\fs20 
+\par \pard\li4230\fi-3600\plain\f4\fs20 :00402FDE xor esi, esi        \plain\f2\fs20 :<-- Clear ESI\plain\f4\fs20 
+\par :00402FE0 xor eax, eax        \plain\f2\fs20 :<-- Clear EAX\plain\f4\fs20 
+\par :00402FE2 test edi, edi
+\par :00402FE4 jle 00402FF2
+\par :00402FE6 movsx byte ptr ecx, [ebp + eax - 2C] \plain\f2\fs20 :<-- ECX is loaded with a letter of the  name we entered. \plain\f4\fs20 
+\par :00402FEB add esi, ecx        \plain\f2\fs20 :<-- Add the letter to ESI\plain\f4\fs20                    
+\par :00402FED inc eax             \plain\f2\fs20 :<-- Increment EAX to get next letter\plain\f4\fs20 
+\par :00402FEE cmp eax, edi        \plain\f2\fs20 :<-- Did we reach the end of the string?\plain\f4\fs20 
+\par :00402FF0 jl 00402FE6         \plain\f2\fs20 :<-- If not, go get the next letter.\plain\f4\fs20 
+\par \pard\li630\plain\f4\fs20 
+\par \plain\f2\fs20             Well, we see that the program adds together all the letters of the name we entered.  Knowing that ESI contains the sum of the letters, lets continue and find out what the program does with that value : \plain\f4\fs20 
+\par \pard\plain\f4\fs20 
+\par \pard\li4230\fi-3600\plain\f4\fs20 :00402FF2 push 0000000A
+\par :00402FF4 lea eax, [ebp-18]   \plain\f2\fs20 :<-- Load EAX with the address of the reg. number we entered\plain\f4\fs20     
+\par :00402FF7 push 00000000
+\par :00402FF9 push eax            \plain\f2\fs20 :<-- Push EAX (as a parameter for the following function)\plain\f4\fs20 
+\par :00402FFA call 00403870       \plain\f2\fs20 :<-- Well, what do you think this function does? :)\plain\f4\fs20  
+\par :00402FFF add esp, 0000000C    
+\par :00403002 cmp eax, esi        \plain\f2\fs20 :<-- Hey! \plain\f4\fs20  
+\par :00403004 je 00403020
+\par \pard\plain\f4\fs20 
+\par \pard\li630\fi-630\plain\f2\fs20              We see that a function is called and when RETurned ESI is compared with EAX. Hmm, lets look at what's in EAX.  A '? EAX' reveals :
+\par \pard\plain\f2\fs20            
+\par              00003039       0000012345   "09"
+\par 
+\par \pard\li630\plain\f2\fs20              Bingo. That's what we entered as the registration number. It should have been what's inside ESI.  And we know what's inside ESI, the sum of the letters of the name we entered! 
+\par \pard\plain\f2\fs20          
+\par Step 7:  Now we know how the program computes the registration code we can make a key-gen. 
+\par               But we should not forget that the program checks also that the registration number has 10
+\par               digits. 
+\par               A simple C code that will compute the registration number for this program could look like this: 
+\par 
+\par 
+\par \pard\li810\plain\f2\fs20  \plain\f4\fs20 #include\tab <stdio.h>
+\par #include\tab <string.h>
+\par main()
+\par \{
+\par \tab char Name[100];
+\par \tab int NameLength,Offset;
+\par \tab long int Reg = 0, Dummy2 = 10;
+\par \tab int Dummy = 0;
+\par \tab int LengtDummy = 1;
+\par \tab int Lengt , Teller;
+\par \tab printf("Scanline SwiftSearch 2.0 crack by raZZia.\\n");
+\par \tab printf("Enter your name: ");
+\par       gets(Name);
+\par       NameLength=strlen(Name);
+\par 
+\par /* the for lus calculates the sum of the letters in Name */
+\par /* and places that value in Reg                          */
+\par       for (Offset=0;Offset<NameLength;Offset=Offset+1)
+\par         \{ 
+\par         \tab Reg=Reg+Name[Offset];
+\par         \}         \tab                    
+\par /* the while lus calculates the lenght of the figure in */
+\par /* Reg and places it in Lengt                           */
+\par       while (Dummy != 1) 
+\par         \{
+\par              if ( Reg < Dummy2 ) 
+\par \tab           \{ Lengt = LengtDummy ; Dummy =1;
+\par \tab           \}
+\par \tab        else 
+\par \tab           \{ LengtDummy=LengtDummy + 1; Dummy2=Dummy2*10;
+\par \tab           \}
+\par         \};               
+\par      printf("\\nYour registration number is : " );
+\par /* First print 10-Lengt times a 0                        */
+\par      Lengt=10-Lengt;
+\par      for (Teller=1;Teller<=Lengt;Teller=Teller+1) printf("0");
+\par /* Then print the registration number                    */
+\par      printf("%lu\\n",Reg);
+\par \}
+\par \pard\plain\f4\fs20 
+\par 
+\par 
+\par 
+\par                            Case 2 Ize 2.04 from Gadgetware
+\par \tab \plain\f2\fs20 
+\par \tab Ize from Gadgetware is a cute little program that will put a pair of eyes on your screen which will 
+\par \tab follow your mousepointer. It has a register function where you can enter your name and a registration 
+\par \tab number. The strategy in this case is still the same : Find out where in memory the entered information
+\par \tab is stored and then find out what is done with that information.
+\par 
+\par Step 1:   Start Ize. Chose register and enter a name and a number. I used 'razzia' and '12345'.
+\par 
+\par Sterp 2: Enter (CTRL-D) Softice and set a breakpoint on GetDlgItemTextA.
+\par 
+\par Step 3:  Leave SoftIce and press OK. This will put you back in Softice. You will be inside the GetDlgItemTextA 
+\par               function. To get out of it press F11. You should see the following code : 
+\par 
+\par \plain\f5\fs20       mov esi, [esp + 0C] 
+\par       push 00000064
+\par       push 0040C3A0      \plain\f2\fs20 :<--On this memory location the NAME we entered will be stored.\plain\f5\fs20 
+\par       mov edi, [USER32!GetDlgItemTextA]  \plain\f2\fs20 :<--Load edi with adress of GetDlgItemTextA
+\par \plain\f5\fs20 \tab push 00004EE9      
+\par \tab push esi
+\par \tab call edi           \plain\f2\fs20 :<-- Call GetDlgItemTextA\plain\f5\fs20   
+\par \tab push 00000064  \plain\f2\fs20           :<-- (you should be here now)\plain\f5\fs20 
+\par \tab push 0040C210      \plain\f2\fs20 :<--On this memory location the NUMBER we entered will be stored\plain\f5\fs20 
+\par \tab push 00004EEA
+\par \tab push esi
+\par \tab call edi           \plain\f2\fs20 :<-- Call GetDlgItemTextA
+\par 
+\par \tab We see that the function GetDlgItemTextA is called twice in this code fragment. The first call has 
+\par \tab already happened. With ED 40C3A0 we can check that the name we entered is stored on that location. 
+\par \tab To allow the program to read in the number we entered we type G and enter. Now we are inside the Get-
+\par \tab DlgItemTextA function again and we press f11 to get out of it. We check memory location 40C210 and 
+\par                 we see the number we entered is stored there.
+\par \plain\f5\fs20       \plain\f2\fs20 Now we know the locations were the name and the number are stored,we note those down!\plain\f5\fs20 
+\par 
+\par \plain\f2\fs20 Step 4:   Ok, what next? We now know where in memory the name and the number are stored. We need to find out
+\par \tab what the program does with those values. In order to do that we could set breakpoints on those memory 
+\par   \tab locations to see where they are read. But in this case it wont be necessary. The answer is right after the 
+\par \tab above code : 
+\par \plain\f5\fs20 
+\par \tab push 0040C210 \plain\f2\fs20  :<--save the location of the number we entered (as a parameter for the next call)\plain\f5\fs20 
+\par \tab call 00404490  \plain\f2\fs20 :<-- call this unknown function\plain\f5\fs20    
+\par \tab add esp, 00000004
+\par \tab mov edi, eax  \plain\f2\fs20 :<-- save EAX  (hmmmm)\plain\f5\fs20 
+\par 
+\par \tab \plain\f2\fs20 We see a function being called with the number-location as a parameter. We could trace into the                                 \tab function and see what it does, but that is not needed. With your experience of the Swiftsearch 
+\par \tab example you should be able to guess what this function does.  It calculates the numerical value of the                 \tab registration number and puts it in EAX. To be sure we step further using F10 untill we are past the call  \tab and check the contents of EAX (with ? EAX). In my case it showed : 00003039       0000012345   "09".\plain\f5\fs20 
+\par 
+\par       \plain\f2\fs20 Knowing that EDI contains our registration number we proceed:\plain\f5\fs20 
+\par       
+\par       push 0040C3A0 :\plain\f2\fs20 <-- save the location of the name we entered (as a parameter for the next call)\plain\f5\fs20      
+\par       push 00409080 :\plain\f2\fs20 <-- save an unknown memory-location (as a parameter for the next call)\plain\f5\fs20  
+\par       call 004043B0 \plain\f2\fs20 :<--call to an unknown function\plain\f5\fs20 
+\par \tab add esp, 00000008
+\par \tab cmp edi, eax  \plain\f2\fs20 :<--compare EDI (reg # we entered) with EAX (unknown, since the previous call                                                      \tab \tab \tab             changed it)\plain\f5\fs20  
+\par \tab jne 004018A1  \plain\f2\fs20 :<--jump if not equal
+\par \tab 
+\par \tab We see that a function is called with two parameters. One of the parameters is the location of the name 
+\par \tab we entered. The other we dont know, but we can find out with ED 409080. We see the text 'Ize'. 
+\par \tab This function calculates the right registration number using those two parameters. If you just want to 
+\par \tab crack this program, you can place a breakpoint right after the call and check the contents of EAX. It will
+\par \tab contain the right registration number.  But since we want to know HOW the reg. # is calculated we will       \tab trace inside the function (using T). We will then try to find out HOW the contents of EAX got in there.
+\par 
+\par Step 5:    Once inside the interesting function  you will see that we are dealing with a rather long function. It wont            \tab be necessary for me to include the complete listing of this function, because we wont need all of it to \tab make our key-gen. 
+\par                 But in order find out which part of the code is essential for the computation of the right registration \tab number, you  have to trace STEP by STEP and figure out what EXACTLY is going on! 
+\par 
+\par \tab Afther doing this i found out that the first part of the function computes  some kind of "key". Then this
+\par \tab "key" is stored in memory and in that way passed on to the second part of the function.   
+\par                 The second part of the function then computes the right registration number, based on this "key" AND
+\par \tab  the name we entered. 
+\par                 
+\par \plain\f5\fs20 \tab \plain\f2\fs20 The code that is essential and that we need for our key-gen is the following:
+\par                 
+\par                ( Note that before the following code starts, the registers that are used will have the following values:
+\par                  EBX will point to the first letter of the name we entered,
+\par                  EDX will be zero,
+\par                  EBP will be zero,
+\par  \tab  The "key" that we talked about earlier is stored in memory location \plain\f5\fs20 0040B828 \plain\f2\fs20 and will  
+\par    \tab  have \plain\f5\fs20 0xA4CC\plain\f2\fs20  as its initial value. )
+\par 
+\par \plain\f5\fs20 
+\par :00404425 movsx byte ptr edi, [ebx + edx]   \plain\f2\fs20 :<-- Put first letter of the name in EDI \plain\f5\fs20 
+\par :00404429 lea esi, [edx+01]    \plain\f2\fs20 :<-- ESI gets the "letter-number"\plain\f5\fs20 
+\par :0040442C call 00404470\tab        \plain\f2\fs20 :<-- Call  function \plain\f5\fs20 
+\par :00404431 imul edi, eax\tab        \plain\f2\fs20 :<-- EDI=EDI*EAX (eax is the return value of the the previous call)\plain\f5\fs20 
+\par :00404434 call 00404470\tab        \plain\f2\fs20 :<-- Call function\plain\f5\fs20 
+\par :00404439 mov edx, esi\tab \tab     
+\par :0040443B mov ecx, FFFFFFFF
+\par :00404440 imul edi, eax\tab     \plain\f2\fs20 :<-- EDI=EDI*EAX (eax is the return value of the previous call)\plain\f5\fs20 
+\par :00404443 imul edi, esi\tab     \plain\f2\fs20 :<-- EDI=EDI*ESI ( esi is the number of the letter position)\plain\f5\fs20 
+\par :00404446 add ebp, edi\tab     \plain\f2\fs20 :<-- EBP=EBP+EDI  (beware that EBP will finally contain the right reg#)\plain\f5\fs20 
+\par :00404448 mov edi, ebx  \plain\f2\fs20 :<--these lines compute the lenght of the name we entered\plain\f5\fs20      
+\par :0040444A sub eax, eax\tab \plain\f2\fs20 :<--these lines compute the lenght of the name we entered\plain\f5\fs20 
+\par :0040444C repnz\tab \tab \plain\f2\fs20 :<--these lines compute the lenght of the name we entered\plain\f5\fs20 
+\par :0040444D scasb\tab \tab \plain\f2\fs20 :<--these lines compute the lenght of the name we entered\plain\f5\fs20 
+\par :0040444E not ecx\tab \tab \plain\f2\fs20 :<--these lines compute the lenght of the name we entered\plain\f5\fs20 
+\par :00404450 dec ecx\tab \tab \plain\f2\fs20 :<-- ECX now contains the lenght of the name \plain\f5\fs20 
+\par :00404451 cmp ecx, esi\tab \tab 
+\par :00404453 ja 00404425  \tab \plain\f2\fs20 :<-- If its not the end of the name , go do the same with the next letter\plain\f5\fs20 \tab 
+\par :00404455 mov eax, ebp \tab \plain\f2\fs20 :<--  SAVE EBP TO EAX !!!!\plain\f5\fs20   
+\par :00404457 pop ebp
+\par :00404458 pop edi
+\par :00404459 pop esi
+\par :0040445A pop ebx
+\par :0040445B ret           
+\par \plain\f2\fs20             _____
+\par  
+\par \plain\f5\fs20 :00404470 mov eax, [0040B828]\tab \tab \plain\f2\fs20 :<-- Put "key" in EAX  \plain\f5\fs20       
+\par :00404475 mul eax, eax, 015A4E35\tab \plain\f2\fs20 :<-- EAX=EAX * 15A4E35 \plain\f5\fs20 
+\par :0040447B inc eax\tab \tab \tab \tab \plain\f2\fs20 :<-- EAX=EAX + 1\plain\f5\fs20 
+\par :0040447C mov [0040B828], eax\tab \tab \plain\f2\fs20 :<-- Replace the "key" with the new value of EAX\plain\f5\fs20 
+\par :00404481 and eax, 7FFF0000\tab \tab \plain\f2\fs20 :<-- EAX=EAX && 7FFF0000\plain\f5\fs20 
+\par :00404486 shr eax, 10\tab \tab \tab \plain\f2\fs20 :<-- EAX=EAX >>10\plain\f5\fs20 
+\par :00404489 ret
+\par 
+\par \plain\f2\fs20 
+\par \plain\f5\fs20 \tab \plain\f2\fs20 The above code consists of a loop that goes trough all the letters of the name we entered. With each 
+\par \tab letter some value is calculated, all these values are added up together (in EBP). Then this value is stored 
+\par \tab in EAX and the function RETurns. And that was what we were looking for, we wanted to know how EAX                                  \tab got its value! 
+\par 
+\par Step 6:   Now to make a key-gen we have to translate the above method of calculating the right reg# into a 
+\par \tab c program. It could be done in the following way : 
+\par                 (Note : I am a bad c programmer :) 
+\par 
+\par \plain\f5\fs20 #include\tab <stdio.h>
+\par #include\tab <string.h>
+\par main()
+\par \{
+\par \tab char Name[100];
+\par \tab int NameLength,Offset;
+\par \tab unsigned long Letter,DummyA;
+\par \tab unsigned long Key = 0xa4cc;
+\par \tab unsigned long Number = 0;
+\par         printf("Ize 2.04 crack by razzia\\n");
+\par \tab printf("Enter your name: ");
+\par         gets(Name);
+\par         NameLength=strlen(Name);
+\par         for (Offset=0;Offset<NameLength;Offset=Offset+1)
+\par         \{ 
+\par \tab          Letter=Name[Offset];
+\par \tab            DummyA=Key;
+\par \tab            DummyA=DummyA*0x15a4e35;
+\par                    DummyA=DummyA+1;
+\par                    Key=DummyA;
+\par                    DummyA=DummyA & 0x7fff0000;
+\par                    DummyA=DummyA >> 0x10;
+\par                  Letter=Letter*DummyA; 
+\par \tab            DummyA=Key;
+\par \tab            DummyA=DummyA*0x15a4e35;
+\par                    DummyA=DummyA+1;
+\par                    Key=DummyA;
+\par                    DummyA=DummyA & 0x7fff0000;
+\par                    DummyA=DummyA >> 0x10;                 
+\par                  Letter=Letter*DummyA; 
+\par                  Letter=Letter*(Offset+1);
+\par                  Number=Number+Letter;
+\par         \}         \tab                    
+\par         printf("\\nYour registration number is : %lu\\n",Number);
+\par \}
+\par \plain\f2\fs20 
+\par 
+\par 
+\par                                            Final Notes
+\par 
+\par \tab For feedback and suggestions pls contact me :)
+\par 
+\par 
+\par 
+\par 
+\par \pard\li360\fi-360\plain\f2\fs20  
+\par \pard\plain\f2\fs20 
+\par                                                                                                                                   \plain\f2\fs36  \plain\f2\fs36\b raZZia\plain\f2\fs20 
+\par }
+ 

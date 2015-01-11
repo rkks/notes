@@ -1,0 +1,414 @@
+Service Banner Fingerprinting in C
+
+ _                         _     
+| |_ ___ _ _ ___ ___ ___ _| |___ 
+|  _|  _| | |   |  _| . | . | -_|
+|_| |_| |___|_|_|___|___|___|___|
+
+* truncode security development *
+http://www.truncode.org
+necrose <necrose@truncode.org>
+
+
+0x01 INTRODUCTION
+
+This paper is written as a supplement to modular's tcpscan series. This paper
+covers how to write C programs that will perform Banner Fingerprinting. This
+paper assumes that you have already understood the tcpscan series from modular,
+and that you possess knowledge of the following protocols: HTTP and FTP. The
+complete source code in this article consists of stand-alone functions with the
+intention to allow the reader to implement them easily into his own programs.
+All functions require the following minimal list of includes:
+
+
+  #include <stdio.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+  #include <netdb.h>
+
+
+0x02 SSH/SMTP FINGERPRINTING
+
+Before we start coding, we will have a look at the subject of manual banner
+fingerprinting. Let uss start this one off with by far the easiest service to
+fingerprint: SSHD. This is because we actually only have two things to 
+accomplish: connect to the SSH daemon at the target host and retrieve the 
+banner that will be automatically presented to us.
+
+The process might be visually presented like so:
+
+
+  *********************      ***********************      ******************
+  * CONNECT TO DAEMON * ===> * DAEMON SHOWS BANNER * ===> * GET THE BANNER *
+  *********************      ***********************      ******************
+
+
+Start by connecting with telnet to a SSH daemon and retrieve the banner:
+
+
+  snow:~# telnet truncode.org 22
+  Trying 207.44.194.142...
+  Connected to truncode.org.
+  Escape character is '^]'.
+  SSH-1.99-OpenSSH_3.1p1
+  ^]
+  telnet> quit
+  Connection closed.
+  snow:~#  
+
+
+As you can see after connecting to the target host, the SSH daemon will
+automatically present the version banner: "SSH-1.99-OpenSSH_3.1p1". This 
+process is relatively easy and can also be applied as well to the SMTP 
+service banner. 
+
+Now we connect to port 25 on the target host:
+
+
+  snow:~# telnet euronet.nl 25
+  Trying 194.134.0.10...
+  Connected to euronet.nl.
+  Escape character is '^]'.
+  220 pop1.euronet.nl ESMTP Postfix
+  ^]
+  telnet> quit
+  Connection closed.
+  snow:~#
+
+
+Well there is not much to fingerprinting these two services. Since the process
+for fingerprinting these services is identical, I will only discuss the code 
+for the SSH daemon fingerprint function. You can specify the port for SMTP. The
+following is an example of code that will fingerprint the SSH daemon:
+
+
+  char *grab_sshb(char *t_addr, int t_port) {
+    struct sockaddr_in rmtaddr;   /* remote address structure */
+    char *buf_s;                  /* buffer string pointer    */
+    char *bnr_s;                  /* banner string pointer    */
+    int sockfd;                   /* socket file descriptor   */
+
+    buf_s = (char *)malloc(250);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    rmtaddr.sin_family = AF_INET;
+    rmtaddr.sin_port = htons(t_port);
+    rmtaddr.sin_addr.s_addr = inet_addr(t_addr);
+
+    if(connect(sockfd, (struct sockaddr *)&rmtaddr,
+      sizeof(struct sockaddr)) != 0) { close(sockfd); return NULL; }
+
+    if(recv(sockfd, buf_s, 250, 0) <= 0) { close(sockfd); return NULL; }
+
+    bnr_s = (char *)malloc(strlen(buf_s)-1);
+    strncpy(bnr_s, buf_s, strlen(buf_s)-1);
+
+    close(sockfd);
+    free(buf_s);
+    return bnr_s;
+  }
+
+
+This source code is rather straight forward. We do exactly the same as 
+presented in the former visual process: connect to the target host and receive
+the banner it sends, then copy the banner in question and close the connection.
+
+
+0x03 HTTP/FTP FINGERPRINTING
+
+This technique is slightly more difficult than SSH and SMTP because we actually
+need to perform some interaction with the server. An obvious difference is that
+we need to incite some minor string magic for this technique to work. We begin
+with HTTP server fingerprinting. The server does not automatically present any
+banner on connect. A request to the server is needed by sending the: 
+"HEAD / HTTP/1.0\n\n" command, where "\n\n" represents <ENTER> twice. We state
+this again visually:
+
+
+  *********************      ****************      ***********************
+  * CONNECT TO SERVER * ===> * REQUEST HEAD * ===> * SERVER SENDS BANNER *
+  *********************      ****************      ***********************
+                                                                ||
+						                \/
+  				   ***************      ******************
+ 				   * FILTER DATA * <=== * GET THE BANNER *
+				   ***************      ******************						     
+
+
+Connect with telnet and retreive the banner. The data filtering will only be
+done with the final code. Pay attention to the following process:
+
+
+  snow:~# telnet www.euronet.nl 80
+  Trying 194.134.0.158...
+  Connected to www.euronet.nl.
+  Escape character is '^]'.
+  HEAD / HTTP/1.0
+
+  HTTP/1.1 302 Found
+  Date: Fri, 21 Mar 2003 21:06:55 GMT
+  Server: Apache/1.3.26 (Unix)
+  Location: http://home.euronet.nl/
+  Connection: close
+  Content-Type: text/html; charset=iso-8859-1
+
+  Connection closed by foreign host.
+  snow:~#
+
+
+As you can see the server returns a lot of data after the HEAD / HTTP/1.0 
+command. Actually the only data we are interested in is the banner behind the 
+"Server:". This is what our filter code will achieve. The code will perform the
+following: connect to the server at the target host, send the command, receive
+the server HEAD and filter the data:
+
+
+  char *ltnet_httpb(char *t_addr, int t_port) {
+    struct sockaddr_in rmtaddr;   /* remote address structure */
+    char *buf_s;                  /* buffer string pointer    */
+    char *bnr_s;                  /* banner string pointer    */
+    char *str_p;                  /* pointer to Server: part  */
+    int sockfd;                   /* socket file descriptor   */
+    int itr_s0;                   /* string iterate integer   */
+    int itr_s1;                   /* string iterate integer   */
+
+    buf_s = (char *)malloc(1000);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    rmtaddr.sin_family = AF_INET;
+    rmtaddr.sin_port = htons(t_port);
+    rmtaddr.sin_addr.s_addr = inet_addr(t_addr);
+
+    if(connect(sockfd, (struct sockaddr *)&rmtaddr,
+      sizeof(struct sockaddr)) != 0) { close(sockfd); return NULL; }
+
+    if(send(sockfd, "HEAD / HTTP/1.0\n\n", 17, 0) <= 0) {
+      close(sockfd); return NULL; }
+    if(recv(sockfd, buf_s, 1000, 0) <= 0) { close(sockfd); return NULL; }
+
+    if((str_p = strstr(buf_s, "Server:")) == NULL) {
+      close(sockfd); return NULL; }
+
+    for(itr_s0 = 0; itr_s0 < strlen(str_p); itr_s0++) {
+      if(str_p[itr_s0] == '\n') break;
+    }
+
+    bnr_s = (char *)malloc(itr_s0 - 8);
+
+    for(itr_s1 = 0; itr_s1 < itr_s0; itr_s1++) {
+      if(str_p[itr_s1 + 8] == '\n') break;
+      bnr_s[itr_s1] = str_p[itr_s1 + 8];
+    }
+
+    close(sockfd);
+    free(buf_s);
+    return bnr_s;
+  }
+
+
+Take a close look at the section that performs the actual filtering. First the
+code looks at the "Server:" line and returns a pointer to it:
+
+
+  if((str_p = strstr(buf_s, "Server:")) == NULL) {
+    close(sockfd); return NULL; }
+
+
+Now "str_p" points to where the "Server:" line starts in the buffer. The next
+thing we want to do is retrieve the actual banner without the "Server:" line in
+front of it and put it into "bnr_s". We start this process my allocating memory
+to "bnr_s"
+
+
+  bnr_s = (char *)malloc(itr_s0 - 8);
+
+
+Please take a good look at this line. We allocate the amount of bytes on the
+"Server:" line, minus 8. The 8 bytes represent: "Server: " which we want to 
+strip off. The next thing we do is iterate through the string and copy it to
+"bnr_s". Now "bnr_s" contains the stripped "Server: " string.
+
+We will move onto the FTP section now. We discuss two ways of fingerprinting
+the FTP server. The first one is easy, because it's just a mix of the SSH/SMTP
+and HTTP fingerprinting. Connect to to the target host, get the banner and then
+filter it. This can be visually presented like so:
+
+
+  *********************      ***********************      ******************
+  * CONNECT TO DAEMON * ===> * DAEMON SHOWS BANNER * ===> * GET THE BANNER *
+  *********************      ***********************      ******************
+                                                                   ||
+     					                           \/
+  				                             ***************
+                               				     * FILTER DATA *
+				                             ***************
+
+
+If we emulate this process with telnet, it will look like the following:
+
+
+  snow:~# telnet euronet.nl 21
+  Trying 194.134.0.10...
+  Connected to euronet.nl.
+  Escape character is '^]'.
+  220 gaia.euronet.nl FTP server (Version wu-2.4.2-academ (3) Fri Jun 23 
+  20:47:26 MET DST 2000) ready.
+  ^]
+  telnet> quit
+  Connection closed.
+  snow:~#
+
+
+As you can see it will directly present the banner (this is not what happens in 
+all cases) after the "220" and then it is possible to strip it down to the 
+version only, just like what was done with the HTTP server. The code is 
+actually just a mix of what we have done before:
+
+
+  char *ltnet_ftpb(char *t_addr, int t_port) {
+    struct sockaddr_in rmtaddr;   /* remote address structure */
+    char *buf_s;                  /* buffer string pointer    */
+    char *bnr_s;                  /* banner string pointer    */
+    char *str_p;                  /* pointer to Server: part  */
+    int sockfd;                   /* socket file descriptor   */
+    int itr_s0;                   /* string iterate integer   */
+    int itr_s1;                   /* string iterate integer   */
+
+    buf_s = (char *)malloc(250);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    rmtaddr.sin_family = AF_INET;
+    rmtaddr.sin_port = htons(t_port);
+    rmtaddr.sin_addr.s_addr = inet_addr(t_addr);
+
+    if(connect(sockfd, (struct sockaddr *)&rmtaddr,
+      sizeof(struct sockaddr)) != 0) { close(sockfd); return NULL; }
+
+    if(recv(sockfd, buf_s, 250, 0) <= 0) { close(sockfd); return NULL; }
+
+    if((str_p = strstr(buf_s, "220")) == NULL) { close(sockfd); return NULL; }
+
+    for(itr_s0 = 0; itr_s0 < strlen(str_p); itr_s0++) {
+      if(str_p[itr_s0] == '\n') break;
+    }
+
+    bnr_s = (char *)malloc(itr_s0 - 8);
+
+    for(itr_s1 = 0; itr_s1 < itr_s0; itr_s1++) {
+      if(str_p[itr_s1 + 4] == '\n') break;
+      bnr_s[itr_s1] = str_p[itr_s1 + 4];
+    }
+
+    close(sockfd);
+    free(buf_s);
+    return bnr_s;
+  }
+
+
+Although this way of FTP fingerprinting is fairly straight forward, it may not
+always be effective. But there is another way of fingerprinting the FTP server,
+a technique that requires us to login with the anonymous account. This method 
+requires the server to have the anonymous login enabled. If we can succesfully
+log in as an anonymous user we can give the "SYST" command and the FTP server 
+will send back the system type. The scheme that represents this method is 
+presented visually like so:
+
+
+  *********************      *******************      ******************
+  * CONNECT TO DAEMON * ===> * LOGIN TO SERVER * ===> * GET THE BANNER *
+  *********************      *******************      ******************
+                                                              ||
+     					                      \/
+   				                         ***************
+                               			         * FILTER DATA *
+				                         ***************
+
+
+If we emulate this with telnet, it will look like the following:
+
+
+  snow:~# telnet ftp.cdrom.com 21
+  Trying 208.217.74.248...
+  Connected to cdrom.wip.digitalriver.com.
+  Escape character is '^]'.
+  220 drftp.digitalriver.com NcFTPd Server (licensed copy) ready.
+  USER anonymous
+  331 Guest login ok, send your complete e-mail address as password.
+  PASS ghost@truncode.org
+  230-You are user #28 of 300 simultaneous users allowed.
+  230-
+  230 Logged in anonymously.
+  SYST
+  215 UNIX Type: L8
+
+
+Still this code does not show a lot of difference compared to what we have done
+before . The only difference is that we send multiple commands to the server 
+("USER", "PASS" and "SYST". After that process we just filter the data again. 
+This is the code to achieve that:
+
+
+  char *ltnet_ftps(char *t_addr, int t_port) {
+    struct sockaddr_in rmtaddr;   /* remote address structure */
+    char *buf_s;                  /* buffer string pointer    */
+    char *bnr_s;                  /* banner string pointer    */
+    char *str_p;                  /* pointer to Server: part  */
+    int sockfd;                   /* socket file descriptor   */
+    int itr_s0;                   /* string iterate integer   */
+    int itr_s1;                   /* string iterate integer   */
+
+    buf_s = (char *)malloc(1000);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    rmtaddr.sin_family = AF_INET;
+    rmtaddr.sin_port = htons(t_port);
+    rmtaddr.sin_addr.s_addr = inet_addr(t_addr);
+
+    if(connect(sockfd, (struct sockaddr *)&rmtaddr,
+      sizeof(struct sockaddr)) != 0) { close(sockfd); return NULL; }
+
+    if(send(sockfd, "USER anonymous\n", 15, 0) <= 0) {
+      close(sockfd); return NULL; }
+    if(recv(sockfd, buf_s, 1000, 0) <= 0) { close(sockfd); return NULL; }
+    if(send(sockfd, "PASS libtrun@truncode.org\n", 26, 0) <= 0) {
+      close(sockfd); return NULL; }
+    if(recv(sockfd, buf_s, 1000, 0) <= 0) { close(sockfd); return NULL; }
+    if(recv(sockfd, buf_s, 1000, 0) <= 0) { close(sockfd); return NULL; }
+    if(send(sockfd, "SYST\n", 5, 0) <= 0) { close(sockfd); return NULL; }
+    if(recv(sockfd, buf_s, 1000, 0) <= 0) { close(sockfd); return NULL; }
+
+    if((str_p = strstr(buf_s, "UNIX Type:")) == NULL) {
+      close(sockfd); return NULL; }
+
+    for(itr_s0 = 0; itr_s0 < strlen(str_p); itr_s0++) {
+      if(str_p[itr_s0] == '\n') break;
+    }
+
+    bnr_s = (char *)malloc(itr_s0 - 8);
+
+    for(itr_s1 = 0; itr_s1 < itr_s0; itr_s1++) {
+      if(str_p[itr_s1 + 11] == '\n') break;
+      bnr_s[itr_s1] = str_p[itr_s1 + 11];
+    }
+
+    close(sockfd);
+    free(buf_s);
+    return bnr_s;
+  }
+
+
+0x04 WEAVE MORE CODE
+
+Of course there is a lot more you can fingerprint, but I hope this paper has
+helped to show you how you might begin. If you are going to implement the code
+in this paper, you might clean it up and add some error checking.
+
+copyright(c) 2003 truncode.org

@@ -1,0 +1,44 @@
+Accidentally removed/renamed a critical library file and can't get it back?
+(one of these solutions should work even if your problem is with a different file)
+
+
+Q. 
+While testing something, I renamed /usr/lib/libc.so.1 to
+something else and now I cannot even run the "mv" command.
+Needless to say I cannot ftp/telnet to/from to that box.
+
+How do I bring this box back to normal ??
+
+
+A.
+To resolve the problem, if there was no root window
+when either the libc.so or the ld.so was removed,
+boot up the system to single user mode.
+
+   L1-a > b -s -w
+
+(This boots up single user mode and makes /usr partition writable).
+
+If the ld.so file was moved to another name such as
+ld.so.l, within the /usr/lib directory:
+
+   cd /usr/lib
+   mv ld.so.l ld.so
+
+2)
+If the new filename cannot be recalled, or if a directory
+listing is needed, the tar command can be used.  Unlike
+the "ls" command, it doesn't require shared libraries.
+
+   cd /usr/lib
+   tar cvf /dev/null ld*
+   
+3)
+The echo command can also be used to list directories:
+   echo *
+   
+4)
+If the file is a text file, you may be able to use cat to copy a file
+to a different name.  For example:
+   cat some_filename_it_shouldnt_be > correct filename
+   

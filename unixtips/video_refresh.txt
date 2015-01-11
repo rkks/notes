@@ -1,0 +1,14 @@
+Q.  How can I change the refresh rate being displayed on my Sun monitor to 76Hz?
+
+A.  You use the m64config command.
+
+m64config -help
+
+will give you help text, and
+
+m64config -res \?
+
+will give you a map of possible resolution/refresh rates for your screen as
+supported by the video card.
+
+- Richard Chycoski

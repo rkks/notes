@@ -1,0 +1,9 @@
+How can I use wildcards when extracting only certain files from a tarfile?
+
+
+From the tar manpage:
+
+Filename substitution wildcards cannot be used for extracting
+files from the archive; rather, use a command of the form:
+	
+	tar xvf... tarfile.tar `tar tf... tarfile.tar | grep 'pattern' `

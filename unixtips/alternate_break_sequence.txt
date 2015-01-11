@@ -1,0 +1,69 @@
+Creating an alternate keyboard sequence for the BREAK signal on dumb terminal
+-----------------------------------------------------------------------------
+
+
+The following patches introduce a new option to the kbd command
+---------------------------------------------------------------  
+Solaris 2.6 patch 105924-10 or greater
+Solaris 7   patch 107589-02 or greater
+Solaris 8   patch is integrated
+
+  
+The patch allows the keyboard sequence of ~^b to be used instead
+of the BREAK signal on a dumb terminal console attached to the serial port.  
+
+The "alternate" flag is not discussed by "man kbd".
+
+
+
+Here are the instructions to enable the alternate keyboard sequence. 
+
+Step 1.  Install patch 105924-10 on 2.6 and patch 107589-02 on 7.
+
+Step 2.  reboot the machine.  
+
+Step 3.  A root user can now turn on the alternate break sequence with the
+         following command:
+
+	  #kbd -a alternate
+
+Now the new Break sequence is ~^b.  
+
+Example:
+To bring the system to the OK prompt (assuming the console is on the 
+serial port) send the following key sequences:
+
+  # <cr>
+  # ~^b
+
+
+The following procedure will also enable the alternate keyboard sequence
+
+Step 1.  Install patch 105924-10 on 2.6 and patch 107589-02 on 2.7.
+
+Step 2.  Modify the /etc/default/kbd file, by removing the # from the entry:
+
+  #KEYBOARD_ABORT=enable
+
+  and changing it to:
+
+  KEYBOARD_ABORT=alternate
+
+Step 3.  reboot
+
+Any user logged in at the dumb console will be able to issue the alternate 
+break signal with the following key sequences:
+
+  # <cr>
+  # ~^b
+
+NOTE: It is not possible to set an alternate BREAK on Netra systems.
+
+NOTE: On servers with a physical keyswitch, the alternate BREAK does not work
+when the key is set to the Secure position.  
+
+NOTE: Solaris 8 does not require a patch for the new kbd option.  
+"In Solaris 8, the alternate break key is defined by the driver for the 
+serial device (i.e. zs driver). The man page for zs in Solaris 8  says that
+the alternate break sequence is "<RETURN> ~ ^B"  
+(carriage return - tilde - control B)."

@@ -1,0 +1,30 @@
+Ok, I know you have tried this, but double check first...is anyone using that directory?
+This is why you normally get the busy message when trying to unmount something.
+
+	fuser -cu /mount_point
+
+One thing to note, if you were in that directory and then started another shell, the old shell
+may still be sitting in the directory you are trying to unmount.  Exit back to that shell and
+then cd somewhere else.
+
+
+
+
+
+To forcefully unmount a busy filessystem in Solaris 7, do the following:
+	lockfs /mount_point
+	fuser -kc /mount_point
+	umount /mount_point
+
+
+Solaris 8 has added a new option to umount to help out:
+	umount -f /mount_point
+	
+From the man pages:
+     -f    Forcibly unmount a file system.
+
+           Without this option, umount does not allow a file sys-
+           tem  to  be  unmounted if a file on the file system is
+           busy. Using this option can cause data loss  for  open
+           files; programs which access files after the file sys-
+           tem has been unmounted will get an error (EIO).

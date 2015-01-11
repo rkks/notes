@@ -1,0 +1,62 @@
+Creating a Portable Environment
+By S. Lee Henry
+
+Whenever I travel to customer sites, I often spend half a day or more 
+connecting my laptop to the network, determining the proper gateway and 
+DNS servers to use, and getting acquainted with my new, albeit 
+temporary, environment. When a critical problem needs to be addressed, 
+spending time getting on the network and becoming both functional and 
+comfortable eats away at my productivity. Using a borrowed laptop, one 
+not already set up for me, further exacerbates these problems.
+
+To reduce setup time, I depend on a few handy tools and tricks. Not 
+knowing much about my future environment, I ensure that certain, useful 
+software is already installed on the laptop; otherwise, I install it as 
+soon as possible. PuTTY is an especially useful piece of software for 
+Unix users on the road.
+
+PuTTY is free software that provides an ssh client, telnet, and raw ? 
+something I haven't even tried to figure out. With PuTTY on my laptop, 
+I know that I can log in to the increasing number of systems that 
+insist on ssh and disable telnet.  PuTTY also does both ssh1 and ssh2, 
+and saves settings (e.g., hostnames, IP addresses, and telnet, ssh, or 
+raw selections), providing me a way to record (instead of having to 
+remember) the systems that I can connect to.
+
+PuTTY also allows me to change my window colors.  This may seem like a 
+minor advantage, but when the only comfort I have is my screen (I often 
+end up working in computer labs on whatever small piece of desktop is 
+available), it's nice to set it up in a way that appeals to me.  You 
+can download PuTTY from 
+	http://www.chiark.greenend.org.uk/~sgtatham/putty/
+
+NetZero (http://www.netzero.com), of the "free Internet access, free 
+email, fast connections, and thousands of access numbers" fame, is 
+another friend of the road warrior. The NetZero software contains a 
+directory of local numbers providing free dial-up access from almost 
+anywhere in the country. I simply identify my area code and prefix, and 
+it usually provides several connection numbers. Hotel rooms with fast 
+Internet connections are still the exception rather than the rule, so 
+it's nice knowing that I can get online using the hotel phone if I need 
+to without scrambling around for the phone numbers of access devices.
+
+I also reduce travel stress by maintaining several files on a personal 
+account that I can telnet and ftp to from anywhere. A shell account on 
+world.std.com allows me to store aliases, paths, and useful scripts. 
+Instead of creating these files from scratch, I grab them as needed and 
+set up my working environment as close to familiar as I can under the 
+circumstances. To avoid changing the environment on, essentially, a 
+guest account (especially if it's the root environment and my role is 
+that of visiting troubleshooter), I can set up all of my path changes 
+and favorite aliases in a non-standard file that I source as needed.
+
+When working on many different systems at a customer site, including 
+the hostname in my prompt is helpful -- especially until I become 
+familiar with the various systems and the roles they play. Including a 
+command to change my prompt (e.g., PS1="'uname ?n'> ") in my portable 
+environment helps to remind me which system I am logged into in each of 
+several windows open on my screen.
+
+I enjoy business travel, but find that reducing my setup time allows me 
+to become productive more quickly and get a lot more done before it's 
+time to go back to home.

@@ -1,0 +1,32 @@
+To figure out which package a particular file belongs to, use the following:
+
+server> pkgchk -l -p /absolute/path/todir
+
+
+For example:
+server> pkgchk -l -p /usr/dt/bin/netscape
+Pathname: /usr/dt/bin/netscape
+Type: symbolic link
+Source of link: ../appconfig/netscape/netscape
+Referenced by the following packages:
+        NSCPcom        
+Current status: installed
+
+server> pkgchk -l -p /usr/lib/sendmail
+Pathname: /usr/lib/sendmail
+Type: regular file
+Expected mode: 2555
+Expected owner: root
+Expected group: smmsp
+Expected file size (bytes): 967836
+Expected sum(1) of contents: 26668
+Expected last modification: Apr 06 18:07:42 2002
+Referenced by the following packages:
+        SUNWsndmu      
+Current status: installed
+
+
+Or, to directly view the file yourself:
+
+server> grep /usr/lib/sendmail /var/sadm/install/contents
+/usr/lib/sendmail f none 4555 root bin 658616 55541 947116988 SUNWsndmu

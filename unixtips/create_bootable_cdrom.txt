@@ -1,0 +1,85 @@
+Source:
+	ftp://sunsite.mff.cuni.cz/OS/Linux/Sparc/local/silo/
+		and
+	http://thproxy.jinr.ru/file-archive/doc/cdr/suncdfaq/miscellaneous.html#bootable
+
+
+
+
+		HOW TO MAKE A SPARC BOOTABLE CDROM
+
+SILO may be used to create a bootable CDROM for sparc. At the moment it will
+support booting on sun4c, sun4m, sun4d and sun4u machines only, but sun4
+support may come soon.
+
+INTRO
+=====
+
+A CDROM is booted on Sparc by issuing following commands in the PROM
+(depending on PROM version - v0 is PROM with major versions 0, found
+on sun4c only, v2 is PROM with major versions 2 or 3, found on some newer
+sun4c and all sun4m and sun4d machines) and the same applies to P1275 PROMs
+found in the 64bit UltraSparc machines:
+
+v0:
+
+b sd(0,6,0)
+
+v2:
+
+boot cdrom
+
+(cdrom is actually alias to /iommu/sbus/espdma/esp/sd@0,6:d or something
+similar)
+
+As Solaris has different kernels for each architecture, the PROM boots by
+default from different "partitions" on the CD depending on the architecture
+of the machine (that's e.g. the :d in the cdrom alias on v2 PROM). That
+partition table is stored in the first 512 bytes of the CD (with exactly the
+same format as partition tables on Sparc disks), so you can use SparcLinux
+fdisk program to look into that partition table. As SparcLinux at the moment
+uses one kernel image for all the architectures and if in the future the
+need of different kernel images arises, SILO will have other means of
+supporting it, SparcLinux bootable CDROMs have a partition table with only
+one partition which covers the whole iso9660 image of the CD. Other
+partitions are set up, so that they start at offset 0 (like the first one)
+and have size of 0, ie. are disabled. The only value PROM looks at is
+starting offset, so that it will boot on all machines correctly.
+In the boot process PROM finds start of the boot partition (in SILO case it
+is always 0) and loads 7680 bytes from offset 512 in that partition.
+Fortunately iso9660 has first 32KB reserved for OS use, so that the
+partition table and bootblock can be safely stored there. As SILO is longer
+in size than those 32KB (eventhough it is compressed), it puts its first
+stage loader in there and puts its second stage loader somewhere in the
+iso9660 filesystem.
+
+SILO 0.8.7 and up will no longer create bootable CDs, you should use a
+patched mkisofs. A patch for mkisofs is provided in this directory.
+With that patch making a SPARC bootable CD is easy, similar to how do you
+make El Torito bootable CDs.
+
+STEP BY STEP
+============
+
+You should first prepare the tree you'd like to have on the CD. The only
+requirement is that you put boot/* files from SILO distribution into /boot
+in the tree and edit appropriate /etc/silo.conf in the tree.
+As SILO 0.8.7 and up understands the ISO9660 filesystem and the RockRidge
+extension, so unlike with older SILOs you should type normal path in
+silo.conf. Once the image is prepared, just do
+
+mkisofs -----your-normal-mkisofs-options-here---- -B boot/second.b DIRECTORY_TREE
+
+and you're done.
+If you put the first stage and second stage loaders and/or silo.conf file to
+nonstandard path, you have to use other options.
+E.g. if first stage (boot/cd.b from the SILO package) will be
+/images/cdrom.boot on the CD, second stage (boot/second.b) /images/second.stage and
+if you put your config file into /config/conf.silo, then you will type
+
+-S images/cdrom.boot -B images/second.stage -s /config/conf.silo
+
+(note when you use starting slash and when you don't).
+
+If you have any problems, mail jj@sunsite.mff.cuni.cz
+

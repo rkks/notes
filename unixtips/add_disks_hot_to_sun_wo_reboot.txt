@@ -1,0 +1,111 @@
+
+INFODOC ID: 14818
+SYNOPSIS: How to Add New Disks/Luns/Arrays to a System Without a boot -r
+DETAIL DESCRIPTION:
+
+Sometimes it is advantageous to add new hard disks, luns, or entire arrays
+without performing a reconfiguration boot (boot -r). In Solaris 2.5.1 and
+Solaris 2.6, the only way to add storage was to do a
+'drvconfig;devlinks;disks'. In Solaris 8 and Solaris 7 with kernel patch
+106541-08 and higher the devfsadm command replaces
+'drvconfig;devlinks;xxxxx' and makes adding storage devices on the fly
+somewhat easier. For individual storage arrays there are additional
+commands that can be used to add the arrays on the fly. For example, the
+A5x00 array uses 'luxadm insert' and with Raid Manager 6.22 or higher, luns
+can be added with 'hot_add'. This document will outline general procedures
+for adding disks, luns, and arrays so that they can be seen in format
+without a boot -r. We will also outline some specific examples for adding
+specific Sun StorEdge products on the fly.
+
+It is important to note that not all storage can be added hot, so use
+discretion when adding new hardware. For example, it would be highly
+inadvisable to hot plug a disk to an internal SCSI connection. It is
+generally not a problem however to add an external multipack or JBOD disk
+array to an external SCSI connector, or to add a fiber channel array to an
+FC-AL host bus adapter. This document describes general procedures for
+adding hardware while the system is up, but cannot take into account every
+possible hardware device or scenario. When in doubt, power down the host
+before adding your device!
+
+Also note that any time you add storage on the fly that you will be
+controlling with Volume Manager, you should, after verifything that the
+storage is seen in the format menu, run the command 'vxdctl enable'. This
+command will probe for new disks and luns and make Volume Manager aware of
+them. After doing 'vdctl enable' do a 'vxdisk list' to list out all disks
+that Volume Manager is aware of. New disks will normally show up as - -
+error if they have not been initialized under Volume Manager control
+previously.
+
+SOLUTION SUMMARY:
+  ------------------------------------------------------------------------
+
+General Procedure for Adding Disks and Luns on Solaris 2.5.1, 2.6 and
+Solaris 7 with Patch 106541-07 or Lower
+
+Attach the disk or array to the host.
+
+Power on the disk or array if applicable
+
+At the command prompt enter the following command
+
+drvconfig;devlinks;disks
+
+Verify using 'format' that you can see the attached disks or luns.
+
+  ------------------------------------------------------------------------
+
+General Procedure for Adding Disks and Luns on Solaris 7 with Patch
+106541-08 or Higher and Solaris 8
+
+Attach the disk or array to the host.
+
+Power on the disk or array if applicable
+
+Check, using the format command, to verify that the storage isn't already
+seen after a minute or two of being powered on. The devfsadmd daemon will
+be running in the background and constantly checking for the presence of
+new hardware, so often times the device will be found right away. This
+would be the expected behavior in a SAN environment for example. If format
+does not see the device, continue.
+
+At the command prompt enter the following command:
+
+devfsadm -c disk
+
+Verify using 'format' that you can see the attached disks or luns.
+
+  ------------------------------------------------------------------------
+
+Specific Procedure for Adding A1000 and A3x00 Luns With Raid Manager 6.22
+or Higher
+
+Attach the array to the host.
+
+Power on the array.
+
+At the command prompt enter the following command
+
+/usr/lib/osa/bin/hot_add
+
+Verify that the array can be seen from Raid Manager. The /usr/sbin/osa/lad
+command should report back the controllers and luns. On an A1000 you might
+see something like this:
+
+c1t4d0s0 1T80804597 LUNS: 0 1 2 3 4
+
+Verify using 'format' that you can see the attached luns.
+
+  ------------------------------------------------------------------------
+Specific Procedure for Adding A5x00 Arrays and T3 Luns (volumes)
+
+/usr/sbin/luxadm insert
+
+Please hit <RETURN> when you have finished adding Fibre Channel
+Enclosure(s)/Device(s):<return>
+
+Keywords: SEVM, VxVM, Volume Manager, RM6, Sun Enterprise Volume
+Manager[TM], install, installing, installation
+
+APPLIES TO: Operating Systems/Solaris/Solaris 2.x, Storage, Storage/RAID
+Manager, Storage/Volume Manager
+ATTACHMENTS:

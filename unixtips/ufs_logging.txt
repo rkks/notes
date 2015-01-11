@@ -1,0 +1,43 @@
+Reduce FSCK times for UFS based file systems on Solaris 7 and later...
+
+On Solaris 7 and later, the UFS file system code was extended to provide file system logging. 
+When enabled, all changes to file system meta-data are written to an intent log prior to being
+written out to the file system itself. If the machine then crashes, the log is used to roll back
+any unfinished changes to the meta-data, negating the need to analyse the file system structures. 
+This reduces fsck times to a matter of seconds.
+
+To enable this facility simply specify the logging mount option in /etc/vfstab.
+
+
+From the mount_ufs man page...
+------------------------------
+logging | nologging
+      If  logging is specified, then  logging  is
+      enabled  for  the  duration  of the mounted
+      file system.  Logging  is  the  process  of
+      storing  transactions (changes that make up
+      a complete UFS operation) in a  log  before
+      the  transactions are  applied to the  file
+      system.  Once a transaction is stored,  the
+      transaction can be applied to the file sys-
+      tem later. This prevents file systems  from
+      becoming  inconsistent, therefore eliminat-
+      ing the need to run  fsck.   And,   because
+      fsck  can  be bypassed, logging reduces the
+      time required to  reboot  a  system  if  it
+      crashes,  or  after  an  unclean  halt. The
+      default behavior is  nologging.
+
+      The log is allocated from  free  blocks  on
+      the file system, and is sized approximately
+      1 Mbyte per 1 Gbyte of file system, up to a
+      maximum   of  64  Mbytes.  Logging  can  be
+      enabled on any  UFS, including  root   (/).
+      The  log created by UFS logging is continu-
+      ally flushed as it fills  up.  The  log  is
+      totally  flushed  when  the  file system is
+      unmounted or as a result of the  lockfs  -f
+      command.
+
+
+-Ken Robson

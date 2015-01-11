@@ -1,0 +1,6 @@
+Here is a handy little trick with awk to print out the FS's that are over 90% full:
+
+	df -k | egrep -v "proc|fd|cdrom|mnttab|run|tmp|Filesystem" | sed 's/\%//' | awk '$5 >= 90 {print $5 "%\t" $6}'
+
+
+You may need to change $5 and $6 for your version of df.

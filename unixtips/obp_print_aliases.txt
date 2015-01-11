@@ -1,0 +1,19 @@
+#! /bin/sh
+#
+# Author: Terry L. Bush 
+# Extract a range of lines from a file dependent on the search string.
+# OBP aliases on a Sun Sparc server.
+
+TMPFILE=/tmp/numout
+
+# Creates a reference file with line numbers of all records start line.
+prtconf -pv | grep -n "Node" | awk -F: '{print $1}' > $TMPFILE
+aliasln=`prtconf -pv | grep -n "aliases" | awk -F: '{print $1}'`
+aliasln2=`expr $aliasln + 2`
+
+lninnumout=`grep -n "$aliasln2" $TMPFILE | awk -F: '{print $1}'`
+minusnum=`expr $lninnumout - 1`
+fstnum=`awk "NR==$minusnum {print $2}" $TMPFILE`
+
+prtconf -pv | awk "NR==$fstnum, NR==$aliasln { print }" 2> /dev/null
+rm $TMPFILE

@@ -1,0 +1,175 @@
+The Real Story behind SO_RCVLOWAT
+==================================
+
+While studying "The Design and Implementation of the FreeBSD Operating System"
+about Interprocess Communication, I caught up with the following:
+"A low watermark also is present in each socket data buffer. The low watermark
+allows applications to control data flow by specifying a minimum number of bytes
+required to satisfy a reception request, with a default of 1 byte and a maximum
+of the high watermark."
+
+So what exactly are these watermarks ? And how can they be used in the real world? 
+They are nothing else other than the SO_RCVLOWAT and SO_SNDLOWAT options that can be set 
+on any socket through the setsockopt(2) function of the socket API.
+Some nifty syscall optimization can be done if one uses them with care. However
+there is one problem with them. Quoting the linux manual pages:
+
+socket(7):
+"SO_RCVLOWAT and SO_SNDLOWAT
+Specify  the  minimum number of bytes in the buffer until the socket layer will
+pass  the  data  to  the  protocol  (SO_SNDLOWAT)  or  the  user  on  receiving
+(SO_RCVLOWAT).   These  two  values  are  initialized to 1.  SO_SNDLOWAT is not
+changeable  on  Linux  (setsockopt(2)  fails  with  the   error   ENOPROTOOPT).
+SO_RCVLOWAT is changeable only since Linux 2.4.  The select(2) and poll(2) sys-
+tem calls currently do not respect the SO_RCVLOWAT setting on Linux, and mark a
+socket  readable  when  even  a single byte of data is available.  A subsequent
+read from the socket will block until SO_RCVLOWAT bytes are available."
+
+FreeBSD is more flexible on that regard and lets us do whatever we please
+with both options.
+
+Here's the POC of the linux kernel code:
+/usr/src/linux/net/core/sock.c
+
+int sock_setsockopt(struct socket *sock, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	/* ............. */
+	case SO_RCVLOWAT:
+		if (val &lt; 0)
+			val = INT_MAX;
+		sk-&gt;sk_rcvlowat = val ? : 1;
+		break;
+	/* ............. */
+
+	/* We implement the SO_SNDLOWAT etc to
+	   not be settable (1003.1g 5.3) */
+
+}
+
+int sock_getsockopt(struct socket *sock, int level, int optname,
+		char __user *optval, int __user *optlen)
+{
+	/* ............. */
+	case SO_RCVLOWAT:
+		v.val = sk-&gt;sk_rcvlowat;
+		break;
+
+	case SO_SNDLOWAT:
+		v.val=1;
+		break;
+	/* ............. */
+}
+
+
+We can get our hands dirty with socket system calls other than select(2) and poll(2) however.
+So what does SO_RCVLOWAT do behind the scenes ? It delays the copying of the sk_buff (linux)
+or m_buff (FreeBSD) data that are referenced by the socket data structure in kernel space 
+to the user space application buffer until the kernel buffer is full with *at least* N bytes, where
+N is the int * optval of the setsockopt() setting SO_RCVLOWAT. This means that the system call
+requesting the receiving will stay blocked until that time. If it uses non-blocking I/O then
+it returns immediately with an error if the buffer hasn't got at least that specified amount.
+Here is a small program demonstrating this little feature:
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netinet/in.h&gt;
+
+#define PORT 10000
+
+int main(int argc, char *argv[])
+{
+	int listenfd, connfd;
+	struct sockaddr_in own, rem;
+	int opt;
+	socklen_t size;
+	
+	if (argc &lt; 2) {
+		printf("usage: %s SO_RCVLOWAT-argument bufsize\n", argv[0]); 
+		exit(EXIT_FAILURE);
+	}
+
+	opt = strtol(argv[1], NULL, 10);
+
+	own.sin_family = PF_INET;
+	own.sin_addr.s_addr = htonl(INADDR_ANY);
+	own.sin_port = htons(PORT);
+	memset(&amp;own.sin_zero, 0, sizeof(own.sin_zero));
+
+	if ((listenfd = socket(PF_INET, SOCK_STREAM, 0)) &lt; 0) {
+		perror("listen:");
+		exit(EXIT_FAILURE);
+	}
+	if (bind(listenfd, (struct sockaddr *) &amp;own, sizeof(own)) &lt; 0) {
+		perror("bind:");
+		exit(EXIT_FAILURE);
+	}
+	if (listen(listenfd, 20) &lt; 0) {
+		perror("listen:");
+		exit(EXIT_FAILURE);
+	}
+
+	/* set SO_RCVLOWAT */
+	socklen_t optlen = sizeof(opt);
+	setsockopt(listenfd, SOL_SOCKET, SO_RCVLOWAT, &amp;opt, optlen);
+	
+	size = sizeof(rem);
+	connfd = accept(listenfd, (struct sockaddr *) &amp;rem, &amp;size);
+	fprintf(stderr, "connfd: %d\n", connfd);
+
+	int bufsize = strtol(argv[2], NULL, 10);
+	char *buf = malloc(bufsize * sizeof(char));
+	memset(buf, '\0', bufsize);
+
+	int bytes = read(connfd, buf, bufsize-1);
+	if (bytes &lt; 0)
+		perror("error:");
+	fprintf(stderr, "bytes read: %d\n", bytes);
+	fprintf(stderr, "buf: %s\n", buf);
+	
+	exit(EXIT_SUCCESS);
+}
+
+Tx indicate the time intervals between the actions in the two terminals running
+our two applications (serv and netcat)
+
+T0
+==
+ithilgore@fitz sockets $ ./serv 10 30
+connfd: 4
+
+T1
+==
+ithilgore@fitz sockets $ nc 127.0.0.1 10000
+Testing
+
+T2
+==
+ithilgore@fitz sockets $ ./serv 10 30
+connfd: 4
+
+T3
+==
+ithilgore@fitz sockets $ nc 127.0.0.1 10000
+Testing
+More Data
+ithilgore@fitz sockets $ 
+
+T4
+==
+ithilgore@fitz sockets $ ./serv 10 30
+connfd: 4
+bytes read: 18
+buf: Testing
+More Data
+
+ithilgore@fitz sockets $ 
+
+So, read(2) returned after sending the second stream of data ("More Data") which surpassed
+the 10 characters which we set as the SO_RECVLOWAT option argument. This behaviour could
+possibly be used when making applications that want to avoid the overhead of constantly
+copying data from kernel space to user space by calling read(2) or equivalents (recv(2) etc)
+many times.

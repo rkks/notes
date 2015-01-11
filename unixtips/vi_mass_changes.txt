@@ -1,0 +1,26 @@
+How can I change all occurrences of xxxxx to yyyyy within vi?
+-------------------------------------------------------------
+
+To change only the first occurrence of something (per line) in the file, do this:
+<esc>:%s/hsots/hosts/
+
+To change every occurrence on each line of the file:
+<esc>:%s/hsots/hosts/g
+
+To change all occurrences of hsots to hosts on lines 3-5, do:
+<esc>:3,5s/hsots/hosts/g
+
+
+
+
+After making a change, you may want to repeat it several times
+--------------------------------------------------------------
+
+For example, if you want to insert something at the beginning of each line, do a:
+<shift>-i
+(and start typing, for instance...)
+## disabled
+
+then, to repeat the last edit you made to the current position, just hit:
+.
+(that is a period)

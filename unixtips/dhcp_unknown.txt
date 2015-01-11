@@ -1,0 +1,34 @@
+ Bug Id: 4366934
+ Category: network
+ Subcategory: dhcp_client
+ State: closed
+ Synopsis: DHCP Client has HOSTNAME unknown - /etc/nodename is set
+ Description:
+A DHCP Client do not become a Hostname from DHCP-Server (Like NT or not set in
+Solaris DHCP-Server).
+
+The /etc/nodename was set by the Administrator but it do not work! 
+ Work around:
+
+
+
+Change in the file /etc/rcS.d/S30network.sh the following:
+
+if [ -z "$hostname" ]; then
+        hostname="unknown"
+fi
+
+
+to this:
+
+if [ -z "$hostname" ]; then
+        hostname="unknown"
+   if [ -f /etc/nodename ]; then
+      hostname="`shcat /etc/nodename 2>/dev/null`"
+   fi
+fi
+
+ Integrated in releases: 
+ Duplicate of: 4170117
+ Patch id: 
+ See also: 4170117, 4209200, 4248769

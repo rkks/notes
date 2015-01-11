@@ -1,0 +1,100 @@
+This file contains boilerplate code for the Thread interface on
+x86 based linux systems.  You need to graft it by hand onto the
+files thread.c and swtch.s and use '-Dlinux86 -Dlinuxelf' when
+compiling (e.g. set CPPFLAGS=-Dlinux86 -Dlinuxelf in makefile).
+
+This code has been tested on linux 2.0.27 elf.  I've tried to make
+swtch.s "PIC safe" by not using %ebx, but there may be more work
+required on it (I'm not a PIC expert).
+
+Previous versions of this code explicitly saved the fpu state between
+thread context switches.  This version does not.  The rationale for
+this is  (1) for voluntary context switches, the fpu state is taken
+care of by the calling convention  (2) for involuntary context switches,
+the kernel takes care of saving/restoring the fpu state across signal
+deliveries (which is the mechanism used to force involuntary context
+switches).
+
+Note that if you use the fpu, then this code will NOT work on pre-2.0
+linux systems because pre-2.0 linux kernels did not save/restore the
+fpu state across signal deliveries.  Bother me for a version that works
+on pre-2.0 linux.
+
+Please send all bug reports and suggestions to
+
+	taj@intergate.bc.ca (Taj Khattra)
+
+-taj
+
+-- thread.c:interrupt()
+
+#ifdef linux86
+#include <asm/sigcontext.h>
+static int interrupt(int sig, struct sigcontext_struct sc)
+{
+	if (critical ||
+	    sc.eip >= (unsigned long)_MONITOR
+	&& sc.eip <= (unsigned long)_ENDMONITOR)
+		return 0;
+	put(current, &ready);
+	do { critical++;
+		sigsetmask(sc.oldmask);
+	critical--; } while(0);
+	run();
+	return 0;
+}
+#endif
+
+-- thread.c:Thread_init()
+
+#ifdef linux86
+{	extern void _thrstart(void);
+	t->sp -= 4/4;
+	*t->sp = (unsigned long)_thrstart;
+	t->sp -= 16/4;
+	t->sp[4/4]  = (unsigned long)apply;
+	t->sp[8/4]  = (unsigned long)args;
+	t->sp[12/4] = (unsigned long)t->sp + (4+16)/4; }
+#endif
+
+-- swtch.s:
+
+#ifdef linux86
+	.align	4
+	.globl	__thrstart
+	.globl	_thrstart
+	__thrstart:
+	_thrstart:
+		pushl	%edi
+		call	*%esi
+		pushl	%eax
+#ifdef linuxelf
+		call	Thread_exit
+#else
+		call	_Thread_exit
+#endif
+	.align	4
+	.globl	__swtch
+	.globl	_swtch
+	__swtch:
+	_swtch:
+		subl	$16, %esp
+		movl	%ebx, 0(%esp)
+		movl	%esi, 4(%esp)
+		movl	%edi, 8(%esp)
+		movl	%ebp, 12(%esp)
+		movl	20(%esp), %eax
+		movl	%esp, 0(%eax)
+		movl	24(%esp), %eax
+		movl	0(%eax), %esp
+		movl	0(%esp), %ebx
+		movl	4(%esp), %esi
+		movl	8(%esp), %edi
+		movl	12(%esp), %ebp
+		addl	$16, %esp
+		ret
+	.globl	__ENDMONITOR
+	.globl	_ENDMONITOR
+	__ENDMONITOR:
+	_ENDMONITOR:
+#endif

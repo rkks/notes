@@ -1,0 +1,72 @@
+HPUX conforms to the RFC-1122 guidelines on IP's and Subnetting.  This RFC 
+will not allow you to assign an IP address to an interface from the zero 
+subnet i.e. x.x.x.0. (x=non zero value).If you attemp this you are using a 
+IP Address/Subnet Mask that violates RFC-1122 and this address will not 
+appear in the table if you issue nstat -rn, you will only see the loop back 
+address 127.0.0.0. There is a variable that can be changed which disables 
+the checking for conformance to the RFC.  The only resolution is to disable 
+the IP/Subnet conformance incorporated into the HPUX platform or set the 
+interface manually by putting a script in /sbin/rc2.d simply name it 
+starting with a "S".  e.g. "Setlan"
+
+
+When using ip schemes that do not conform to RFC-1122 there is a
+variable that can be changed which disables the checking for conformance
+to the RFC.
+
+RESOLUTION
+
+Issue the following command on HP-UX 11.0:
+
+ndd -h unsupported | more
+
+The variable ip_check_subnet_addr - Controls the subnet portion of a host address
+
+To bypass RFC-1122 address checking, set the ip_check_subnet_addr
+variable to zero.  To make this a permanent setting, include this
+setting in the /etc/rc.config.d/nddconf file.
+
+Summary:
+
+The following output is what is seen if you are checking subnets:
+
+# ndd -get /dev/ip ip_check_subnet_addr 1
+
+Set value
+
+# ndd -set /dev/ip ip_check_subnet_addr 0
+
+Now reread the netconf and nddconf files:
+
+# /sbin/init.d/net start
+
+To make this permanent edit /etc/rc.config.d/nddconf and add a set of lines:
+
+TRANSPORT_NAME[0]=ip
+NDD_NAME[0]=ip_check_subnet_addr
+NDD_VALUE[0]=0
+
+Also add the line, "/usr/bin/ndd  -c" after the line "usr/bin/ndd  -a"
+in the /sbin/init.d/net.init script.
+
+On HP-UX 10.20:
+
+With HP-UX 10.20 use the nettune command to make this change
+
+/usr/contrib/bin/nettune -s ip_check_subnet_addr 0
+
+To make the change permanent:
+
+1. Create a text file called nettune_script with the following line:
+
+        /usr/contrib/bin/nettune -s ip_check_subnet_addr 0
+
+2. mv  nettune_script  /sbin/init.d/nettune_script
+3. chmod  555  /sbin/init.d/nettune_script
+4. chgrp  bin  /sbin/init.d/nettune_script
+5. chown  bin  /sbin/init.d/nettune_script
+6. cd  /sbin/rc2.d
+7. ln  -s  /sbin/init.d/nettune_script  /sbin/rc2.d/S006subnet
+
+
+-Contributed by Corey Harris
