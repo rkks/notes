@@ -1,0 +1,284 @@
+ 
+Linux Kernel 2.4 Internals
+1. Booting
+
+1.1 Building the Linux Kernel Image
+
+This section explains the steps taken during compilation of the Linux kernel and the output produced at each stage. The build process depends on the architecture so I would like to emphasize that we only consider building a Linux/x86 kernel.
+
+When the user types 'make zImage' or 'make bzImage' the resulting bootable kernel image is stored as arch/i386/boot/zImage or arch/i386/boot/bzImage respectively. Here is how the image is built:
+
+   1. C and assembly source files are compiled into ELF relocatable object format (.o) and some of them are grouped logically into archives (.a) using ar(1).
+   2. Using ld(1), the above .o and .a are linked into vmlinux which is a statically linked, non-stripped ELF 32-bit LSB 80386 executable file.
+   3. System.map is produced by nm vmlinux, irrelevant or uninteresting symbols are grepped out.
+   4. Enter directory arch/i386/boot.
+   5. Bootsector asm code bootsect.S is preprocessed either with or without -D__BIG_KERNEL__, depending on whether the target is bzImage or zImage, into bbootsect.s or bootsect.s respectively.
+   6. bbootsect.s is assembled and then converted into 'raw binary' form called bbootsect (or bootsect.s assembled and raw-converted into bootsect for zImage).
+   7. Setup code setup.S (setup.S includes video.S) is preprocessed into bsetup.s for bzImage or setup.s for zImage. In the same way as the bootsector code, the difference is marked by -D__BIG_KERNEL__ present for bzImage. The result is then converted into 'raw binary' form called bsetup.
+   8. Enter directory arch/i386/boot/compressed and convert /usr/src/linux/vmlinux to $tmppiggy (tmp filename) in raw binary format, removing .note and .comment ELF sections.
+   9. gzip -9 < $tmppiggy > $tmppiggy.gz
+  10. Link $tmppiggy.gz into ELF relocatable (ld -r) piggy.o.
+  11. Compile compression routines head.S and misc.c (still in arch/i386/boot/compressed directory) into ELF objects head.o and misc.o.
+  12. Link together head.o, misc.o and piggy.o into bvmlinux (or vmlinux for zImage, don't mistake this for /usr/src/linux/vmlinux!). Note the difference between -Ttext 0x1000 used for vmlinux and -Ttext 0x100000 for bvmlinux, i.e. for bzImage compression loader is high-loaded.
+  13. Convert bvmlinux to 'raw binary' bvmlinux.out removing .note and .comment ELF sections.
+  14. Go back to arch/i386/boot directory and, using the program tools/build, cat together bbootsect, bsetup and compressed/bvmlinux.out into bzImage (delete extra 'b' above for zImage). This writes important variables like setup_sects and root_dev at the end of the bootsector. 
+
+The size of the bootsector is always 512 bytes. The size of the setup must be greater than 4 sectors but is limited above by about 12K - the rule is:
+
+0x4000 bytes >= 512 + setup_sects * 512 + room for stack while running bootsector/setup
+
+We will see later where this limitation comes from.
+
+The upper limit on the bzImage size produced at this step is about 2.5M for booting with LILO and 0xFFFF paragraphs (0xFFFF0 = 1048560 bytes) for booting raw image, e.g. from floppy disk or CD-ROM (El-Torito emulation mode).
+
+Note that while tools/build does validate the size of boot sector, kernel image and lower bound of setup size, it does not check the *upper* bound of said setup size. Therefore it is easy to build a broken kernel by just adding some large ".space" at the end of setup.S.
+
+1.2 Booting: Overview
+
+The boot process details are architecture-specific, so we shall focus our attention on the IBM PC/IA32 architecture. Due to old design and backward compatibility, the PC firmware boots the operating system in an old-fashioned manner. This process can be separated into the following six logical stages:
+
+   1. BIOS selects the boot device.
+   2. BIOS loads the bootsector from the boot device.
+   3. Bootsector loads setup, decompression routines and compressed kernel image.
+   4. The kernel is uncompressed in protected mode.
+   5. Low-level initialisation is performed by asm code.
+   6. High-level C initialisation. 
+
+1.3 Booting: BIOS POST
+
+   1. The power supply starts the clock generator and asserts #POWERGOOD signal on the bus.
+   2. CPU #RESET line is asserted (CPU now in real 8086 mode).
+   3. %ds=%es=%fs=%gs=%ss=0, %cs=0xFFFF0000,%eip = 0x0000FFF0 (ROM BIOS POST code).
+   4. All POST checks are performed with interrupts disabled.
+   5. IVT (Interrupt Vector Table) initialised at address 0.
+   6. The BIOS Bootstrap Loader function is invoked via int 0x19, with %dl containing the boot device 'drive number'. This loads track 0, sector 1 at physical address 0x7C00 (0x07C0:0000). 
+
+1.4 Booting: bootsector and setup
+
+The bootsector used to boot Linux kernel could be either:
+
+    * Linux bootsector (arch/i386/boot/bootsect.S),
+    * LILO (or other bootloader's) bootsector, or
+    * no bootsector (loadlin etc) 
+
+We consider here the Linux bootsector in detail. The first few lines initialise the convenience macros to be used for segment values:
+
+29 SETUPSECS = 4                /* default nr of setup-sectors */
+30 BOOTSEG   = 0x07C0           /* original address of boot-sector */
+31 INITSEG   = DEF_INITSEG      /* we move boot here - out of the way */
+32 SETUPSEG  = DEF_SETUPSEG     /* setup starts here */
+33 SYSSEG    = DEF_SYSSEG       /* system loaded at 0x10000 (65536) */
+34 SYSSIZE   = DEF_SYSSIZE      /* system size: # of 16-byte clicks */
+
+(the numbers on the left are the line numbers of bootsect.S file) The values of DEF_INITSEG, DEF_SETUPSEG, DEF_SYSSEG and DEF_SYSSIZE are taken from include/asm/boot.h:
+
+/* Don't touch these, unless you really know what you're doing. */
+#define DEF_INITSEG     0x9000
+#define DEF_SYSSEG      0x1000
+#define DEF_SETUPSEG    0x9020
+#define DEF_SYSSIZE     0x7F00
+
+Now, let us consider the actual code of bootsect.S:
+
+    54          movw    $BOOTSEG, %ax
+    55          movw    %ax, %ds
+    56          movw    $INITSEG, %ax
+    57          movw    %ax, %es
+    58          movw    $256, %cx
+    59          subw    %si, %si
+    60          subw    %di, %di
+    61          cld
+    62          rep
+    63          movsw
+    64          ljmp    $INITSEG, $go
+       
+    65  # bde - changed 0xff00 to 0x4000 to use debugger at 0x6400 up (bde).  We
+    66  # wouldn't have to worry about this if we checked the top of memory.  Also
+    67  # my BIOS can be configured to put the wini drive tables in high memory
+    68  # instead of in the vector table.  The old stack might have clobbered the
+    69  # drive table.
+       
+    70  go:     movw    $0x4000-12, %di         # 0x4000 is an arbitrary value >=
+    71                                          # length of bootsect + length of
+    72                                          # setup + room for stack;
+    73                                          # 12 is disk parm size.
+    74          movw    %ax, %ds                # ax and es already contain INITSEG
+    75          movw    %ax, %ss
+    76          movw    %di, %sp                # put stack at INITSEG:0x4000-12.
+
+Lines 54-63 move the bootsector code from address 0x7C00 to 0x90000. This is achieved by:
+
+   1. set %ds:%si to $BOOTSEG:0 (0x7C0:0 = 0x7C00)
+   2. set %es:%di to $INITSEG:0 (0x9000:0 = 0x90000)
+   3. set the number of 16bit words in %cx (256 words = 512 bytes = 1 sector)
+   4. clear DF (direction) flag in EFLAGS to auto-increment addresses (cld)
+   5. go ahead and copy 512 bytes (rep movsw) 
+
+The reason this code does not use rep movsd is intentional (hint - .code16).
+
+Line 64 jumps to label go: in the newly made copy of the bootsector, i.e. in segment 0x9000. This and the following three instructions (lines 64-76) prepare the stack at $INITSEG:0x4000-0xC, i.e. %ss = $INITSEG (0x9000) and %sp = 0x3FF4 (0x4000-0xC). This is where the limit on setup size comes from that we mentioned earlier (see Building the Linux Kernel Image).
+
+Lines 77-103 patch the disk parameter table for the first disk to allow multi-sector reads:
+
+    77  # Many BIOS's default disk parameter tables will not recognise
+    78  # multi-sector reads beyond the maximum sector number specified
+    79  # in the default diskette parameter tables - this may mean 7
+    80  # sectors in some cases.
+    81  #
+    82  # Since single sector reads are slow and out of the question,
+    83  # we must take care of this by creating new parameter tables
+    84  # (for the first disk) in RAM.  We will set the maximum sector
+    85  # count to 36 - the most we will encounter on an ED 2.88.  
+    86  #
+    87  # High doesn't hurt.  Low does.
+    88  #
+    89  # Segments are as follows: ds = es = ss = cs - INITSEG, fs = 0,
+    90  # and gs is unused.
+       
+    91          movw    %cx, %fs                # set fs to 0
+    92          movw    $0x78, %bx              # fs:bx is parameter table address
+    93          pushw   %ds
+    94          ldsw    %fs:(%bx), %si          # ds:si is source
+    95          movb    $6, %cl                 # copy 12 bytes
+    96          pushw   %di                     # di = 0x4000-12.
+    97          rep                             # don't need cld -> done on line 66
+    98          movsw
+    99          popw    %di
+   100          popw    %ds
+   101          movb    $36, 0x4(%di)           # patch sector count
+   102          movw    %di, %fs:(%bx)
+   103          movw    %es, %fs:2(%bx)
+
+The floppy disk controller is reset using BIOS service int 0x13 function 0 (reset FDC) and setup sectors are loaded immediately after the bootsector, i.e. at physical address 0x90200 ($INITSEG:0x200), again using BIOS service int 0x13, function 2 (read sector(s)). This happens during lines 107-124:
+
+   107  load_setup:
+   108          xorb    %ah, %ah                # reset FDC 
+   109          xorb    %dl, %dl
+   110          int     $0x13   
+   111          xorw    %dx, %dx                # drive 0, head 0
+   112          movb    $0x02, %cl              # sector 2, track 0
+   113          movw    $0x0200, %bx            # address = 512, in INITSEG
+   114          movb    $0x02, %ah              # service 2, "read sector(s)"
+   115          movb    setup_sects, %al        # (assume all on head 0, track 0)
+   116          int     $0x13                   # read it
+   117          jnc     ok_load_setup           # ok - continue
+       
+   118          pushw   %ax                     # dump error code
+   119          call    print_nl
+   120          movw    %sp, %bp
+   121          call    print_hex
+   122          popw    %ax     
+   123          jmp     load_setup
+       
+   124  ok_load_setup:
+
+If loading failed for some reason (bad floppy or someone pulled the diskette out during the operation), we dump error code and retry in an endless loop. The only way to get out of it is to reboot the machine, unless retry succeeds but usually it doesn't (if something is wrong it will only get worse).
+
+If loading setup_sects sectors of setup code succeeded we jump to label ok_load_setup:.
+
+Then we proceed to load the compressed kernel image at physical address 0x10000. This is done to preserve the firmware data areas in low memory (0-64K). After the kernel is loaded, we jump to $SETUPSEG:0 (arch/i386/boot/setup.S). Once the data is no longer needed (e.g. no more calls to BIOS) it is overwritten by moving the entire (compressed) kernel image from 0x10000 to 0x1000 (physical addresses, of course). This is done by setup.S which sets things up for protected mode and jumps to 0x1000 which is the head of the compressed kernel, i.e. arch/386/boot/compressed/{head.S,misc.c}. This sets up stack and calls decompress_kernel() which uncompresses the kernel to address 0x100000 and jumps to it.
+
+Note that old bootloaders (old versions of LILO) could only load the first 4 sectors of setup, which is why there is code in setup to load the rest of itself if needed. Also, the code in setup has to take care of various combinations of loader type/version vs zImage/bzImage and is therefore highly complex.
+
+Let us examine the kludge in the bootsector code that allows to load a big kernel, known also as "bzImage". The setup sectors are loaded as usual at 0x90200, but the kernel is loaded 64K chunk at a time using a special helper routine that calls BIOS to move data from low to high memory. This helper routine is referred to by bootsect_kludge in bootsect.S and is defined as bootsect_helper in setup.S. The bootsect_kludge label in setup.S contains the value of setup segment and the offset of bootsect_helper code in it so that bootsector can use the lcall instruction to jump to it (inter-segment jump). The reason why it is in setup.S is simply because there is no more space left in bootsect.S (which is strictly not true - there are approximately 4 spare bytes and at least 1 spare byte in bootsect.S but that is not enough, obviously). This routine uses BIOS service int 0x15 (ax=0x8700) to move to high memory and resets %es to always point to 0x10000. This ensures that the code in bootsect.S doesn't run out of low memory when copying data from disk.
+
+1.5 Using LILO as a bootloader
+
+There are several advantages in using a specialised bootloader (LILO) over a bare bones Linux bootsector:
+
+   1. Ability to choose between multiple Linux kernels or even multiple OSes.
+   2. Ability to pass kernel command line parameters (there is a patch called BCP that adds this ability to bare-bones bootsector+setup).
+   3. Ability to load much larger bzImage kernels - up to 2.5M vs 1M. 
+
+Old versions of LILO (v17 and earlier) could not load bzImage kernels. The newer versions (as of a couple of years ago or earlier) use the same technique as bootsect+setup of moving data from low into high memory by means of BIOS services. Some people (Peter Anvin notably) argue that zImage support should be removed. The main reason (according to Alan Cox) it stays is that there are apparently some broken BIOSes that make it impossible to boot bzImage kernels while loading zImage ones fine.
+
+The last thing LILO does is to jump to setup.S and things proceed as normal.
+
+1.6 High level initialisation
+
+By "high-level initialisation" we consider anything which is not directly related to bootstrap, even though parts of the code to perform this are written in asm, namely arch/i386/kernel/head.S which is the head of the uncompressed kernel. The following steps are performed:
+
+   1. Initialise segment values (%ds = %es = %fs = %gs = __KERNEL_DS = 0x18).
+   2. Initialise page tables.
+   3. Enable paging by setting PG bit in %cr0.
+   4. Zero-clean BSS (on SMP, only first CPU does this).
+   5. Copy the first 2k of bootup parameters (kernel commandline).
+   6. Check CPU type using EFLAGS and, if possible, cpuid, able to detect 386 and higher.
+   7. The first CPU calls start_kernel(), all others call arch/i386/kernel/smpboot.c:initialize_secondary() if ready=1, which just reloads esp/eip and doesn't return. 
+
+The init/main.c:start_kernel() is written in C and does the following:
+
+   1. Take a global kernel lock (it is needed so that only one CPU goes through initialisation).
+   2. Perform arch-specific setup (memory layout analysis, copying boot command line again, etc.).
+   3. Print Linux kernel "banner" containing the version, compiler used to build it etc. to the kernel ring buffer for messages. This is taken from the variable linux_banner defined in init/version.c and is the same string as displayed by cat /proc/version.
+   4. Initialise traps.
+   5. Initialise irqs.
+   6. Initialise data required for scheduler.
+   7. Initialise time keeping data.
+   8. Initialise softirq subsystem.
+   9. Parse boot commandline options.
+  10. Initialise console.
+  11. If module support was compiled into the kernel, initialise dynamical module loading facility.
+  12. If "profile=" command line was supplied, initialise profiling buffers.
+  13. kmem_cache_init(), initialise most of slab allocator.
+  14. Enable interrupts.
+  15. Calculate BogoMips value for this CPU.
+  16. Call mem_init() which calculates max_mapnr, totalram_pages and high_memory and prints out the "Memory: ..." line.
+  17. kmem_cache_sizes_init(), finish slab allocator initialisation.
+  18. Initialise data structures used by procfs.
+  19. fork_init(), create uid_cache, initialise max_threads based on the amount of memory available and configure RLIMIT_NPROC for init_task to be max_threads/2.
+  20. Create various slab caches needed for VFS, VM, buffer cache, etc.
+  21. If System V IPC support is compiled in, initialise the IPC subsystem. Note that for System V shm, this includes mounting an internal (in-kernel) instance of shmfs filesystem.
+  22. If quota support is compiled into the kernel, create and initialise a special slab cache for it.
+  23. Perform arch-specific "check for bugs" and, whenever possible, activate workaround for processor/bus/etc bugs. Comparing various architectures reveals that "ia64 has no bugs" and "ia32 has quite a few bugs", good example is "f00f bug" which is only checked if kernel is compiled for less than 686 and worked around accordingly.
+  24. Set a flag to indicate that a schedule should be invoked at "next opportunity" and create a kernel thread init() which execs execute_command if supplied via "init=" boot parameter, or tries to exec /sbin/init, /etc/init, /bin/init, /bin/sh in this order; if all these fail, panic with "suggestion" to use "init=" parameter.
+  25. Go into the idle loop, this is an idle thread with pid=0. 
+
+Important thing to note here that the init() kernel thread calls do_basic_setup() which in turn calls do_initcalls() which goes through the list of functions registered by means of __initcall or module_init() macros and invokes them. These functions either do not depend on each other or their dependencies have been manually fixed by the link order in the Makefiles. This means that, depending on the position of directories in the trees and the structure of the Makefiles, the order in which initialisation functions are invoked can change. Sometimes, this is important because you can imagine two subsystems A and B with B depending on some initialisation done by A. If A is compiled statically and B is a module then B's entry point is guaranteed to be invoked after A prepared all the necessary environment. If A is a module, then B is also necessarily a module so there are no problems. But what if both A and B are statically linked into the kernel? The order in which they are invoked depends on the relative entry point offsets in the .initcall.init ELF section of the kernel image. Rogier Wolff proposed to introduce a hierarchical "priority" infrastructure whereby modules could let the linker know in what (relative) order they should be linked, but so far there are no patches available that implement this in a sufficiently elegant manner to be acceptable into the kernel. Therefore, make sure your link order is correct. If, in the example above, A and B work fine when compiled statically once, they will always work, provided they are listed sequentially in the same Makefile. If they don't work, change the order in which their object files are listed.
+
+Another thing worth noting is Linux's ability to execute an "alternative init program" by means of passing "init=" boot commandline. This is useful for recovering from accidentally overwritten /sbin/init or debugging the initialisation (rc) scripts and /etc/inittab by hand, executing them one at a time.
+
+1.7 SMP Bootup on x86
+
+On SMP, the BP goes through the normal sequence of bootsector, setup etc until it reaches the start_kernel(), and then on to smp_init() and especially src/i386/kernel/smpboot.c:smp_boot_cpus(). The smp_boot_cpus() goes in a loop for each apicid (until NR_CPUS) and calls do_boot_cpu() on it. What do_boot_cpu() does is create (i.e. fork_by_hand) an idle task for the target cpu and write in well-known locations defined by the Intel MP spec (0x467/0x469) the EIP of trampoline code found in trampoline.S. Then it generates STARTUP IPI to the target cpu which makes this AP execute the code in trampoline.S.
+
+The boot CPU creates a copy of trampoline code for each CPU in low memory. The AP code writes a magic number in its own code which is verified by the BP to make sure that AP is executing the trampoline code. The requirement that trampoline code must be in low memory is enforced by the Intel MP specification.
+
+The trampoline code simply sets %bx register to 1, enters protected mode and jumps to startup_32 which is the main entry to arch/i386/kernel/head.S.
+
+Now, the AP starts executing head.S and discovering that it is not a BP, it skips the code that clears BSS and then enters initialize_secondary() which just enters the idle task for this CPU - recall that init_tasks[cpu] was already initialised by BP executing do_boot_cpu(cpu).
+
+Note that init_task can be shared but each idle thread must have its own TSS. This is why init_tss[NR_CPUS] is an array.
+
+1.8 Freeing initialisation data and code
+
+When the operating system initialises itself, most of the code and data structures are never needed again. Most operating systems (BSD, FreeBSD etc.) cannot dispose of this unneeded information, thus wasting precious physical kernel memory. The excuse they use (see McKusick's 4.4BSD book) is that "the relevant code is spread around various subsystems and so it is not feasible to free it". Linux, of course, cannot use such excuses because under Linux "if something is possible in principle, then it is already implemented or somebody is working on it".
+
+So, as I said earlier, Linux kernel can only be compiled as an ELF binary, and now we find out the reason (or one of the reasons) for that. The reason related to throwing away initialisation code/data is that Linux provides two macros to be used:
+
+    * __init - for initialisation code
+    * __initdata - for data 
+
+These evaluate to gcc attribute specificators (also known as "gcc magic") as defined in include/linux/init.h:
+
+#ifndef MODULE
+#define __init        __attribute__ ((__section__ (".text.init")))
+#define __initdata    __attribute__ ((__section__ (".data.init")))
+#else
+#define __init
+#define __initdata
+#endif
+
+What this means is that if the code is compiled statically into the kernel (i.e. MODULE is not defined) then it is placed in the special ELF section .text.init, which is declared in the linker map in arch/i386/vmlinux.lds. Otherwise (i.e. if it is a module) the macros evaluate to nothing.
+
+What happens during boot is that the "init" kernel thread (function init/main.c:init()) calls the arch-specific function free_initmem() which frees all the pages between addresses __init_begin and __init_end.
+
+On a typical system (my workstation), this results in freeing about 260K of memory.
+
+The functions registered via module_init() are placed in .initcall.init which is also freed in the static case. The current trend in Linux, when designing a subsystem (not necessarily a module), is to provide init/exit entry points from the early stages of design so that in the future, the subsystem in question can be modularised if needed. Example of this is pipefs, see fs/pipe.c. Even if a given subsystem will never become a module, e.g. bdflush (see fs/buffer.c), it is still nice and tidy to use the module_init() macro against its initialisation function, provided it does not matter when exactly is the function called.
+
+There are two more macros which work in a similar manner, called __exit and __exitdata, but they are more directly connected to the module support and therefore will be explained in a later section.
+Read More
+	 
+  	Comment:
+  	

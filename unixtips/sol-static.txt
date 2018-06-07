@@ -1,0 +1,273 @@
+Static Linking Under Solaris
+============================
+Copyright (C) Hal Pomeranz and Deer Run Associates, 2001.  All rights reserved.
+Hal <hal@deer-run.com> says it's fine to share this document with friends, as
+long as you don't try to sell it, and as long as you preserve this Copyright.
+
+
+I. Introduction
+---------------
+
+Static linking is often required for security-related applications.  For
+example, you may want to compile a statically-linked version of the "ls"
+program to go into your anonymous FTP directory.  If you're doing computer
+forensics, you may want a toolkit of statically-linked executables that
+you can carry onto subverted systems (where you may not trust the shared
+libraries).
+
+Solaris has historically made it difficult to statically compile "interesting"
+binaries.  Oh, you can statically compile the "Hello World" program with
+no problems, but trying to compile complex software like "ls" and other tools
+leads to errors.  I've talked with folks at Sun as to why they did things
+this way and I can understand their reasons, I just don't agree with them.
+The purpose of this document, then, is to provide you with a simple hack to
+allow you to create working statically-linked binaries for your Solaris
+system.
+
+
+II. Building named-xfer
+-----------------------
+
+Let's take the case of trying to compile a statically linked version
+of named-xfer so that you can run BIND in a chroot()ed directory without
+having to include all those pesky shared libs.  named-xfer is a nice 
+complicated program and clearly demonstrates the common issues a
+developer faces when trying to link statically under Solaris.
+
+1) Let's figure out what the compile options for named-xfer are.
+The easiest way to do this is to simply build BIND normally according
+to the instructions.  Once that's done, do this from the top of your
+BIND build directory:
+
+	% rm bin/named-xfer/named-xfer
+	% make
+	[... bunch of lines deleted ...]
+	/home/hal/testing/bind-8.2.3/obj-solaris/bin/named-xfer
+	gcc -g -O2   -o named-xfer named-xfer.o \
+		../named/db_glue.o ../named/ns_glue.o ../named/tmp_version.o \
+		../../lib/libbind.a -ll -lnsl -lsocket
+	[... more lines deleted ...]
+	% 
+
+That gcc line above (which I've edited a bit for readability) is how 
+you link the named-xfer executable normally.
+
+2) Now we can try that same linking step with the "-static" flag to force
+static compilation:
+
+	% cd bin/named-xfer
+	% gcc -static -g -O2   -o named-xfer named-xfer.o \
+                ../named/db_glue.o ../named/ns_glue.o ../named/tmp_version.o \
+                ../../lib/libbind.a -ll -lnsl -lsocket
+	ld: fatal: symbol `sethostent' is multiply defined:
+        	(file ../../lib/libbind.a(gethostent.o) and 
+		file /usr/lib/libnsl.a(gethostent_r.o));
+	ld: fatal: symbol `endhostent' is multiply defined:
+        	(file ../../lib/libbind.a(gethostent.o) and 
+		file /usr/lib/libnsl.a(gethostent_r.o));
+	ld: fatal: symbol `gethostbyname' is multiply defined:
+        	(file ../../lib/libbind.a(gethostent.o) and 
+		file /usr/lib/libnsl.a(gethostent.o));
+	ld: fatal: symbol `gethostbyaddr' is multiply defined:
+        	(file ../../lib/libbind.a(gethostent.o) and 
+		file /usr/lib/libnsl.a(gethostent.o));
+	ld: fatal: symbol `gethostent' is multiply defined:
+        	(file ../../lib/libbind.a(gethostent.o) and 
+		file /usr/lib/libnsl.a(gethostent.o));
+	ld: fatal: File processing errors. No output written to named-xfer
+	% 
+
+Bummer!  Some symbols are multiply defined.  This is not normally a 
+problem for dynamically-linked executables, but can be an issue when
+trying to link statically.
+
+3) The work-around is to add the "-z muldefs" linker option which 
+causes multiply-defined symbols not to be a fatal error:
+
+	% gcc -static -z muldefs -g -O2   -o named-xfer named-xfer.o \
+                ../named/db_glue.o ../named/ns_glue.o ../named/tmp_version.o \
+                ../../lib/libbind.a -ll -lnsl -lsocket
+	Undefined                       first referenced
+	 symbol                             in file
+	dlclose                             /usr/lib/libnsl.a(netdir.o)
+	_dlopen                             /usr/lib/libc.a(nss_deffinder.o)
+	_dlclose                            /usr/lib/libc.a(nss_deffinder.o)
+	dlsym                               /usr/lib/libnsl.a(netdir.o)
+	dlopen                              /usr/lib/libnsl.a(netdir.o)
+	dlerror                             /usr/lib/libnsl.a(netdir.o)
+	_dlsym                              /usr/lib/libc.a(nss_deffinder.o)
+	ld: fatal: Symbol referencing errors. No output written to named-xfer
+	% 
+
+Hmmm, now we've got some unresolved symbols.  Seems that libnsl is
+looking for the various dl*() functions which are used to control
+dynamic loading (and there are a couple of unresolved symbols in 
+the nss_*() functions in libc as well).  Of course, Solaris only 
+ships these routines in a shared library (which makes a sort of
+twisted sense, since these routines deal with shared library control),
+which means normally static compilation would be out of the question.
+
+4) Of course, since we're attempting to build a statically linked
+binary, the varous dl*() routines should never be called in the
+first place.  This means we could write our own stub routines and
+link them into our binary.  Create a file called dlstubs.c with the
+following code:
+
+	#include <sys/types.h>
+	#include <dlfcn.h>
+
+	/* dl*() stub routines for static compilation.  Prepared from
+	   /usr/include/dlfcn.h by Hal Pomeranz <hal@deer-run.com> */
+
+	void *dlopen(const char *str, int x) {}
+	void *dlsym(void *ptr, const char *str) {}
+	int dlclose(void *ptr) {}
+	char *dlerror() {}
+	void *dlmopen(Lmid_t a, const char *str, int x) {}
+	int dladdr(void *ptr1, Dl_info *ptr2) {}
+	int dldump(const char *str1, const char *str2, int x) {}
+	int dlinfo(void *ptr1, int x, void *ptr2) {}
+
+	void *_dlopen(const char *str, int x) {}
+	void *_dlsym(void *ptr, const char *str) {}
+	int _dlclose(void *ptr) {}
+	char *_dlerror() {}
+	void *_dlmopen(Lmid_t a, const char *str, int x) {}
+	int _dladdr(void *ptr1, Dl_info *ptr2) {}
+	int _dldump(const char *str1, const char *str2, int x) {}
+	int _dlinfo(void *ptr1, int x, void *ptr2) {}
+
+The stub functions above were simply ripped directly from the prototypes
+given in /usr/include/dlfcn.h.
+
+5) Now we need to compile our stub routines into a *.o file, and then
+link this into our named-xfer binary:
+
+	% gcc -c -O2 -g dlstubs.c
+	% gcc -static -z muldefs -g -O2 -o named-xfer named-xfer.o dlstubs.o \
+                ../named/db_glue.o ../named/ns_glue.o ../named/tmp_version.o \
+                ../../lib/libbind.a -ll -lnsl -lsocket
+	% file named-xfer
+	named-xfer:     [... deleted ...], statically linked, not stripped
+	%
+
+Good golly, Miss Molly!  A statically-linked binary for Solaris!  You can
+run the named-xfer program to verify ("named-xfer -z <domain> -f <file>
+<dns server>"-- I checked and it works).
+
+
+III. Building lsof
+------------------
+
+A friend contacted me to note that certain applications also require libkvm 
+(notably lsof and anything else which needs to interrogate /dev/kmem).  Sun 
+does not ship a libkvm.a library, so compiling these tools statically is
+essentially impossible.  Theoretically, you could obtain the Solaris 8 
+source code and build your own libkvm.a for linking, but this would neither
+be backwards-compatible with earlier OS versions nor compatible with future
+Solaris 8 kernel updates.  This seems to be an undesirable state of affairs.
+
+However, it is possible to reduce the number of shared libraries your
+binary is dependent upon by manually linking against the lib*.a images
+that _are_ available on the system.  To demonstrate what I mean, let's 
+consider the issues surrounding a build of lsof:
+
+1) Download the lsof source code, Configure, and build normally:
+
+	% sh Configure solaris
+	[... lines deleted ...]
+	% make
+	[... lines deleted ...]
+	gcc -o lsof  -Dsolaris=80000  -DHASPR_GWINDOWS -DHASIPv6 -DHAS_VSOCK \
+	   -DLSOF_VSTR=\"5.8\"  -O ddev.o dfile.o dmnt.o dnode.o dnode1.o \
+	   dnode2.o dproc.o dsock.o  dstore.o  arg.o main.o misc.o node.o \
+	   print.o proc.o store.o usage.o \
+	   -L./lib -llsof -lkvm -lelf -lsocket -lnsl
+	% 
+
+2) You can check to see which libraries the lsof binary is dependent on by
+using the ldd command:
+
+	% ldd lsof
+	        libkvm.so.1 =>   /usr/lib/libkvm.so.1
+	        libelf.so.1 =>   /usr/lib/libelf.so.1
+	        libsocket.so.1 =>        /usr/lib/libsocket.so.1
+	        libnsl.so.1 =>   /usr/lib/libnsl.so.1
+	        libc.so.1 =>     /usr/lib/libc.so.1
+	        libdl.so.1 =>    /usr/lib/libdl.so.1
+	        libmp.so.2 =>    /usr/lib/libmp.so.2
+
+3) Generally, we can replace any of the -l<lib> options in the linking step
+with the full pathname of the corresponding /usr/lib/lib<lib>.a file:
+
+	% gcc -o lsof  -Dsolaris=80000  -DHASPR_GWINDOWS -DHASIPv6 -DHAS_VSOCK \
+	   -DLSOF_VSTR=\"5.8\"  -O ddev.o dfile.o dmnt.o dnode.o dnode1.o \
+	   dnode2.o dproc.o dsock.o  dstore.o  arg.o main.o misc.o node.o \
+	   print.o proc.o store.o usage.o \
+	   -L./lib -llsof -lkvm /usr/lib/libelf.a /usr/lib/libsocket.a \
+	   /usr/lib/libnsl.a
+	Undefined                       first referenced
+	 symbol                             in file
+	dlclose                             /usr/lib/libnsl.a(rpcsec_gss_if.o)
+		   (symbol belongs to implicit dependency /usr/lib/libdl.so.1)
+	dlsym                               /usr/lib/libnsl.a(rpcsec_gss_if.o)
+	           (symbol belongs to implicit dependency /usr/lib/libdl.so.1)
+	dlopen                              /usr/lib/libnsl.a(rpcsec_gss_if.o)
+	           (symbol belongs to implicit dependency /usr/lib/libdl.so.1)
+	dlerror                             /usr/lib/libnsl.a(netdir.o)  
+                   (symbol belongs to implicit dependency /usr/lib/libdl.so.1)
+	ld: fatal: Symbol referencing errors. No output written to lsof
+	% 
+
+Hmmm, more unresolved symbol errors against libdl.
+
+4) Since the binary is going to be dynamically linked, we can't resolve these
+symbols by linking in our dlstubs.o file as we did for named-xfer.  However,
+we can resolve these symbols by explicitly linking against -ldl on the
+command line:
+
+	% gcc -o lsof  -Dsolaris=80000  -DHASPR_GWINDOWS -DHASIPv6 -DHAS_VSOCK \
+	   -DLSOF_VSTR=\"5.8\"  -O ddev.o dfile.o dmnt.o dnode.o dnode1.o \
+	   dnode2.o dproc.o dsock.o  dstore.o  arg.o main.o misc.o node.o \
+	   print.o proc.o store.o usage.o \
+	   -L./lib -llsof -lkvm /usr/lib/libelf.a /usr/lib/libsocket.a \
+	   /usr/lib/libnsl.a -ldl
+	%
+
+5) Now let's see what ldd tells us:
+
+	% ldd lsof
+	        libkvm.so.1 =>   /usr/lib/libkvm.so.1
+	        libdl.so.1 =>    /usr/lib/libdl.so.1
+	        libc.so.1 =>     /usr/lib/libc.so.1
+	        libelf.so.1 =>   /usr/lib/libelf.so.1
+	%
+
+At least we're down to only four libraries.  Notice that even though we
+told the linker to use /usr/lib/libelf.a, the binary still shows a
+dependency against libelf.so.1 (in fact a similar thing occurs if you try
+and link against the static libc.a file-- your binary still needs libc.so).
+Frankly, I'm unclear on why this happens, but you may as well just go
+ahead and link normally against -lelf rather than /usr/lib/libelf.a,
+because it saves about a 100K in the final binary.
+
+
+IV. Conclusion
+---------------
+
+The main trick for static compilation, then, is to link dlstubs.o into any 
+programs you compile.  Feel free to use the dlstubs.c code given above 
+wherever you like (after all, I didn't really write it anyway).  In some 
+cases, "-z muldefs" may also be required in order to suppress errors due to 
+multiple symbol definitions, though this is rare (in the case of named-xfer,
+we're linking with BIND's libbind.a which contains replacement versions of
+the various gethostby*() routines).
+
+Even if static compilation is not entirely possible, you can still reduce
+the number of dynamic objects your program is dependent on by manually
+linking against lib*.a files from /usr/lib.
+
+Enjoy!
+Hal Pomeranz
+<hal@deer-run.com>
+

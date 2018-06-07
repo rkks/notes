@@ -1,0 +1,144 @@
+    Intel 486 32-bit Address Modes, and Gnu Assembler Syntax
+
+Here mem =  memory operand = m32 in S&S, p. 72. (32-bit mode case)
+Note that the [ ] means access memory at the enclosed address, like
+the * operator for pointer-deferencing in C.
+
+Address Mode            Intel syntax        Gnu syntax
+------------            -------------           ----------------
+Register ("reg")    mov eax, ebx        movl %ebx, %eax
+
+Immediate ("idata") mov bl, 3ah     movb $0x3a, %bl
+
+    Memory Addressing Modes: "mem" in instruction manual
+Direct          mov [1234h], eax    movl %eax, 0x1234
+mem = [disp32]      mov x, eax      movl %eax, x
+
+Register Indirect   mov [ebx], eax      movl %ebx, (%ebx)
+mem = [r32]
+
+Register Indirect   mov [ebx+4], al     movb %al, 4(%ebx)
+with Displacement   or mov 4[ebx], al
+mem = [r32 + disp32]    or mov [ebx]+4, al
+
+Scaled Index*       mov arr[4*edx], eax movl %eax, arr(,%edx,4)
+mem = [n*r32p + disp32] or mov [4*edx+arr], eax
+
+The memory addressing modes above are all important special cases of
+the general formula at the bottom of page 72.
+
+    mem = m32 = [r32 + n*r32p + disp32]
+    where
+    -- r32 is any one of eax, ebx, ecx, edx, esi, edi, ebp, esp
+    -- r32p is any r32 reg except esp, and is the "index reg"*
+    -- n = 1, 2, 4, or 8, or is omitted, the "scale"*
+    -- disp32 = signed 32-bit constant, the "displacement"
+    -- the effective address is r32 + n*r32p + disp32, not m32
+       (correction to misstatement in text, bottom of p. 72)
+
+*Thus two registers can be used at once in memory addressing, called
+"base plus index" addressing.  The scaled register (the one multiplied
+by n) is called the index register and the other the base register.
+The general expression for mem in Gnu as is:
+
+    mem = disp32(r32, r32p, n)   Gnu syntax, general "mem" case
+
+where n defaults to 1 if the third arg is omitted, and no scaling
+is done if the second arg is omitted.  Thus the Gnu ( ) notation
+also means pointer-dereferencing, with the pointer value
+r32 + n*r32p + disp32, or "disp32 off from r32 + n*r32p".
+
+Some examples using two registers:*
+    mov array[ebx+esi], eax     movl %eax, array(%ebx,%esi)
+    mov [ebx + 4*esi], eax      movl %eax, (%ebx, %esi, 4)
+    mov [ebx+4*esi + vect], eax movl %eax, vect(%ebx, %esi, 4)
+
+To confuse matters, the Intel syntax allows several variants:
+    disp[r32 + n*r32p], [r32 + n*r32p]+disp, disp[r32][n*r32p],
+    and even disp1[r32+n*r32p+disp2] (the disp's just add up)
+
+*not usually covered in CS241
+
+Examples by instruction (examples from instruction manual)
+
+ADD
+
+addb 0x4211a, %al   # add contents of byte in mem at addr 4211a, to al
+addw $34, %ax       # immed 34, decimal
+addl 8(%ebp), %esi
+
+AND
+
+andb $0x0f, %al         # use mask for bits 0-3: clears bits 4-7 in %al
+andl %eax, %ebx         # use mask in %eax to clear some bits in %ebx
+andb $0x7f, 6(%ebx)     # use mask for bits 0-6: clears bit 7 in the byte
+                        # at memory location 6 bytes above the address in %ebx
+
+CALL
+
+call sort               # simple call
+lea fntable, %ebx
+movl $3, %eax
+call (%ebx, %eax, 4)    # advanced use, not covered in CS241
+
+CMP
+
+cmpb x, %al     # 8-bit compare, mem byte at x vs al
+cmpw (%ebp,%eax,2), %cx # 16-bit compare, array[i] vs cx, with array addr
+              in ebp, i in eax
+cmpl $7, %esi       # 32-bit compare, contents of esi vs the constant 7
+
+IN
+
+inw $0x72, %ax      # 2 bytes in from ports 0x72, 0x73, to ax
+crt_port = 0x1f4        # (made-up port#)
+movw $crt_port, %dx     # put port# in dx
+inb %dx, %al        # 1 byte in from port 0x1f4, to al
+
+INC
+
+incl %esi
+
+INT
+
+int $42         # make a system-dependent OS call
+
+Jcc
+
+Note multiple mneumonics for the same action: je is the same as jz,
+both test flag ZF.
+
+Flags: These instuctions *test* the flags in EFLAGS, but they don't
+*change* any of them.
+
+decb %al
+jz reached_zero
+
+LEA
+
+lea vector(,%ebx,4), %esi  # load address of dword array element (addr of
+                array is val of symbol "vector", index in ebx)
+lea (%eax,%ebx), %edi      # add contents of eax and ecx, store in edi
+
+MOV
+
+movb (%eax), %al           # copy byte pointed to by contents of %eax, to %al
+movl $0x182, %esi      # copy 32-bit constant 0x182 into %esi
+movw %dx, %bx              # copy 16 bits from dx to bx
+movb $0x7f, %ah            # put 8-bit constant 0x7f in %ah
+
+OUT
+
+movw $0xe78, %dx    # put port in %dx
+outb %al, %dx       # output byte to port 0xe78, from al
+
+PUSH
+
+pushl $7        # push 7 (as a dword) onto stack
+pushl array(,%esi,4)    # push dword array element (index in esi)
+
+RET
+
+ret $4          # but we have the *caller* adjust the stack,
+              to fit with C, so we just use "ret"
+

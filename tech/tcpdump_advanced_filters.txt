@@ -4,8 +4,11 @@ tcpdump advanced filters
 Sebastien Wains <sebastien -the at sign- wains -dot- be>
 http://www.wains.be
 
-$Id: tcpdump_advanced_filters.txt 33 2008-05-07 17:40:11Z sw $
-
+###################################################################
+This page is not updated anymore and contains mistakes and typos.
+Please check the updated link:
+https://blog.wains.be/2007/2007-10-01-tcpdump-advanced-filters.md
+###################################################################
 
 Notes :
 
@@ -182,20 +185,30 @@ This rule should do the job :
 Somehow, the proper way is to mask the first half/field of the first byte, because as mentionned earlier, 
 this filter would match any IPv6 traffic.
 
-2. The proper way : masking the first half of the byte
+2. The proper/right way : "masking" the first half of the byte
 
 0100 0101 : 1st byte originally
-0000 1111 : mask (0x0f in hex or 15 in decimal). 0 will mask the values while 1 will keep the values intact.
+0000 1111 : mask (0xf in hex or 15 in decimal). 0 will mask the values while 1 will keep the values intact.
 =========
 0000 0101 : final result
 
+You should see the mask as a power switch. 1 means on/enabled, 0 means off/disabled.
+
 The correct filter :
 
+In binary
 # tcpdump -i eth1 'ip[0] & 15 > 5'
 
 or 
 
-# tcpdump -i eth1 'ip[0] & 0x0f > 5'
+In hexadecimal
+# tcpdump -i eth1 'ip[0] & 0xf > 5'
+
+I use hex masks.
+
+Recap.. That's rather simple, if you want to :
+- keep the last 4 bits intact, use 0xf (binary 00001111)
+- keep the first 4 bits intact, use 0xf0 (binary 11110000)
 
 
 DF bit (don't fragment) set ?
@@ -352,6 +365,12 @@ Every bits of the mask match !
 - Matching RST flag
 # tcpdump -i eth1 'tcp[13] & 4 = 4'
 
+Actually, there's an easier way to filter flags :
+# tcpdump -i eth1 'tcp[tcpflags] == tcp-ack'
+
+- Matching all packages with TCP-SYN or TCP-FIN set : 
+# tcpdump 'tcp[tcpflags] & (tcp-syn|tcp-fin) != 0
+
 
 By looking at the TCP state machine diagram (http://www.wains.be/pub/networking/tcp_state_machine.jpg)
 we can find the different flag combinations we may want to analyze.
@@ -456,13 +475,45 @@ The HTTP request will begin by :
 GET / HTTP/1.1\r\n (16 bytes counting the carriage return but not the backslashes !)
 
 If no IP options are set.. the GET command will use the byte 20, 21 and 22
+Usually, options will take 12 bytes (12nd byte indicates the header length, which should report 32 bytes). 
+So we should match bytes 32, 33 and 34 (1st byte = byte 0).
 
 Tcpdump is only able to match data size of either 1, 2 or 4 bytes, we will take the following ASCII 
 character following the GET command (a space)
 
 "GET " in hex : 47455420
  
-# tcpdump -i eth1 'tcp[20:4] = 0x47455420'
+# tcpdump -i eth1 'tcp[32:4] = 0x47455420'
+
+
+Matching HTTP data (exemple taken from tcpdump man page) : 
+
+# tcpdump -i eth1 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
+
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ip[2:2] = |          Total Length         |
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+	+-+-+-+-+-+-+-+-+
+ip[0] =	|Version|  IHL  |
+	+-+-+-+-+-+-+-+-+
+
+	     +-+-+-+-+-+-+-+-+
+ip[0]&0xf =  |# # # #|  IHL  | <-- that's right, we masked the version bits with 0xf or 00001111 in binary
+	     +-+-+-+-+-+-+-+-+
+
+          +-+-+-+-+
+	  |  Data |
+tcp[12] = | Offset|
+	  |       |
+	  +-+-+-+-+
+
+So what we are doing here is "(IP total length - IP header length - TCP header length) != 0"
+
+We are matching any packet that contains data.
+
+
+We are taking the IHL (total IP lenght
 
 
 Matching other interesting TCP things :
@@ -480,6 +531,7 @@ The reply from the server would be something like "SSH-1.99.."
 
 # tcpdump -i eth1 '(tcp[(tcp[12]>>2):4] = 0x5353482D) and (tcp[((tcp[12]>>2)+4):2] = 0x312E)'
 
+Explanation of >>2 can be found below in the reference section.
 
 
 UDP header
@@ -530,5 +582,44 @@ we see the ICMP echo reply have the ID spread across the 5th and 6th byte. For s
 # tcpdump -i eth0 '(icmp[0] = 0) and (icmp[4:2] = 0x1f4)'
 
 
+References
+----------
 
-The end ? Please send more useful recipes !
+tcpdump man page : http://www.tcpdump.org/tcpdump_man.html
+Conversions : http://easycalculation.com/hex-converter.php
+Filtering HTTP requests : http://www.wireshark.org/tools/string-cf.html
+Filtering data regardless of TCP options : http://www.wireshark.org/lists/wireshark-users/201003/msg00024.html
+
+Just in case the post disappears, here's a copy of the last URL :
+
+From: Sake Blok <sake@xxxxxxxxxx>
+Date: Wed, 3 Mar 2010 22:42:29 +0100
+Or if your capturing device is capable of interpreting tcpdump style filters (or more accurately, BPF style filters), you could use:
+
+tcp[(((tcp[12:1] & 0xf0) >> 2) + 8):2] = 0x2030
+
+Which in English would be: 
+- take the upper 4 bits of the 12th octet in the tcp header ( tcp[12:1] & 0xf0 )
+- multiply it by four ( (tcp[12:1] & 0xf0)>>2 ) which should give the tcp header length
+- add 8 ( ((tcp[12:1] & 0xf0) >> 2) + 8 ) gives the offset into the tcp header of the space before the first octet of the response code
+- now take two octets from the tcp stream, starting at that offset ( tcp[(((tcp[12:1] & 0xf0) >> 2) + 8):2]  )
+- and verify that they are " 0" ( = 0x2030 )
+
+Of course this can give you false positives, so you might want to add a test for "HTTP" and the start of the tcp payload with:
+
+tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x48545450
+
+resulting in the filter:
+
+tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x48545450 and tcp[(((tcp[12:1] & 0xf0) >> 2) + 8):2] = 0x2030
+
+A bit cryptic, but it works, even when TCP options are present (which would mess up a fixed offset into the tcp data).
+
+Cheers,
+Sake
+
+
+The end ? 
+---------
+
+Please send more useful recipes !
